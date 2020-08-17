@@ -1,0 +1,6 @@
+namespace llis {
+
+class Job {
+};
+
+}
