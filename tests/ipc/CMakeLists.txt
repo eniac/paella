@@ -1,0 +1,1 @@
+add_subdirectory(shared_memory_channel)
