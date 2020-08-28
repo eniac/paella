@@ -13,10 +13,10 @@ class Client {
   public:
     Client(std::string server_name);
 
-    JobRef register_job(std::string path, void* input, void* output);
+    JobRef register_job(std::string path);
 
   private:
-    //ipc::SharedMemoryChannel server_channel;
+    //ipc::SharedMemoryChannel c2s_channel_;
 };
 
 }
