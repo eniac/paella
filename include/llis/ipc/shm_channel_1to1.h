@@ -6,10 +6,10 @@
 namespace llis {
 namespace ipc {
 
-class SharedMemoryChannel {
+class ShmChannel1to1 {
   public:
-    SharedMemoryChannel(std::string name, size_t size = 0);
-    ~SharedMemoryChannel();
+    ShmChannel1to1(std::string name, size_t size = 0);
+    ~ShmChannel1to1();
  
     void read(void* buf, size_t size);
     void write(void* buf, size_t size);

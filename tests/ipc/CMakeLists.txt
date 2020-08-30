@@ -1,1 +1,1 @@
-add_subdirectory(shared_memory_channel)
+add_subdirectory(shm_channel_1to1)

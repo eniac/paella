@@ -2,7 +2,7 @@
 
 #include "job_ref.h"
 
-#include <llis/ipc/shared_memory_channel.h>
+#include <llis/ipc/shm_channel_1to1.h>
 
 #include <cstdint>
 #include <string>
@@ -16,7 +16,7 @@ class Client {
     JobRef register_job(std::string path);
 
   private:
-    //ipc::SharedMemoryChannel c2s_channel_;
+    //ipc::ShmChannel1to1 c2s_channel_;
 };
 
 }

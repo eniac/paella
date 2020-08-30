@@ -1,7 +1,7 @@
 #define CHANNEL_SIZE 64
 #define NUM_ITERS 1000000
 
-#include <llis/ipc/shared_memory_channel.h>
+#include <llis/ipc/shm_channel_1to1.h>
 
 #include <iostream>
 #include <chrono>
@@ -9,8 +9,8 @@
 int main() {
     int val = 0;
 
-    llis::ipc::SharedMemoryChannel read_channel("test_read", 64);
-    llis::ipc::SharedMemoryChannel write_channel("test_write", 64);
+    llis::ipc::ShmChannel1to1 read_channel("test_read", 64);
+    llis::ipc::ShmChannel1to1 write_channel("test_write", 64);
 
     // Warm up
     read_channel.write(&val, sizeof(val));

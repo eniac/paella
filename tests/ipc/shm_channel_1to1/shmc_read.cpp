@@ -1,7 +1,7 @@
-#include <llis/ipc/shared_memory_channel.h>
+#include <llis/ipc/shm_channel_1to1.h>
 
 int main() {
-    llis::ipc::SharedMemoryChannel channel("test", 64);
+    llis::ipc::ShmChannel1to1 channel("test", 64);
     for (int i = 0; i < 10000; ++i) {
         int val;
         channel.read(&val, sizeof(val));

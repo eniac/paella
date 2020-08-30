@@ -1,5 +1,5 @@
 #include <atomic>
-#include <llis/ipc/shared_memory_channel.h>
+#include <llis/ipc/shm_channel_1to1.h>
 
 #include <cstring>
 #include <cassert>
@@ -12,11 +12,11 @@
 namespace llis {
 namespace ipc {
 
-size_t SharedMemoryChannel::next_aligned_pos(size_t next_pos, size_t align) {
+size_t ShmChannel1to1::next_aligned_pos(size_t next_pos, size_t align) {
     return (next_pos + align - 1) & ~(align - 1);
 }
 
-SharedMemoryChannel::SharedMemoryChannel(std::string name, size_t size) {
+ShmChannel1to1::ShmChannel1to1(std::string name, size_t size) {
     is_create_ = (size > 0);
 
     name_with_prefix_ = "llis:" + name;
@@ -62,7 +62,7 @@ SharedMemoryChannel::SharedMemoryChannel(std::string name, size_t size) {
     write_pos_ = reinterpret_cast<std::atomic<size_t>*>(shm_ + write_pos_pos);
 }
 
-SharedMemoryChannel::~SharedMemoryChannel() {
+ShmChannel1to1::~ShmChannel1to1() {
     munmap(shm_, total_size_);
     close(fd_);
     if (is_create_) {
@@ -70,7 +70,7 @@ SharedMemoryChannel::~SharedMemoryChannel() {
     }
 }
 
-void SharedMemoryChannel::read(void* buf, size_t size) {
+void ShmChannel1to1::read(void* buf, size_t size) {
     size_t size_to_read = size;
     size_t size_read = 0;
     while (size_to_read > 0) {
@@ -98,7 +98,7 @@ void SharedMemoryChannel::read(void* buf, size_t size) {
     }
 }
 
-void SharedMemoryChannel::write(void* buf, size_t size) {
+void ShmChannel1to1::write(void* buf, size_t size) {
     size_t size_to_write = size;
     size_t size_written = 0;
 

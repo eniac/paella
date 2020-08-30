@@ -1,1 +1,1 @@
-add_library(ipc OBJECT shared_memory_channel.cpp)
+add_library(ipc OBJECT shm_channel_1to1.cpp)
