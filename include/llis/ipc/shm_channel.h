@@ -8,11 +8,29 @@ namespace ipc {
 
 class ShmChannel {
   public:
+    ShmChannel() : fd_(0) {}
     ShmChannel(std::string name, size_t size = 0);
     ~ShmChannel();
+
+    void connect(std::string name, size_t size = 0);
  
     void read(void* buf, size_t size);
-    void write(void* buf, size_t size);
+    void write(const void* buf, size_t size);
+
+    template <typename T>
+    void read(T* buf) {
+        read(buf, sizeof(T));
+    }
+
+    template <typename T>
+    void write(const T* buf) {
+        write(buf, sizeof(T));
+    }
+
+    template <typename T>
+    void write(T buf) {
+        write(&buf, sizeof(T));
+    }
 
     void acquire_writer_lock();
     void release_writer_lock();

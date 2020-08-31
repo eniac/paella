@@ -1,1 +1,1 @@
-add_subdirectory(shm_channel_1to1)
+add_subdirectory(shm_channel)

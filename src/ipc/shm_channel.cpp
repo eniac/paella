@@ -17,6 +17,18 @@ size_t ShmChannel::next_aligned_pos(size_t next_pos, size_t align) {
 }
 
 ShmChannel::ShmChannel(std::string name, size_t size) {
+    connect(name, size);
+}
+
+ShmChannel::~ShmChannel() {
+    munmap(shm_, total_size_);
+    close(fd_);
+    if (is_create_) {
+        shm_unlink(name_with_prefix_.c_str());
+    }
+}
+
+void ShmChannel::connect(std::string name, size_t size) {
     is_create_ = (size > 0);
 
     name_with_prefix_ = "llis:" + name;
@@ -69,14 +81,6 @@ ShmChannel::ShmChannel(std::string name, size_t size) {
     }
 }
 
-ShmChannel::~ShmChannel() {
-    munmap(shm_, total_size_);
-    close(fd_);
-    if (is_create_) {
-        shm_unlink(name_with_prefix_.c_str());
-    }
-}
-
 void ShmChannel::read(void* buf, size_t size) {
     size_t size_to_read = size;
     size_t size_read = 0;
@@ -105,7 +109,7 @@ void ShmChannel::read(void* buf, size_t size) {
     }
 }
 
-void ShmChannel::write(void* buf, size_t size) {
+void ShmChannel::write(const void* buf, size_t size) {
     size_t size_to_write = size;
     size_t size_written = 0;
 
@@ -126,7 +130,7 @@ void ShmChannel::write(void* buf, size_t size) {
 
         size_t size_writing = std::min(size_to_write, size_can_write);
         
-        memcpy(ring_buf_ + write_pos, reinterpret_cast<char*>(buf) + size_written, size_writing);
+        memcpy(ring_buf_ + write_pos, reinterpret_cast<const char*>(buf) + size_written, size_writing);
 
         size_to_write -= size_writing;
         size_written += size_writing;
