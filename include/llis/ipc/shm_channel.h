@@ -6,13 +6,16 @@
 namespace llis {
 namespace ipc {
 
-class ShmChannel1to1 {
+class ShmChannel {
   public:
-    ShmChannel1to1(std::string name, size_t size = 0);
-    ~ShmChannel1to1();
+    ShmChannel(std::string name, size_t size = 0);
+    ~ShmChannel();
  
     void read(void* buf, size_t size);
     void write(void* buf, size_t size);
+
+    void acquire_writer_lock();
+    void release_writer_lock();
 
   private:
     static size_t next_aligned_pos(size_t next_pos, size_t align);
@@ -27,6 +30,7 @@ class ShmChannel1to1 {
 
     std::atomic<size_t>* read_pos_;
     std::atomic<size_t>* write_pos_;
+    std::atomic_flag* writer_lock_;
 };
 
 }

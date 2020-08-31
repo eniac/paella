@@ -1,5 +1,5 @@
 #include <atomic>
-#include <llis/ipc/shm_channel_1to1.h>
+#include <llis/ipc/shm_channel.h>
 
 #include <cstring>
 #include <cassert>
@@ -12,11 +12,11 @@
 namespace llis {
 namespace ipc {
 
-size_t ShmChannel1to1::next_aligned_pos(size_t next_pos, size_t align) {
+size_t ShmChannel::next_aligned_pos(size_t next_pos, size_t align) {
     return (next_pos + align - 1) & ~(align - 1);
 }
 
-ShmChannel1to1::ShmChannel1to1(std::string name, size_t size) {
+ShmChannel::ShmChannel(std::string name, size_t size) {
     is_create_ = (size > 0);
 
     name_with_prefix_ = "llis:" + name;
@@ -43,6 +43,9 @@ ShmChannel1to1::ShmChannel1to1(std::string name, size_t size) {
     size_t write_pos_pos = next_aligned_pos(total_size_, alignof(std::atomic<size_t>));
     total_size_ = write_pos_pos + sizeof(std::atomic<size_t>);
 
+    size_t writer_lock_pos = next_aligned_pos(total_size_, alignof(std::atomic_flag));
+    total_size_ = writer_lock_pos + sizeof(std::atomic_flag);
+
     size_t ring_buf_offset = total_size_;
 
     total_size_ += size_;
@@ -54,15 +57,19 @@ ShmChannel1to1::ShmChannel1to1(std::string name, size_t size) {
     shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
     ring_buf_ = shm_ + ring_buf_offset;
 
-    if (is_create_) {
-        *reinterpret_cast<size_t*>(shm_) = size;
-    }
-
     read_pos_ = reinterpret_cast<std::atomic<size_t>*>(shm_ + read_pos_pos);
     write_pos_ = reinterpret_cast<std::atomic<size_t>*>(shm_ + write_pos_pos);
+    writer_lock_ = reinterpret_cast<std::atomic_flag*>(shm_ + writer_lock_pos);
+
+    if (is_create_) {
+        *reinterpret_cast<size_t*>(shm_) = size;
+        read_pos_->store(0);
+        write_pos_->store(0);
+        writer_lock_->clear();
+    }
 }
 
-ShmChannel1to1::~ShmChannel1to1() {
+ShmChannel::~ShmChannel() {
     munmap(shm_, total_size_);
     close(fd_);
     if (is_create_) {
@@ -70,7 +77,7 @@ ShmChannel1to1::~ShmChannel1to1() {
     }
 }
 
-void ShmChannel1to1::read(void* buf, size_t size) {
+void ShmChannel::read(void* buf, size_t size) {
     size_t size_to_read = size;
     size_t size_read = 0;
     while (size_to_read > 0) {
@@ -98,7 +105,7 @@ void ShmChannel1to1::read(void* buf, size_t size) {
     }
 }
 
-void ShmChannel1to1::write(void* buf, size_t size) {
+void ShmChannel::write(void* buf, size_t size) {
     size_t size_to_write = size;
     size_t size_written = 0;
 
@@ -131,6 +138,14 @@ void ShmChannel1to1::write(void* buf, size_t size) {
         }
         write_pos_->store(write_pos, std::memory_order_release);
     }
+}
+
+void ShmChannel::acquire_writer_lock() {
+    while (!writer_lock_->test_and_set(std::memory_order_acquire));
+}
+
+void ShmChannel::release_writer_lock() {
+    writer_lock_->clear(std::memory_order_release);
 }
 
 }
