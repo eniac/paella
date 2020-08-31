@@ -21,11 +21,7 @@ ShmChannel::ShmChannel(std::string name, size_t size) {
 }
 
 ShmChannel::~ShmChannel() {
-    munmap(shm_, total_size_);
-    close(fd_);
-    if (is_create_) {
-        shm_unlink(name_with_prefix_.c_str());
-    }
+    disconnect();
 }
 
 void ShmChannel::connect(std::string name, size_t size) {
@@ -79,6 +75,19 @@ void ShmChannel::connect(std::string name, size_t size) {
         write_pos_->store(0);
         writer_lock_->clear();
     }
+}
+
+void ShmChannel::disconnect() {
+    munmap(shm_, total_size_);
+    close(fd_);
+    fd_ = 0;
+    if (is_create_) {
+        shm_unlink(name_with_prefix_.c_str());
+    }
+}
+
+bool ShmChannel::is_connected() {
+    return fd_ != 0;
 }
 
 void ShmChannel::read(void* buf, size_t size) {

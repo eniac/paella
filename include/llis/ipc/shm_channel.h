@@ -13,6 +13,8 @@ class ShmChannel {
     ~ShmChannel();
 
     void connect(std::string name, size_t size = 0);
+    void disconnect();
+    bool is_connected();
  
     void read(void* buf, size_t size);
     void write(const void* buf, size_t size);
