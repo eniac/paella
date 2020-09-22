@@ -12,6 +12,11 @@ class ShmChannel {
     ShmChannel(std::string name, size_t size = 0);
     ~ShmChannel();
 
+    ShmChannel(const ShmChannel&) = delete;
+    ShmChannel(ShmChannel&&) = default;
+    ShmChannel& operator=(const ShmChannel&) = delete;
+    ShmChannel& operator=(ShmChannel&&) = default;
+
     void connect(std::string name, size_t size = 0);
     void disconnect();
     bool is_connected();
