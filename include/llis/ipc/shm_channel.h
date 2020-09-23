@@ -29,6 +29,13 @@ class ShmChannel {
         read(buf, sizeof(T));
     }
 
+    void read(std::string* str) {
+        size_t len;
+        read(&len);
+        str->resize(len);
+        read(&str[0], len);
+    }
+
     template <typename T>
     void write(const T* buf) {
         write(buf, sizeof(T));
@@ -37,6 +44,11 @@ class ShmChannel {
     template <typename T>
     void write(T buf) {
         write(&buf, sizeof(T));
+    }
+
+    void write(const std::string& str) {
+        write(str.size());
+        write(str.c_str(), str.size());
     }
 
     void acquire_writer_lock();

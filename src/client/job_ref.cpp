@@ -32,8 +32,8 @@ void JobRef::register_job() {
 
     c2s_channel_->write(MsgType::REGISTER_JOB);
     c2s_channel_->write(client_id_);
-    c2s_channel_->write(model_path_.c_str(), model_path_.size());
-    c2s_channel_->write(shm_name_.c_str(), shm_name_.size());
+    c2s_channel_->write(model_path_);
+    c2s_channel_->write(shm_name_);
 
     c2s_channel_->release_writer_lock();
 
