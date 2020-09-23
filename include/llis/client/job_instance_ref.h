@@ -4,6 +4,7 @@
 #include <llis/client/io_shm_entry.h>
 
 namespace llis {
+namespace client {
 
 class JobRef;
 
@@ -25,5 +26,6 @@ class JobInstanceRef {
     ipc::ShmChannel* c2s_channel_;
 };
 
+}
 }
 

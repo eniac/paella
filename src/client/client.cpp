@@ -5,6 +5,7 @@
 #include <random>
 
 namespace llis {
+namespace client {
 
 Client::Client(std::string server_name) :
         server_name_(std::move(server_name)),
@@ -53,5 +54,6 @@ JobRef Client::register_job(std::string path) {
     return job_ref;
 }
 
+}
 }
 

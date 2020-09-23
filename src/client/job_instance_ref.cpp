@@ -3,6 +3,7 @@
 #include <llis/client/job_instance_ref.h>
 
 namespace llis {
+namespace client {
 
 JobInstanceRef::JobInstanceRef(JobRef* job_ref, IoShmEntry io_shm_entry) : job_ref_(job_ref), io_shm_entry_(io_shm_entry) {
     s2c_channel_ = job_ref_->get_s2c_channel();
@@ -32,5 +33,6 @@ void JobInstanceRef::wait() {
     // TODO
 }
 
+}
 }
 

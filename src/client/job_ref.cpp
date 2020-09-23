@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 namespace llis {
+namespace client {
 
 JobRef::JobRef(Job* job, Client* client, std::string model_path) : job_(job), client_(client), model_path_(model_path) {
     input_size_ = job->get_input_size();
@@ -79,3 +80,5 @@ void JobRef::grow_pool() {
 }
 
 }
+}
+

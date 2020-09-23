@@ -2,6 +2,9 @@
 
 #include <cstddef>
 
+namespace llis {
+namespace client {
+
 /*
  * ptr: the pointer to the memory in the local address space
  * id: identifier that identify the instance of mmap that the piece of memory belongs to
@@ -13,4 +16,7 @@ struct IoShmEntry {
     int id;
     size_t offset;
 };
+
+}
+}
 

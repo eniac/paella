@@ -9,6 +9,7 @@
 #include <string>
 
 namespace llis {
+namespace client {
 
 class Client;
 
@@ -75,5 +76,6 @@ class JobRef {
     JobRefId job_ref_id_;
 };
 
+}
 }
 

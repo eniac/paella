@@ -9,6 +9,7 @@
 #include <string>
 
 namespace llis {
+namespace client {
 
 class Client {
   public:
@@ -42,5 +43,6 @@ class Client {
     ipc::ShmChannel s2c_channel_;
 };
 
+}
 }
 
