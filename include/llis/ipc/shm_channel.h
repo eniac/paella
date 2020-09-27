@@ -8,8 +8,9 @@ namespace ipc {
 
 class ShmChannel {
   public:
-    ShmChannel() : fd_(-1) {}
+    ShmChannel() : shm_(nullptr) {}
     ShmChannel(std::string name, size_t size = 0);
+    ShmChannel(size_t size) : ShmChannel("", size) {}
     ~ShmChannel();
 
     ShmChannel(const ShmChannel&) = delete;

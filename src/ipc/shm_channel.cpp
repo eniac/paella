@@ -40,28 +40,34 @@ ShmChannel& ShmChannel::operator=(ShmChannel&& rhs) {
     write_pos_ = rhs.write_pos_;
     writer_lock_ = rhs.writer_lock_;
 
-    rhs.fd_ = -1;
+    rhs.shm_ = nullptr;
 
     return *this;
 }
 
 void ShmChannel::connect(std::string name, size_t size) {
+    shm_ = nullptr;
     is_create_ = (size > 0);
 
-    name_with_prefix_ = "llis:" + name;
-    if (is_create_) {
-        fd_ = shm_open(name_with_prefix_.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
-    } else {
-        fd_ = shm_open(name_with_prefix_.c_str(), O_RDWR, 0600);
-    }
-    // TODO: error handling
+    if (name != "") {
+        name_with_prefix_ = "llis:" + name;
+        if (is_create_) {
+            fd_ = shm_open(name_with_prefix_.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
+        } else {
+            fd_ = shm_open(name_with_prefix_.c_str(), O_RDWR, 0600);
+        }
+        // TODO: error handling
 
-    if (is_create_) {
-        size_ = size;
+        if (is_create_) {
+            size_ = size;
+        } else {
+            size_t* size_shm_ = reinterpret_cast<size_t*>(mmap(nullptr, sizeof(size_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+            size_ = *size_shm_;
+            munmap(size_shm_, sizeof(size_t));
+        }
     } else {
-        size_t* size_shm_ = reinterpret_cast<size_t*>(mmap(nullptr, sizeof(size_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
-        size_ = *size_shm_;
-        munmap(size_shm_, sizeof(size_t));
+        name_with_prefix_ = "";
+        size_ = size;
     }
 
     total_size_ = sizeof(size_t);
@@ -79,11 +85,15 @@ void ShmChannel::connect(std::string name, size_t size) {
 
     total_size_ += size_;
 
-    if (is_create_) {
-        ftruncate(fd_, total_size_);
+    if (name_with_prefix_ != "") {
+        if (is_create_) {
+            ftruncate(fd_, total_size_);
+        }
+        shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+    } else {
+        shm_ = new char[total_size_];
     }
 
-    shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
     ring_buf_ = shm_ + ring_buf_offset;
 
     read_pos_ = reinterpret_cast<std::atomic<size_t>*>(shm_ + read_pos_pos);
@@ -100,17 +110,21 @@ void ShmChannel::connect(std::string name, size_t size) {
 
 void ShmChannel::disconnect() {
     if (is_connected()) {
-        munmap(shm_, total_size_);
-        close(fd_);
-        fd_ = -1;
-        if (is_create_) {
-            shm_unlink(name_with_prefix_.c_str());
+        if (name_with_prefix_ != "") {
+            munmap(shm_, total_size_);
+            close(fd_);
+            if (is_create_) {
+                shm_unlink(name_with_prefix_.c_str());
+            }
+        } else {
+            delete[] shm_;
         }
+        shm_ = nullptr;
     }
 }
 
 bool ShmChannel::is_connected() {
-    return fd_ != -1;
+    return shm_ != nullptr;
 }
 
 void ShmChannel::read(void* buf, size_t size) {
