@@ -25,6 +25,8 @@ JobRef::JobRef(Job* job, Client* client, std::string model_path) : job_(job), cl
     shm_fd_ = shm_open(shm_name_.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
 
     register_job();
+
+    grow_pool(2); // Initialize the pool to support 2 concurrent requests
 }
 
 void JobRef::register_job() {
@@ -52,24 +54,26 @@ JobInstanceRef JobRef::create_instance() {
     return job_instance_ref;
 }
 
-void JobRef::grow_pool() {
+void JobRef::grow_pool(size_t num_new_entries) {
+    size_t num_new_bytes = num_new_entries * pinned_mem_size_;
+
     size_t old_pool_size = pool_size_;
     size_t old_pool_size_in_bytes = pool_size_in_bytes_;
 
-    pool_size_ *= 2;
-    pool_size_in_bytes_ *= 2;
+    pool_size_ += num_new_entries;
+    pool_size_in_bytes_ += num_new_bytes;
 
     ftruncate(shm_fd_, pool_size_in_bytes_);
 
-    void* shm_ptr = mmap(nullptr, old_pool_size_in_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, old_pool_size_in_bytes);
+    void* shm_ptr = mmap(nullptr, old_pool_size_in_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, num_new_bytes);
 
     pinned_mem_list_.push_back(shm_ptr);
 
     int old_num_free_entries = pinned_mem_free_list_.size();
-    pinned_mem_free_list_.resize(old_num_free_entries + old_pool_size);
+    pinned_mem_free_list_.resize(old_num_free_entries + num_new_entries);
     for (int i = old_num_free_entries; i < pinned_mem_free_list_.size(); ++i) {
         pinned_mem_free_list_[i].id = pinned_mem_list_.size();
-        pinned_mem_free_list_[i].offset = (i - old_pool_size) * pinned_mem_size_;
+        pinned_mem_free_list_[i].offset = (i - old_num_free_entries) * pinned_mem_size_;
         pinned_mem_free_list_[i].ptr = reinterpret_cast<void*>(reinterpret_cast<char*>(shm_ptr) + pinned_mem_free_list_[i].offset);
     }
 
@@ -77,6 +81,10 @@ void JobRef::grow_pool() {
     c2s_channel_->write(MsgType::GROW_POOL);
     c2s_channel_->write(job_ref_id_);
     c2s_channel_->release_writer_lock();
+}
+
+void JobRef::grow_pool() {
+    grow_pool(pool_size_); // double the size
 }
 
 }

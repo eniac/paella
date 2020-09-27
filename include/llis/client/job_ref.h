@@ -46,6 +46,7 @@ class JobRef {
   private:
     void register_job();
 
+    void grow_pool(size_t num_new_entries);
     void grow_pool();
 
     Job* job_;
