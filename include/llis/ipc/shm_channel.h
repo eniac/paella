@@ -8,14 +8,15 @@ namespace ipc {
 
 class ShmChannel {
   public:
-    ShmChannel() : fd_(0) {}
+    ShmChannel() : fd_(-1) {}
     ShmChannel(std::string name, size_t size = 0);
     ~ShmChannel();
 
     ShmChannel(const ShmChannel&) = delete;
-    ShmChannel(ShmChannel&&) = default;
     ShmChannel& operator=(const ShmChannel&) = delete;
-    ShmChannel& operator=(ShmChannel&&) = default;
+
+    ShmChannel(ShmChannel&&);
+    ShmChannel& operator=(ShmChannel&&);
 
     void connect(std::string name, size_t size = 0);
     void disconnect();
@@ -33,7 +34,7 @@ class ShmChannel {
         size_t len;
         read(&len);
         str->resize(len);
-        read(&str[0], len);
+        read(&((*str)[0]), len);
     }
 
     template <typename T>

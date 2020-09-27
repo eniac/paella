@@ -24,6 +24,27 @@ ShmChannel::~ShmChannel() {
     disconnect();
 }
 
+ShmChannel::ShmChannel(ShmChannel&& rhs) {
+    *this = std::move(rhs);
+}
+
+ShmChannel& ShmChannel::operator=(ShmChannel&& rhs) {
+    fd_ = rhs.fd_;
+    shm_ = rhs.shm_;
+    ring_buf_ = rhs.ring_buf_;
+    size_ = rhs.size_;
+    total_size_ = rhs.total_size_;
+    is_create_ = rhs.is_create_;
+    name_with_prefix_ = rhs.name_with_prefix_;
+    read_pos_ = rhs.read_pos_;
+    write_pos_ = rhs.write_pos_;
+    writer_lock_ = rhs.writer_lock_;
+
+    rhs.fd_ = -1;
+
+    return *this;
+}
+
 void ShmChannel::connect(std::string name, size_t size) {
     is_create_ = (size > 0);
 
@@ -78,16 +99,18 @@ void ShmChannel::connect(std::string name, size_t size) {
 }
 
 void ShmChannel::disconnect() {
-    munmap(shm_, total_size_);
-    close(fd_);
-    fd_ = 0;
-    if (is_create_) {
-        shm_unlink(name_with_prefix_.c_str());
+    if (is_connected()) {
+        munmap(shm_, total_size_);
+        close(fd_);
+        fd_ = -1;
+        if (is_create_) {
+            shm_unlink(name_with_prefix_.c_str());
+        }
     }
 }
 
 bool ShmChannel::is_connected() {
-    return fd_ != 0;
+    return fd_ != -1;
 }
 
 void ShmChannel::read(void* buf, size_t size) {
