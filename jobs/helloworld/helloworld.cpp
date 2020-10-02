@@ -15,6 +15,8 @@ class HelloWorldJob : public llis::Job {
     size_t get_param_size() override {
         return 4;
     }
+
+    void full_init() override {}
 };
 
 extern "C" {

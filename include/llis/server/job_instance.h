@@ -1,9 +1,9 @@
 #pragma once
 
-#include <llis/server/registered_job.h>
-
 namespace llis {
 namespace server {
+
+class RegisteredJob;
 
 class JobInstance {
   public:

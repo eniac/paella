@@ -13,7 +13,7 @@ const size_t s2c_channel_size = 1024;
 
 class Server {
   public:
-    Server(std::string server_name);
+    Server(std::string server_name, ipc::ShmChannel* ser2sched_channel);
 
     void serve();
 
@@ -22,8 +22,11 @@ class Server {
     void handle_register_job();
     void handle_launch_job();
     void handle_grow_pool();
+    void handle_release_job_instance();
 
     std::string server_name_;
+    ipc::ShmChannel* ser2sched_channel_;
+
     ipc::ShmChannel c2s_channel_;
 
     std::vector<ClientConnection> client_connections_;
@@ -31,6 +34,9 @@ class Server {
 
     std::vector<RegisteredJob> registered_jobs_;
     std::vector<JobRefId> unused_registered_jobs_;
+
+    std::vector<JobInstance> job_instances_;
+    std::vector<JobInstance*> unused_job_instances_;
 };
 
 }

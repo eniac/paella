@@ -11,7 +11,8 @@ enum class MsgType : uint32_t {
     REGISTER_CLIENT,
     REGISTER_JOB,
     LAUNCH_JOB,
-    GROW_POOL
+    GROW_POOL,
+    RELEASE_JOB_INSTANCE
 };
 
 }
