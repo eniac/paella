@@ -1,6 +1,6 @@
 #include <llis/job.h>
 
-#include <memory>
+#include <cstdio>
 
 class HelloWorldJob : public llis::Job {
   public:
@@ -16,7 +16,18 @@ class HelloWorldJob : public llis::Job {
         return 4;
     }
 
-    void full_init() override {}
+    void full_init(void* io_ptr) override {
+        io_ptr_ = io_ptr;
+    }
+
+    bool run_next() override {
+        printf("hello world\n");
+        return false;
+    }
+
+  private:
+    void* io_ptr_;
+
 };
 
 extern "C" {

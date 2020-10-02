@@ -1,6 +1,5 @@
 #include "llis/ipc/shm_channel.h"
 #include <llis/server/registered_job.h>
-#include <llis/server/job_instance.h>
 
 #include <dlfcn.h>
 #include <memory>
@@ -34,13 +33,17 @@ void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_
     s2c_channel_->write(registered_job_id_);
 }
 
-JobInstance RegisteredJob::create_instance() {
+std::unique_ptr<Job> RegisteredJob::create_instance() {
     int mapped_mem_id;
     c2s_channel_->read(&mapped_mem_id);
     size_t offset;
     c2s_channel_->read(&offset);
 
-    return JobInstance(this, reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
+    std::unique_ptr<Job> job(init_job());
+
+    job->full_init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
+
+    return job;
 }
 
 void RegisteredJob::grow_pool() {
@@ -49,9 +52,8 @@ void RegisteredJob::grow_pool() {
     mapped_mem_.push_back(shm_ptr);
 }
 
-std::unique_ptr<Job> RegisteredJob::init_job_full() {
+std::unique_ptr<Job> RegisteredJob::init_job() {
     std::unique_ptr<Job> job(init_job_());
-    job->full_init();
     return job;
 }
 

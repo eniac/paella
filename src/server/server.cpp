@@ -1,6 +1,7 @@
 #include "llis/ipc/shm_channel.h"
 #include <llis/server/server.h>
 #include <llis/ipc/defs.h>
+#include <memory>
 
 namespace llis {
 namespace server {
@@ -28,10 +29,6 @@ void Server::serve() {
 
             case MsgType::GROW_POOL:
                 handle_grow_pool();
-                break;
-
-            case MsgType::RELEASE_JOB_INSTANCE:
-                handle_release_job_instance();
                 break;
         }
     }
@@ -77,19 +74,9 @@ void Server::handle_launch_job() {
     JobRefId registered_job_id;
     c2s_channel_.read(&registered_job_id);
 
-    JobInstance tmp_instance = registered_jobs_[registered_job_id].create_instance();
+    std::unique_ptr<Job> job = registered_jobs_[registered_job_id].create_instance();
 
-    JobInstance* instance;
-    if (unused_job_instances_.empty()) {
-        job_instances_.push_back(std::move(tmp_instance));
-        instance = &job_instances_.back();
-    } else {
-        instance = unused_job_instances_.back();
-        unused_job_instances_.pop_back();
-        *instance = std::move(tmp_instance);
-    }
-
-    ser2sched_channel_->write(instance);
+    ser2sched_channel_->write(job.release());
 }
 
 void Server::handle_grow_pool() {
@@ -97,12 +84,6 @@ void Server::handle_grow_pool() {
     c2s_channel_.read(&registered_job_id);
 
     registered_jobs_[registered_job_id].grow_pool();
-}
-
-void Server::handle_release_job_instance() {
-    JobInstance* instance;
-    c2s_channel_.read(&instance);
-    unused_job_instances_.push_back(instance);
 }
 
 }

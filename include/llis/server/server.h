@@ -34,9 +34,6 @@ class Server {
 
     std::vector<RegisteredJob> registered_jobs_;
     std::vector<JobRefId> unused_registered_jobs_;
-
-    std::vector<JobInstance> job_instances_;
-    std::vector<JobInstance*> unused_job_instances_;
 };
 
 }
