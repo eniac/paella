@@ -76,7 +76,7 @@ void Server::handle_launch_job() {
 
     std::unique_ptr<Job> job = registered_jobs_[registered_job_id].create_instance();
 
-    ser2sched_channel_->write(job.release());
+    ser2sched_channel_->write(std::move(job));
 }
 
 void Server::handle_grow_pool() {

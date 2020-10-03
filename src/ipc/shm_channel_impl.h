@@ -226,6 +226,11 @@ CUDA_HOSTDEV void ShmChannelBase<for_gpu>::write(const void* buf, size_t size) {
 }
 
 template <bool for_gpu>
+CUDA_HOSTDEV bool ShmChannelBase<for_gpu>::can_read() {
+    return write_pos_->load() != read_pos_->load();
+}
+
+template <bool for_gpu>
 void ShmChannelBase<for_gpu>::acquire_writer_lock() {
     while (!writer_lock_->test_and_set(std::memory_order_acquire));
 }

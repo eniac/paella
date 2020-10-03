@@ -3,6 +3,7 @@
 #include <llis/ipc/atomic_wrapper.h>
 #include <llis/gpu_utils.h>
 
+#include <memory>
 #include <string>
 
 namespace llis {
@@ -46,8 +47,10 @@ class ShmChannelBase {
     }
 
     template <typename T>
-    CUDA_HOSTDEV void write(const T* buf) {
-        write(buf, sizeof(T));
+    CUDA_HOSTDEV void read(std::unique_ptr<T>* ptr) {
+        T* ptr_tmp;
+        read(&ptr_tmp);
+        ptr->reset(ptr_tmp);
     }
 
     template <typename T>
@@ -59,6 +62,14 @@ class ShmChannelBase {
         write(str.size());
         write(str.c_str(), str.size());
     }
+
+    template <typename T>
+    void write(std::unique_ptr<T>&& ptr) {
+        T* ptr_tmp = ptr.release();
+        write(reinterpret_cast<uintptr_t>(ptr_tmp));
+    }
+
+    CUDA_HOSTDEV bool can_read();
 
     void acquire_writer_lock();
     void release_writer_lock();
