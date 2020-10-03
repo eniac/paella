@@ -44,6 +44,9 @@ void Client::register_client() {
 
 JobRef Client::register_job(std::string path) {
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
+    if (handle == NULL) {
+        printf("Failed to read job definition: %s\n", dlerror());
+    }
     typedef Job* (*init_job_t)();
     init_job_t init_job = (init_job_t)(dlsym(handle, "init_job"));
     // TODO: error handling

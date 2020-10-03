@@ -1,7 +1,10 @@
 #include "llis/ipc/shm_channel.h"
+#include "llis/server/scheduler.h"
 #include <llis/server/server.h>
 #include <llis/ipc/defs.h>
+
 #include <memory>
+#include <thread>
 
 namespace llis {
 namespace server {
@@ -95,6 +98,11 @@ int main(int argc, char** argv) {
     llis::ipc::ShmChannel ser2sched_channel(1024);
 
     llis::server::Server server(server_name, &ser2sched_channel);
+    llis::server::Scheduer scheduler(&ser2sched_channel);
 
-    server.serve();
+    std::thread server_thread([&server]() {server.serve();});
+    std::thread scheduler_thread([&scheduler]() {scheduler.serve();});
+
+    server_thread.join();
+    scheduler_thread.join();
 }

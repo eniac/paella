@@ -2,6 +2,13 @@
 
 #include <cstdio>
 
+__global__ void helloworld(void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
+    printf("Hello world\n");
+
+    gpu2sched_channel.write(false);
+    gpu2sched_channel.write(job);
+}
+
 class HelloWorldJob : public llis::Job {
   public:
     size_t get_input_size() override {
@@ -20,14 +27,19 @@ class HelloWorldJob : public llis::Job {
         io_ptr_ = io_ptr;
     }
 
-    bool run_next() override {
-        printf("hello world\n");
-        return false;
+    void run_next() override {
+        ++num_;
+
+        helloworld<<<1, 1>>>(this, gpu2sched_channel_.fork());
+    }
+
+    bool has_next() override {
+        return num_ < 5;
     }
 
   private:
     void* io_ptr_;
-
+    int num_ = 0;
 };
 
 extern "C" {
