@@ -28,6 +28,13 @@ class ShmChannelBase {
 
     void connect(std::string name, size_t size = 0);
     void connect(ShmChannelBase<for_gpu>* channel);
+
+    ShmChannelBase<for_gpu> fork() {
+        ShmChannelBase<for_gpu> res;
+        res.connect(this);
+        return res;
+    }
+
     void disconnect();
     bool is_connected();
  
