@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llis/ipc/atomic_wrapper.h>
+#include <llis/ipc/atomic_lock.h>
 #include <llis/gpu_utils.h>
 
 #include <memory>
@@ -78,8 +79,8 @@ class ShmChannelBase {
 
     CUDA_HOSTDEV bool can_read();
 
-    void acquire_writer_lock();
-    void release_writer_lock();
+    CUDA_HOSTDEV void acquire_writer_lock();
+    CUDA_HOSTDEV void release_writer_lock();
 
   private:
     CUDA_HOSTDEV static size_t next_aligned_pos(size_t next_pos, size_t align);
@@ -94,7 +95,7 @@ class ShmChannelBase {
 
     AtomicWrapper<size_t, for_gpu>* read_pos_;
     AtomicWrapper<size_t, for_gpu>* write_pos_;
-    std::atomic_flag* writer_lock_;
+    AtomicLock<for_gpu>* writer_lock_;
 };
 
 using ShmChannel = ShmChannelBase<false>;

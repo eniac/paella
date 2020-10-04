@@ -103,21 +103,21 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
         shm_ = new char[total_size_];
     }
 
+    if constexpr (for_gpu) {
+        cudaHostRegister(shm_, total_size_, cudaHostRegisterDefault);
+    }
+
     ring_buf_ = shm_ + ring_buf_offset;
 
     read_pos_ = reinterpret_cast<AtomicWrapper<size_t, for_gpu>*>(shm_ + read_pos_pos);
     write_pos_ = reinterpret_cast<AtomicWrapper<size_t, for_gpu>*>(shm_ + write_pos_pos);
-    writer_lock_ = reinterpret_cast<std::atomic_flag*>(shm_ + writer_lock_pos);
+    writer_lock_ = reinterpret_cast<AtomicLock<for_gpu>*>(shm_ + writer_lock_pos);
 
     if (is_create_) {
         *reinterpret_cast<size_t*>(shm_) = size;
         read_pos_->store(0);
         write_pos_->store(0);
-        writer_lock_->clear();
-    }
-
-    if constexpr (for_gpu) {
-        cudaHostRegister(shm_, total_size_, cudaHostRegisterDefault);
+        writer_lock_->init();
     }
 }
 
@@ -231,13 +231,13 @@ CUDA_HOSTDEV bool ShmChannelBase<for_gpu>::can_read() {
 }
 
 template <bool for_gpu>
-void ShmChannelBase<for_gpu>::acquire_writer_lock() {
-    while (!writer_lock_->test_and_set(std::memory_order_acquire));
+CUDA_HOSTDEV void ShmChannelBase<for_gpu>::acquire_writer_lock() {
+    writer_lock_->acquire();
 }
 
 template <bool for_gpu>
-void ShmChannelBase<for_gpu>::release_writer_lock() {
-    writer_lock_->clear(std::memory_order_release);
+CUDA_HOSTDEV void ShmChannelBase<for_gpu>::release_writer_lock() {
+    writer_lock_->release();
 }
 
 }
