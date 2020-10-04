@@ -2,10 +2,15 @@
 
 #include <cstdio>
 
-__global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
-    int smid;
-    asm("mov.u32 %0, %smid;" : "=r"(smid));
-    printf("Hello world %d %d\n", i, smid);
+__global__ void run(int n, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
+    printf("run_forever %p\n", job);
+
+    if (n < 5) {
+        volatile int i;
+        for (i = 0; i < n * 1000; ++i);
+    } else {
+        while (true);
+    }
 
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
         gpu2sched_channel.acquire_writer_lock();
@@ -15,7 +20,7 @@ __global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_
     }
 }
 
-class HelloWorldJob : public llis::Job {
+class RunForeverJob : public llis::Job {
   public:
     size_t get_input_size() override {
         return 5;
@@ -37,7 +42,7 @@ class HelloWorldJob : public llis::Job {
         ++num_;
 
         num_running_blocks_ = num_;
-        helloworld<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, gpu2sched_channel_.fork());
+        run<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, gpu2sched_channel_.fork());
     }
 
     bool has_next() const override {
@@ -60,8 +65,9 @@ class HelloWorldJob : public llis::Job {
 extern "C" {
 
 llis::Job* init_job() {
-    return new HelloWorldJob();
+    return new RunForeverJob();
 }
 
 }
+
 

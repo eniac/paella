@@ -2,6 +2,8 @@
 
 #include <llis/ipc/shm_channel.h>
 
+#include <cuda_runtime.h>
+
 #include <cstddef>
 
 namespace llis {
@@ -20,12 +22,17 @@ class Job {
         return is_running_;
     }
 
-    void set_running() {
+    void set_running(cudaStream_t cuda_stream) {
         is_running_ = true;
+        cuda_stream_ = cuda_stream;
     }
 
     void set_channel(ipc::ShmChannelGpu&& gpu2sched_channel) {
         gpu2sched_channel_ = std::move(gpu2sched_channel);
+    }
+
+    cudaStream_t get_cuda_stream() const {
+        return cuda_stream_;
     }
 
   protected:
@@ -37,6 +44,7 @@ class Job {
 
   private:
     bool is_running_ = false;
+    cudaStream_t cuda_stream_;
 };
 
 }

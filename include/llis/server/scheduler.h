@@ -3,7 +3,10 @@
 #include <llis/ipc/shm_channel.h>
 #include <llis/job.h>
 
+#include <cuda_runtime.h>
+
 #include <deque>
+#include <vector>
 #include <memory>
 
 namespace llis {
@@ -24,6 +27,8 @@ class Scheduer {
 
     ipc::ShmChannel* ser2sched_channel_;
     ipc::ShmChannelGpu gpu2sched_channel_;
+    
+    std::vector<cudaStream_t> cuda_streams_;
 
     std::deque<std::unique_ptr<Job>> jobs_;
 };

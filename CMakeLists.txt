@@ -4,7 +4,10 @@ project(llis LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 
+find_package(CUDAToolkit)
+
 set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr)
+include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
 include_directories(include)
 

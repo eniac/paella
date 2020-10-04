@@ -7,7 +7,10 @@
 namespace llis {
 namespace server {
 
-Scheduer::Scheduer(ipc::ShmChannel* ser2sched_channel) : ser2sched_channel_(ser2sched_channel), gpu2sched_channel_(1024) {
+Scheduer::Scheduer(ipc::ShmChannel* ser2sched_channel) : ser2sched_channel_(ser2sched_channel), gpu2sched_channel_(1024), cuda_streams_(100) {
+    for (auto& stream : cuda_streams_) {
+        cudaStreamCreate(&stream);
+    }
 }
 
 void Scheduer::serve() {
@@ -42,6 +45,9 @@ void Scheduer::handle_block_finish() {
     gpu2sched_channel_.read(&job);
 
     job->mark_block_finish();
+    if (!job->is_running()) {
+        cuda_streams_.push_back(job->get_cuda_stream());
+    }
 
     // TODO: handle resouce release
 
@@ -67,7 +73,8 @@ void Scheduer::schedule_job() {
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
-            job->set_running();
+            job->set_running(cuda_streams_.back());
+            cuda_streams_.pop_back();
             job->run_next();
             break;
         }
