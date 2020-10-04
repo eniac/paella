@@ -62,8 +62,8 @@ class JobRef {
     size_t pinned_mem_size_;
     size_t param_size_;
 
-    size_t pool_size_; // number of concurrent instances that can be supported
-    size_t pool_size_in_bytes_; // number of bytes of the pool
+    size_t pool_size_ = 0; // number of concurrent instances that can be supported
+    size_t pool_size_in_bytes_ = 0; // number of bytes of the pool
 
     std::vector<void*> pinned_mem_list_;
     std::vector<IoShmEntry> pinned_mem_free_list_;
