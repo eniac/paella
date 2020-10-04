@@ -2,11 +2,17 @@
 
 #include <cstdio>
 
-__global__ void helloworld(void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
-    printf("Hello world\n");
+__global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
+    int smid;
+    asm("mov.u32 %0, %smid;" : "=r"(smid));
+    printf("Hello world %d %d\n", i, smid);
 
-    gpu2sched_channel.write(false);
-    gpu2sched_channel.write(job);
+    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+        gpu2sched_channel.acquire_writer_lock();
+        gpu2sched_channel.write(false);
+        gpu2sched_channel.write(job);
+        gpu2sched_channel.release_writer_lock();
+    }
 }
 
 class HelloWorldJob : public llis::Job {
@@ -30,16 +36,25 @@ class HelloWorldJob : public llis::Job {
     void run_next() override {
         ++num_;
 
-        helloworld<<<1, 1>>>(this, gpu2sched_channel_.fork());
+        num_running_blocks_ = num_;
+        helloworld<<<num_running_blocks_, 1>>>(num_, this, gpu2sched_channel_.fork());
     }
 
-    bool has_next() override {
+    bool has_next() const override {
         return num_ < 5;
+    }
+
+    void mark_block_finish() override {
+        num_running_blocks_--;
+        if (num_running_blocks_ == 0) {
+            unset_running();
+        }
     }
 
   private:
     void* io_ptr_;
     int num_ = 0;
+    int num_running_blocks_;
 };
 
 extern "C" {

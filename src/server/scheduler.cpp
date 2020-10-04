@@ -17,31 +17,31 @@ void Scheduer::serve() {
         }
 
         if (gpu2sched_channel_.can_read()) {
-            handle_stage_start_finish();
+            handle_block_start_finish();
         }
     }
 }
 
-void Scheduer::handle_stage_start_finish() {
+void Scheduer::handle_block_start_finish() {
     bool is_start;
     gpu2sched_channel_.read(&is_start);
     
     if (is_start) {
-        handle_stage_start();
+        handle_block_start();
     } else {
-        handle_stage_finish();
+        handle_block_finish();
     }
 }
 
-void Scheduer::handle_stage_start() {
+void Scheduer::handle_block_start() {
     // TODO
 }
 
-void Scheduer::handle_stage_finish() {
+void Scheduer::handle_block_finish() {
     Job* job;
     gpu2sched_channel_.read(&job);
 
-    job->unset_running();
+    job->mark_block_finish();
 
     // TODO: handle resouce release
 
@@ -60,7 +60,7 @@ void Scheduer::handle_new_job() {
 }
 
 void Scheduer::schedule_job() {
-    while (!jobs_.empty() && !jobs_.front()->has_next()) {
+    while (!jobs_.empty() && !jobs_.front()->has_next() && !jobs_.front()->is_running()) {
         jobs_.pop_front();
     }
 

@@ -16,9 +16,9 @@ class Scheduer {
 
   private:
     void handle_new_job();
-    void handle_stage_start_finish();
-    void handle_stage_start();
-    void handle_stage_finish();
+    void handle_block_start_finish();
+    void handle_block_start();
+    void handle_block_finish();
 
     void schedule_job();
 
