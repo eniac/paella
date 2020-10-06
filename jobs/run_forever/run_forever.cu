@@ -56,6 +56,18 @@ class RunForeverJob : public llis::Job {
         }
     }
 
+    unsigned get_num_blocks() override {
+        return num_ + 1;
+    }
+
+    unsigned get_num_threads_per_block() override {
+        return 1;
+    }
+
+    unsigned get_smem_size() override {
+        return 0;
+    }
+
   private:
     void* io_ptr_;
     int num_ = 0;

@@ -17,7 +17,10 @@ class Job {
     virtual void run_next() = 0;
     virtual bool has_next() const = 0;
     virtual void mark_block_finish() = 0;
-    
+    virtual unsigned get_num_blocks() = 0;
+    virtual unsigned get_num_threads_per_block() = 0;
+    virtual unsigned get_smem_size() = 0;
+
     bool is_running() const {
         return is_running_;
     }

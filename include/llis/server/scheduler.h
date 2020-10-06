@@ -18,12 +18,20 @@ class Scheduer {
     void serve();
 
   private:
+    struct SmAvail {
+        unsigned nregs = 0;
+        unsigned smem = 0;
+        unsigned nthrs = 0;
+        unsigned nblocks = 0;
+    };
+
     void handle_new_job();
     void handle_block_start_finish();
     void handle_block_start();
     void handle_block_finish();
 
     void schedule_job();
+    bool job_fits(Job* job);
 
     ipc::ShmChannel* ser2sched_channel_;
     ipc::ShmChannelGpu gpu2sched_channel_;
@@ -31,6 +39,8 @@ class Scheduer {
     std::vector<cudaStream_t> cuda_streams_;
 
     std::deque<std::unique_ptr<Job>> jobs_;
+
+    std::vector<SmAvail> sm_avails_;
 };
 
 }

@@ -3,9 +3,20 @@
 #include <cstdio>
 
 __global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
-    int smid;
-    asm("mov.u32 %0, %smid;" : "=r"(smid));
-    printf("Hello world %d %d\n", i, smid);
+    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+        unsigned smid;
+        asm("mov.u32 %0, %smid;" : "=r"(smid));
+
+        gpu2sched_channel.acquire_writer_lock();
+        gpu2sched_channel.write(true);
+        gpu2sched_channel.write(job);
+        gpu2sched_channel.write(smid);
+        gpu2sched_channel.release_writer_lock();
+    }
+
+    unsigned nsmid;
+    asm("mov.u32 %0, %nsmid;" : "=r"(nsmid));
+    printf("Hello world %d %d\n", i, nsmid);
 
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
         gpu2sched_channel.acquire_writer_lock();
@@ -49,6 +60,18 @@ class HelloWorldJob : public llis::Job {
         if (num_running_blocks_ == 0) {
             unset_running();
         }
+    }
+
+    unsigned get_num_blocks() override {
+        return num_ + 1;
+    }
+
+    unsigned get_num_threads_per_block() override {
+        return 1;
+    }
+
+    unsigned get_smem_size() override {
+        return 0;
     }
 
   private:
