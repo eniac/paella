@@ -53,9 +53,9 @@ void Scheduer::handle_block_start() {
     gpu2sched_channel_.read(&smid);
 
     // TODO: handle allocation granularity
-    sm_avails_[smid].nregs -= 32 * job->get_num_threads_per_block(); // TODO: use an actual number
+    sm_avails_[smid].nregs -= job->get_num_registers_per_thread() * job->get_num_threads_per_block(); // TODO: use an actual number
     sm_avails_[smid].nthrs -= job->get_num_threads_per_block();
-    sm_avails_[smid].smem -= job->get_smem_size();
+    sm_avails_[smid].smem -= job->get_smem_size_per_block();
 }
 
 void Scheduer::handle_block_finish() {
@@ -108,12 +108,12 @@ bool Scheduer::job_fits(Job* job) {
         unsigned tmp = sm_avail.nblocks;
 
         if (job->get_num_threads_per_block() > 0) {
-            tmp = std::min(tmp, sm_avail.nregs / (32 * job->get_num_threads_per_block()));
+            tmp = std::min(tmp, sm_avail.nregs / (job->get_num_registers_per_thread() * job->get_num_threads_per_block()));
             tmp = std::min(tmp, sm_avail.nthrs / job->get_num_threads_per_block());
         }
 
-        if (job->get_smem_size() > 0) {
-            tmp = std::min(tmp, sm_avail.smem / job->get_smem_size());
+        if (job->get_smem_size_per_block() > 0) {
+            tmp = std::min(tmp, sm_avail.smem / job->get_smem_size_per_block());
         }
 
         num_avail_blocks += tmp;

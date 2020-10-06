@@ -70,8 +70,12 @@ class HelloWorldJob : public llis::Job {
         return 1;
     }
 
-    unsigned get_smem_size() override {
+    unsigned get_smem_size_per_block() override {
         return 0;
+    }
+
+    unsigned get_num_registers_per_thread() override {
+        return 32;
     }
 
   private:

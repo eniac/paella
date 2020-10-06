@@ -3,6 +3,17 @@
 #include <cstdio>
 
 __global__ void run(int n, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
+    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+        unsigned smid;
+        asm("mov.u32 %0, %smid;" : "=r"(smid));
+
+        gpu2sched_channel.acquire_writer_lock();
+        gpu2sched_channel.write(true);
+        gpu2sched_channel.write(job);
+        gpu2sched_channel.write(smid);
+        gpu2sched_channel.release_writer_lock();
+    }
+
     printf("run_forever %p\n", job);
 
     if (n < 5) {
@@ -64,8 +75,12 @@ class RunForeverJob : public llis::Job {
         return 1;
     }
 
-    unsigned get_smem_size() override {
+    unsigned get_smem_size_per_block() override {
         return 0;
+    }
+
+    unsigned get_num_registers_per_thread() override {
+        return 32;
     }
 
   private:
