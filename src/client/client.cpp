@@ -1,5 +1,5 @@
 #include <llis/client/client.h>
-#include <llis/job.h>
+#include <llis/job/job.h>
 
 #include <dlfcn.h>
 #include <random>
@@ -47,11 +47,11 @@ JobRef Client::register_job(std::string path) {
     if (handle == NULL) {
         printf("Failed to read job definition: %s\n", dlerror());
     }
-    typedef Job* (*init_job_t)();
+    typedef job::Job* (*init_job_t)();
     init_job_t init_job = (init_job_t)(dlsym(handle, "init_job"));
     // TODO: error handling
 
-    Job* job = init_job();
+    job::Job* job = init_job();
     JobRef job_ref(job, this, path);
 
     return job_ref;

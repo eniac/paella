@@ -33,13 +33,13 @@ void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_
     s2c_channel_->write(registered_job_id_);
 }
 
-std::unique_ptr<Job> RegisteredJob::create_instance() {
+std::unique_ptr<job::Job> RegisteredJob::create_instance() {
     int mapped_mem_id;
     c2s_channel_->read(&mapped_mem_id);
     size_t offset;
     c2s_channel_->read(&offset);
 
-    std::unique_ptr<Job> job(init_job());
+    std::unique_ptr<job::Job> job(init_job());
 
     job->full_init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
 
@@ -52,8 +52,8 @@ void RegisteredJob::grow_pool() {
     mapped_mem_.push_back(shm_ptr);
 }
 
-std::unique_ptr<Job> RegisteredJob::init_job() {
-    std::unique_ptr<Job> job(init_job_());
+std::unique_ptr<job::Job> RegisteredJob::init_job() {
+    std::unique_ptr<job::Job> job(init_job_());
     return job;
 }
 

@@ -11,7 +11,7 @@
 namespace llis {
 namespace client {
 
-JobRef::JobRef(Job* job, Client* client, std::string model_path) : job_(job), client_(client), model_path_(model_path) {
+JobRef::JobRef(job::Job* job, Client* client, std::string model_path) : job_(job), client_(client), model_path_(model_path) {
     input_size_ = job->get_input_size();
     output_size_ = job->get_output_size();
     pinned_mem_size_ = input_size_ + output_size_;

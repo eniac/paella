@@ -7,6 +7,7 @@
 #include <cstddef>
 
 namespace llis {
+namespace job {
 
 class Job {
   public:
@@ -52,3 +53,5 @@ class Job {
 };
 
 }
+}
+

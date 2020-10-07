@@ -1,4 +1,5 @@
-#include <llis/job.h>
+#include <llis/job/job.h>
+#include <llis/job/instrument.h>
 
 #include <cstdio>
 
@@ -31,7 +32,7 @@ __global__ void run(int n, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel
     }
 }
 
-class RunForeverJob : public llis::Job {
+class RunForeverJob : public llis::job::Job {
   public:
     size_t get_input_size() override {
         return 5;
@@ -91,7 +92,7 @@ class RunForeverJob : public llis::Job {
 
 extern "C" {
 
-llis::Job* init_job() {
+llis::job::Job* init_job() {
     return new RunForeverJob();
 }
 

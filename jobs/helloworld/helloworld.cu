@@ -1,32 +1,19 @@
-#include <llis/job.h>
+#include <llis/job/job.h>
+#include <llis/job/instrument.h>
 
 #include <cstdio>
 
 __global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
-    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-        unsigned smid;
-        asm("mov.u32 %0, %smid;" : "=r"(smid));
-
-        gpu2sched_channel.acquire_writer_lock();
-        gpu2sched_channel.write(true);
-        gpu2sched_channel.write(job);
-        gpu2sched_channel.write(smid);
-        gpu2sched_channel.release_writer_lock();
-    }
+    llis::job::kernel_start(job, &gpu2sched_channel);
 
     unsigned nsmid;
     asm("mov.u32 %0, %nsmid;" : "=r"(nsmid));
     printf("Hello world %d %d\n", i, nsmid);
 
-    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-        gpu2sched_channel.acquire_writer_lock();
-        gpu2sched_channel.write(false);
-        gpu2sched_channel.write(job);
-        gpu2sched_channel.release_writer_lock();
-    }
+    llis::job::kernel_end(job, &gpu2sched_channel);
 }
 
-class HelloWorldJob : public llis::Job {
+class HelloWorldJob : public llis::job::Job {
   public:
     size_t get_input_size() override {
         return 5;
@@ -86,7 +73,7 @@ class HelloWorldJob : public llis::Job {
 
 extern "C" {
 
-llis::Job* init_job() {
+llis::job::Job* init_job() {
     return new HelloWorldJob();
 }
 

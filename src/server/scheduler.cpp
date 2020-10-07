@@ -1,6 +1,6 @@
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/scheduler.h>
-#include <llis/job.h>
+#include <llis/job/job.h>
 #include <memory>
 #include <string>
 
@@ -46,7 +46,7 @@ void Scheduer::handle_block_start_finish() {
 }
 
 void Scheduer::handle_block_start() {
-    Job* job;
+    job::Job* job;
     gpu2sched_channel_.read(&job);
 
     unsigned smid;
@@ -59,7 +59,7 @@ void Scheduer::handle_block_start() {
 }
 
 void Scheduer::handle_block_finish() {
-    Job* job;
+    job::Job* job;
     gpu2sched_channel_.read(&job);
 
     job->mark_block_finish();
@@ -73,7 +73,7 @@ void Scheduer::handle_block_finish() {
 }
 
 void Scheduer::handle_new_job() {
-    std::unique_ptr<Job> job;
+    std::unique_ptr<job::Job> job;
     ser2sched_channel_->read(&job);
 
     job->set_channel(gpu2sched_channel_.fork());
@@ -101,7 +101,7 @@ void Scheduer::schedule_job() {
     }
 }
 
-bool Scheduer::job_fits(Job* job) {
+bool Scheduer::job_fits(job::Job* job) {
     unsigned num_avail_blocks = 0;
 
     for (auto& sm_avail : sm_avails_) {

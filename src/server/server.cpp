@@ -77,7 +77,7 @@ void Server::handle_launch_job() {
     JobRefId registered_job_id;
     c2s_channel_.read(&registered_job_id);
 
-    std::unique_ptr<Job> job = registered_jobs_[registered_job_id].create_instance();
+    std::unique_ptr<job::Job> job = registered_jobs_[registered_job_id].create_instance();
 
     ser2sched_channel_->write(std::move(job));
 }

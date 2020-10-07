@@ -2,7 +2,7 @@
 
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/client_connection.h>
-#include <llis/job.h>
+#include <llis/job/job.h>
 
 #include <vector>
 #include <memory>
@@ -17,12 +17,12 @@ class RegisteredJob {
 
     void init(ipc::ShmChannel* c2s_channel, ClientConnection* client_connection);
 
-    std::unique_ptr<Job> create_instance();
+    std::unique_ptr<job::Job> create_instance();
     void grow_pool();
-    std::unique_ptr<Job> init_job();
+    std::unique_ptr<job::Job> init_job();
 
   private:
-    typedef Job* (*init_job_t)();
+    typedef job::Job* (*init_job_t)();
 
     JobRefId registered_job_id_;
     ipc::ShmChannel* c2s_channel_;
@@ -30,7 +30,7 @@ class RegisteredJob {
 
     ipc::ShmChannel* s2c_channel_;
     init_job_t init_job_;
-    Job* job_;
+    job::Job* job_;
     std::string shm_name_;
     int shm_fd_;
 

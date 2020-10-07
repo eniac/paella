@@ -1,7 +1,7 @@
 #pragma once
 
 #include <llis/ipc/shm_channel.h>
-#include <llis/job.h>
+#include <llis/job/job.h>
 
 #include <cuda_runtime.h>
 
@@ -31,14 +31,14 @@ class Scheduer {
     void handle_block_finish();
 
     void schedule_job();
-    bool job_fits(Job* job);
+    bool job_fits(job::Job* job);
 
     ipc::ShmChannel* ser2sched_channel_;
     ipc::ShmChannelGpu gpu2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;
 
-    std::deque<std::unique_ptr<Job>> jobs_;
+    std::deque<std::unique_ptr<job::Job>> jobs_;
 
     std::vector<SmAvail> sm_avails_;
 };
