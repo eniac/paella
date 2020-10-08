@@ -84,6 +84,7 @@ class ShmChannelBase {
 
   private:
     CUDA_HOSTDEV static size_t next_aligned_pos(size_t next_pos, size_t align);
+    CUDA_HOSTDEV static void* memcpy(void* dest, const void* src, size_t count);
 
     int fd_;
     char* shm_;
