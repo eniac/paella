@@ -19,6 +19,7 @@ Scheduer::Scheduer(ipc::ShmChannel* ser2sched_channel) : ser2sched_channel_(ser2
         sm_avail.nregs = 65536;
         sm_avail.nthrs = 2048;
         sm_avail.smem = 65536;
+        sm_avail.nblocks = 32;
     }
 }
 
