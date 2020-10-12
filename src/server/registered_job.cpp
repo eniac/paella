@@ -47,8 +47,12 @@ std::unique_ptr<job::Job> RegisteredJob::create_instance() {
 }
 
 void RegisteredJob::grow_pool() {
-    void* shm_ptr = mmap(nullptr, pool_size_in_bytes_, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, pool_size_in_bytes_);
-    pool_size_in_bytes_ *= 2;
+    size_t num_new_bytes;
+    c2s_channel_->read(&num_new_bytes);
+
+    void* shm_ptr = mmap(nullptr, num_new_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, pool_size_in_bytes_);
+    cudaHostRegister(shm_ptr, num_new_bytes, cudaHostRegisterDefault);
+    pool_size_in_bytes_ += num_new_bytes;
     mapped_mem_.push_back(shm_ptr);
 }
 

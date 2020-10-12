@@ -57,8 +57,6 @@ class JobRef {
     ipc::ShmChannel* c2s_channel_;
     ClientId client_id_;
 
-    size_t input_size_;
-    size_t output_size_;
     size_t pinned_mem_size_;
     size_t param_size_;
 

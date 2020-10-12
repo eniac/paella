@@ -15,6 +15,13 @@ __global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_
 
 class HelloWorldJob : public llis::job::Job {
   public:
+    HelloWorldJob() {
+        set_num_blocks(1);
+        set_num_threads_per_block(1);
+        set_smem_size_per_block(0);
+        set_num_registers_per_thread(32);
+    }
+
     size_t get_input_size() override {
         return 5;
     }
@@ -36,6 +43,8 @@ class HelloWorldJob : public llis::job::Job {
 
         num_running_blocks_ = num_;
         helloworld<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, gpu2sched_channel_.fork());
+
+        set_num_blocks(num_ + 1);
     }
 
     bool has_next() const override {
@@ -47,22 +56,6 @@ class HelloWorldJob : public llis::job::Job {
         if (num_running_blocks_ == 0) {
             unset_running();
         }
-    }
-
-    unsigned get_num_blocks() override {
-        return num_ + 1;
-    }
-
-    unsigned get_num_threads_per_block() override {
-        return 1;
-    }
-
-    unsigned get_smem_size_per_block() override {
-        return 0;
-    }
-
-    unsigned get_num_registers_per_thread() override {
-        return 32;
     }
 
   private:

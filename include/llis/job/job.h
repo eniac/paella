@@ -18,10 +18,46 @@ class Job {
     virtual void run_next() = 0;
     virtual bool has_next() const = 0;
     virtual void mark_block_finish() = 0;
-    virtual unsigned get_num_blocks() = 0;
-    virtual unsigned get_num_threads_per_block() = 0;
-    virtual unsigned get_smem_size_per_block() = 0;
-    virtual unsigned get_num_registers_per_thread() = 0;
+
+    size_t get_output_offset() {
+        return (get_input_size() + 8 - 1) & ~(8 - 1);
+    }
+
+    size_t get_pinned_mem_size() {
+        return get_output_offset() + ((get_output_size() + 8 - 1) & ~(8 - 1));
+    }
+
+    unsigned get_num_blocks() const {
+        return num_blocks_;
+    }
+
+    unsigned get_num_threads_per_block() const {
+        return num_threads_per_block_;
+    }
+
+    unsigned get_smem_size_per_block() const {
+        return smem_size_per_block_;
+    }
+
+    unsigned get_num_registers_per_thread() const {
+        return num_registers_per_thread_;
+    }
+
+    void set_num_blocks(unsigned num_blocks) {
+        num_blocks_ = num_blocks;
+    }
+
+    void set_num_threads_per_block(unsigned num_threads_per_block) {
+        num_threads_per_block_ = num_threads_per_block;
+    }
+
+    void set_smem_size_per_block(unsigned smem_size_per_block) {
+        smem_size_per_block_ = smem_size_per_block;
+    }
+
+    void set_num_registers_per_thread(unsigned num_registers_per_thread) {
+        num_registers_per_thread_ = num_registers_per_thread;
+    }
 
     bool is_running() const {
         return is_running_;
@@ -50,6 +86,11 @@ class Job {
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
+
+    unsigned num_blocks_;
+    unsigned num_threads_per_block_;
+    unsigned smem_size_per_block_;
+    unsigned num_registers_per_thread_;
 };
 
 }

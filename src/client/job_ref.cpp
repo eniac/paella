@@ -12,9 +12,7 @@ namespace llis {
 namespace client {
 
 JobRef::JobRef(job::Job* job, Client* client, std::string model_path) : job_(job), client_(client), model_path_(model_path) {
-    input_size_ = job->get_input_size();
-    output_size_ = job->get_output_size();
-    pinned_mem_size_ = input_size_ + output_size_;
+    pinned_mem_size_ = job->get_pinned_mem_size();
     param_size_ = job->get_param_size();
 
     s2c_channel_ = client_->get_s2c_channel();
@@ -65,14 +63,14 @@ void JobRef::grow_pool(size_t num_new_entries) {
 
     ftruncate(shm_fd_, pool_size_in_bytes_);
 
-    void* shm_ptr = mmap(nullptr, old_pool_size_in_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, num_new_bytes);
+    void* shm_ptr = mmap(nullptr, num_new_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, old_pool_size_in_bytes);
 
     pinned_mem_list_.push_back(shm_ptr);
 
     int old_num_free_entries = pinned_mem_free_list_.size();
     pinned_mem_free_list_.resize(old_num_free_entries + num_new_entries);
     for (int i = old_num_free_entries; i < pinned_mem_free_list_.size(); ++i) {
-        pinned_mem_free_list_[i].id = pinned_mem_list_.size();
+        pinned_mem_free_list_[i].id = pinned_mem_list_.size() - 1;
         pinned_mem_free_list_[i].offset = (i - old_num_free_entries) * pinned_mem_size_;
         pinned_mem_free_list_[i].ptr = reinterpret_cast<void*>(reinterpret_cast<char*>(shm_ptr) + pinned_mem_free_list_[i].offset);
     }
@@ -80,6 +78,7 @@ void JobRef::grow_pool(size_t num_new_entries) {
     c2s_channel_->acquire_writer_lock();
     c2s_channel_->write(MsgType::GROW_POOL);
     c2s_channel_->write(job_ref_id_);
+    c2s_channel_->write(num_new_bytes);
     c2s_channel_->release_writer_lock();
 }
 
