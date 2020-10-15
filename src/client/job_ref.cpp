@@ -1,3 +1,4 @@
+#include "llis/utils/align.h"
 #include <llis/client/job_ref.h>
 #include <llis/client/client.h>
 
@@ -52,10 +53,11 @@ JobInstanceRef JobRef::create_instance() {
     return job_instance_ref;
 }
 
-void JobRef::grow_pool(size_t num_new_entries) {
-    size_t num_new_bytes = num_new_entries * pinned_mem_size_;
+void JobRef::grow_pool(size_t least_num_new_entries) {
+    size_t least_num_new_bytes = least_num_new_entries * pinned_mem_size_;
+    size_t num_new_bytes = utils::next_aligned_pos(least_num_new_bytes, sysconf(_SC_PAGE_SIZE));
+    size_t num_new_entries = num_new_bytes / pinned_mem_size_;
 
-    size_t old_pool_size = pool_size_;
     size_t old_pool_size_in_bytes = pool_size_in_bytes_;
 
     pool_size_ += num_new_entries;
@@ -67,9 +69,9 @@ void JobRef::grow_pool(size_t num_new_entries) {
 
     pinned_mem_list_.push_back(shm_ptr);
 
-    int old_num_free_entries = pinned_mem_free_list_.size();
+    size_t old_num_free_entries = pinned_mem_free_list_.size();
     pinned_mem_free_list_.resize(old_num_free_entries + num_new_entries);
-    for (int i = old_num_free_entries; i < pinned_mem_free_list_.size(); ++i) {
+    for (size_t i = old_num_free_entries; i < pinned_mem_free_list_.size(); ++i) {
         pinned_mem_free_list_[i].id = pinned_mem_list_.size() - 1;
         pinned_mem_free_list_[i].offset = (i - old_num_free_entries) * pinned_mem_size_;
         pinned_mem_free_list_[i].ptr = reinterpret_cast<void*>(reinterpret_cast<char*>(shm_ptr) + pinned_mem_free_list_[i].offset);

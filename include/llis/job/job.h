@@ -1,5 +1,6 @@
 #pragma once
 
+#include "llis/utils/align.h"
 #include <llis/ipc/shm_channel.h>
 
 #include <cuda_runtime.h>
@@ -20,11 +21,11 @@ class Job {
     virtual void mark_block_finish() = 0;
 
     size_t get_output_offset() {
-        return (get_input_size() + 8 - 1) & ~(8 - 1);
+        return utils::next_aligned_pos(get_input_size(), 8);
     }
 
     size_t get_pinned_mem_size() {
-        return get_output_offset() + ((get_output_size() + 8 - 1) & ~(8 - 1));
+        return get_output_offset() + utils::next_aligned_pos(get_output_size(), 8);
     }
 
     unsigned get_num_blocks() const {

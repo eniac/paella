@@ -1,7 +1,8 @@
 #pragma once
 
 #include <llis/ipc/shm_channel.h>
-#include <llis/gpu_utils.h>
+#include <llis/utils/gpu.h>
+#include <llis/utils/align.h>
 
 #include <cstring>
 #include <cassert>
@@ -13,11 +14,6 @@
 
 namespace llis {
 namespace ipc {
-
-template <bool for_gpu>
-CUDA_HOSTDEV size_t ShmChannelBase<for_gpu>::next_aligned_pos(size_t next_pos, size_t align) {
-    return (next_pos + align - 1) & ~(align - 1);
-}
 
 template <>
 CUDA_HOSTDEV void* ShmChannelBase<false>::memcpy(void* dest, const void* src, size_t count) {
@@ -98,13 +94,13 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
 
     total_size_ = sizeof(size_t);
 
-    size_t read_pos_pos = next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
+    size_t read_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
     total_size_ = read_pos_pos + sizeof(std::atomic<size_t>);
 
-    size_t write_pos_pos = next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
+    size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
     total_size_ = write_pos_pos + sizeof(std::atomic<size_t>);
 
-    size_t writer_lock_pos = next_aligned_pos(total_size_, alignof(std::atomic_flag));
+    size_t writer_lock_pos = utils::next_aligned_pos(total_size_, alignof(std::atomic_flag));
     total_size_ = writer_lock_pos + sizeof(std::atomic_flag);
 
     size_t ring_buf_offset = total_size_;

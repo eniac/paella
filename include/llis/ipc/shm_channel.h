@@ -2,7 +2,7 @@
 
 #include <llis/ipc/atomic_wrapper.h>
 #include <llis/ipc/atomic_lock.h>
-#include <llis/gpu_utils.h>
+#include <llis/utils/gpu.h>
 
 #include <memory>
 #include <string>
@@ -83,7 +83,6 @@ class ShmChannelBase {
     CUDA_HOSTDEV void release_writer_lock();
 
   private:
-    CUDA_HOSTDEV static size_t next_aligned_pos(size_t next_pos, size_t align);
     CUDA_HOSTDEV static void* memcpy(void* dest, const void* src, size_t count);
 
     int fd_;

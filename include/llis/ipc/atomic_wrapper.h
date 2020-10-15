@@ -1,6 +1,6 @@
 #pragma once
 
-#include <llis/gpu_utils.h>
+#include <llis/utils/gpu.h>
 
 #include <atomic>
 
