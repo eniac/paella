@@ -83,7 +83,7 @@ class ShmChannelBase {
     CUDA_HOSTDEV void release_writer_lock();
 
   private:
-    CUDA_HOSTDEV static void* memcpy(void* dest, const void* src, size_t count);
+    CUDA_HOSTDEV static void* my_memcpy(void* dest, const void* src, size_t count);
 
     int fd_;
     char* shm_;

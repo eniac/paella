@@ -16,12 +16,12 @@ namespace llis {
 namespace ipc {
 
 template <>
-CUDA_HOSTDEV void* ShmChannelBase<false>::memcpy(void* dest, const void* src, size_t count) {
-    return ::memcpy(dest, src, count);
+CUDA_HOSTDEV void* ShmChannelBase<false>::my_memcpy(void* dest, const void* src, size_t count) {
+    return memcpy(dest, src, count);
 }
 
 template <>
-CUDA_HOSTDEV void* ShmChannelBase<true>::memcpy(void* dest_, const void* src_, size_t count) {
+CUDA_HOSTDEV void* ShmChannelBase<true>::my_memcpy(void* dest_, const void* src_, size_t count) {
     volatile char* dest = reinterpret_cast<volatile char*>(dest_);
     volatile const char* src = reinterpret_cast<volatile const char*>(src_);
 
@@ -95,13 +95,13 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
     total_size_ = sizeof(size_t);
 
     size_t read_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
-    total_size_ = read_pos_pos + sizeof(std::atomic<size_t>);
+    total_size_ = read_pos_pos + sizeof(AtomicWrapper<size_t, for_gpu>);
 
     size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
-    total_size_ = write_pos_pos + sizeof(std::atomic<size_t>);
+    total_size_ = write_pos_pos + sizeof(AtomicWrapper<size_t, for_gpu>);
 
-    size_t writer_lock_pos = utils::next_aligned_pos(total_size_, alignof(std::atomic_flag));
-    total_size_ = writer_lock_pos + sizeof(std::atomic_flag);
+    size_t writer_lock_pos = utils::next_aligned_pos(total_size_, alignof(AtomicLock<for_gpu>));
+    total_size_ = writer_lock_pos + sizeof(AtomicLock<for_gpu>);
 
     size_t ring_buf_offset = total_size_;
 
@@ -188,7 +188,7 @@ CUDA_HOSTDEV void ShmChannelBase<for_gpu>::read(void* buf, size_t size) {
         size_t size_can_read = write_pos - read_pos;
         size_t size_reading = std::min(size_to_read, size_can_read);
 
-        memcpy(reinterpret_cast<char*>(buf) + size_read, ring_buf_ + read_pos, size_reading);
+        my_memcpy(reinterpret_cast<char*>(buf) + size_read, ring_buf_ + read_pos, size_reading);
 
         size_to_read -= size_reading;
         size_read += size_reading;
@@ -224,7 +224,7 @@ CUDA_HOSTDEV void ShmChannelBase<for_gpu>::write(const void* buf, size_t size) {
 
         size_t size_writing = std::min(size_to_write, size_can_write);
         
-        memcpy(ring_buf_ + write_pos, reinterpret_cast<const char*>(buf) + size_written, size_writing);
+        my_memcpy(ring_buf_ + write_pos, reinterpret_cast<const char*>(buf) + size_written, size_writing);
 
         size_to_write -= size_writing;
         size_written += size_writing;
