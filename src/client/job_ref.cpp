@@ -41,16 +41,16 @@ void JobRef::register_job() {
     s2c_channel_->read(&job_ref_id_);
 }
 
-JobInstanceRef JobRef::create_instance() {
+JobInstanceRef* JobRef::create_instance() {
     if (pinned_mem_free_list_.empty()) {
         grow_pool();
     }
 
-    IoShmEntry& io_shm_entry = pinned_mem_free_list_.back();
+    const IoShmEntry& io_shm_entry = pinned_mem_free_list_.back();
     JobInstanceRef job_instance_ref(this, io_shm_entry);
     pinned_mem_free_list_.pop_back();
 
-    return job_instance_ref;
+    return client_->add_job_instance_ref(std::move(job_instance_ref));
 }
 
 void JobRef::grow_pool(size_t least_num_new_entries) {

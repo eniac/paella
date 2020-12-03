@@ -38,10 +38,12 @@ std::unique_ptr<job::Job> RegisteredJob::create_instance() {
     c2s_channel_->read(&mapped_mem_id);
     size_t offset;
     c2s_channel_->read(&offset);
+    JobInstanceRefId job_instance_ref_id;
+    c2s_channel_->read(&job_instance_ref_id);
 
     std::unique_ptr<job::Job> job(init_job());
 
-    job->set_client_id(client_connection_->get_client_id());
+    job->set_client_details(client_connection_->get_client_id(), job_instance_ref_id);
     job->full_init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
 
     return job;

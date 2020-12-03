@@ -9,12 +9,12 @@ int main(int argc, char** argv) {
     llis::client::Client client(server_name);
     llis::client::JobRef job_ref = client.register_job(job_path);
 
-    std::vector<llis::client::JobInstanceRef> job_instance_refs;
+    std::vector<llis::client::JobInstanceRef*> job_instance_refs;
     job_instance_refs.reserve(num);
 
     for (int i = 0; i < num; ++i) {
         job_instance_refs.push_back(job_ref.create_instance());
-        job_instance_refs.back().launch();
+        job_instance_refs.back()->launch();
     }
 }
 

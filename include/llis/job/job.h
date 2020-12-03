@@ -86,8 +86,9 @@ class Job {
         return has_started_;
     }
 
-    void set_client_id(ClientId client_id) {
+    void set_client_details(ClientId client_id, JobInstanceRefId job_instance_ref_id) {
         client_id_ = client_id;
+        job_instance_ref_id_ = job_instance_ref_id;
     }
 
     ClientId get_client_id() const {
@@ -112,6 +113,7 @@ class Job {
 
     bool has_started_;
     ClientId client_id_;
+    JobInstanceRefId job_instance_ref_id_;
 };
 
 }

@@ -81,6 +81,21 @@ JobRef Client::register_job(std::string path) {
     return job_ref;
 }
 
+JobInstanceRef* Client::add_job_instance_ref(JobInstanceRef job_instance_ref) {
+    if (unused_job_instance_refs_.empty()) {
+        JobInstanceRefId id = job_instance_refs_.size();
+        job_instance_ref.set_id(id);
+        job_instance_refs_.push_back(std::move(job_instance_ref));
+        return &job_instance_refs_.back();
+    } else {
+        JobInstanceRefId id = unused_job_instance_refs_.back();
+        unused_job_instance_refs_.pop_back();
+        job_instance_ref.set_id(id);
+        job_instance_refs_[id] = std::move(job_instance_ref);
+        return &job_instance_refs_[id];
+    }
+}
+
 }
 }
 

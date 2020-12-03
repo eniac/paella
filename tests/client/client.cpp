@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
 
     llis::client::Client client(server_name);
     llis::client::JobRef job_ref = client.register_job(job_path);
-    llis::client::JobInstanceRef job_instance_ref = job_ref.create_instance();
-    job_instance_ref.launch();
+    llis::client::JobInstanceRef* job_instance_ref = job_ref.create_instance();
+    job_instance_ref->launch();
 }
 

@@ -30,6 +30,8 @@ class Client {
         return &s2c_channel_;
     }
 
+    JobInstanceRef* add_job_instance_ref(JobInstanceRef job_instance_ref);
+
   private:
     void generate_client_id();
     void create_s2c_channel();
@@ -46,6 +48,9 @@ class Client {
     ipc::ShmChannel c2s_channel_;
     ipc::ShmChannel s2c_channel_;
     int s2c_socket_;
+
+    std::vector<JobInstanceRef> job_instance_refs_;
+    std::vector<JobInstanceRefId> unused_job_instance_refs_;
 };
 
 }
