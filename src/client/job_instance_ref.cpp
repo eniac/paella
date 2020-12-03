@@ -39,12 +39,12 @@ void JobInstanceRef::launch() {
     c2s_channel_->release_writer_lock();
 }
 
-void JobInstanceRef::wait() {
-    // TODO
-}
-
 void JobInstanceRef::set_id(JobInstanceRefId id) {
     id_ = id;
+}
+
+JobInstanceRefId JobInstanceRef::get_id() const {
+    return id_;
 }
 
 }

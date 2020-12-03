@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llis/ipc/shm_channel.h>
+#include <llis/ipc/unix_datagram_socket.h>
 #include <llis/server/client_connection.h>
 #include <llis/ipc/defs.h>
 #include <llis/server/registered_job.h>
@@ -21,7 +22,8 @@ class Server {
 
     void serve();
 
-    void notify_start(job::Job* job);
+    void notify_job_starts(job::Job* job);
+    void notify_job_ends(job::Job* job);
 
   private:
     void try_handle_c2s();
@@ -34,6 +36,7 @@ class Server {
 
     std::string server_name_;
     Scheduer* scheduler_;
+    ipc::UnixDatagramSocket s2c_socket_;
 
     ipc::ShmChannel c2s_channel_;
 

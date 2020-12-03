@@ -24,7 +24,7 @@ Client::Client(std::string server_name) :
 }
 
 Client::~Client() {
-    close(s2c_socket_);
+    // TODO
 }
 
 void Client::generate_client_id() {
@@ -42,16 +42,7 @@ void Client::reconnect_s2c_channel() {
 }
 
 void Client::connect_s2c_socket() {
-    s2c_socket_ = socket(AF_UNIX, SOCK_DGRAM, 0);
-
-    sockaddr_un addr;
-    bzero(&addr, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    // TODO: check length. It should not be >= 108
-    strcpy(addr.sun_path, ipc::s2c_socket_path(server_name_, client_id_).c_str());
-
-    // TODO: check if it succeeds
-    (void)connect(s2c_socket_, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+    s2c_socket_.bind(ipc::s2c_socket_name(server_name_, client_id_));
 }
 
 void Client::register_client() {
@@ -94,6 +85,22 @@ JobInstanceRef* Client::add_job_instance_ref(JobInstanceRef job_instance_ref) {
         job_instance_refs_[id] = std::move(job_instance_ref);
         return &job_instance_refs_[id];
     }
+}
+
+void Client::release_job_instance_ref(JobInstanceRef* job_instance_ref) {
+    unused_job_instance_refs_.push_back(job_instance_ref->get_id());
+}
+
+JobInstanceRef* Client::wait() {
+    // Wait for start notification
+    bool flag;
+    s2c_socket_.read(&flag, sizeof(flag));
+
+    // Wait for end notification
+    JobInstanceRefId id;
+    s2c_channel_.read(&id);
+
+    return &job_instance_refs_[id];
 }
 
 }

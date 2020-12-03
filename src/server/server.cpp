@@ -1,3 +1,4 @@
+#include <llis/ipc/unix_datagram_socket.h>
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/scheduler.h>
 #include <llis/server/server.h>
@@ -73,18 +74,7 @@ void Server::handle_register_client() {
     ipc::ShmChannel s2c_channel(ipc::s2c_channel_name(server_name_, client_id), s2c_channel_size);
     client_connection->use_s2c_channel(std::move(s2c_channel));
     
-    int s2c_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
-
-    sockaddr_un addr;
-    bzero(&addr, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    // TODO: check length. It should not be >= 108
-    strcpy(addr.sun_path, ipc::s2c_socket_path(server_name_, client_id).c_str());
-
-    // TODO: check if it succeeds
-    (void)bind(s2c_socket, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
-
-    client_connection->use_s2c_socket(s2c_socket);
+    client_connection->use_s2c_socket(s2c_socket_.connect(ipc::s2c_socket_name(server_name_, client_id)));
 
     s2c_channel_tmp.write(client_id);
 }
@@ -119,12 +109,15 @@ void Server::handle_grow_pool() {
     registered_jobs_[registered_job_id].grow_pool();
 }
 
-void Server::notify_start(job::Job* job) {
-    if (!job->has_started()) {
-        int s2c_socket = client_connections_[job->get_client_id()].get_s2c_socket();
-        bool msg = true;
-        write(s2c_socket, &msg, sizeof(msg));
-    }
+void Server::notify_job_starts(job::Job* job) {
+    ipc::UnixDatagramSocket* s2c_socket = client_connections_[job->get_client_id()].get_s2c_socket();
+    bool msg = true;
+    ssize_t size_written = s2c_socket->write(&msg, sizeof(msg));
+}
+
+void Server::notify_job_ends(job::Job* job) {
+    ipc::ShmChannel* s2c_channel = client_connections_[job->get_client_id()].get_s2c_channel();
+    s2c_channel->write(job->get_job_instance_ref_id());
 }
 
 }

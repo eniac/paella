@@ -3,6 +3,7 @@
 #include "job_ref.h"
 
 #include <llis/ipc/shm_channel.h>
+#include <llis/ipc/unix_datagram_socket.h>
 #include <llis/ipc/defs.h>
 
 #include <cstdint>
@@ -31,6 +32,9 @@ class Client {
     }
 
     JobInstanceRef* add_job_instance_ref(JobInstanceRef job_instance_ref);
+    void release_job_instance_ref(JobInstanceRef* job_instance_ref);
+
+    JobInstanceRef* wait();
 
   private:
     void generate_client_id();
@@ -47,7 +51,7 @@ class Client {
 
     ipc::ShmChannel c2s_channel_;
     ipc::ShmChannel s2c_channel_;
-    int s2c_socket_;
+    ipc::UnixDatagramSocket s2c_socket_;
 
     std::vector<JobInstanceRef> job_instance_refs_;
     std::vector<JobInstanceRefId> unused_job_instance_refs_;

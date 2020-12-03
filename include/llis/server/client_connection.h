@@ -1,6 +1,7 @@
 #pragma once
 
-#include "llis/ipc/shm_channel.h"
+#include <llis/ipc/shm_channel.h>
+#include <llis/ipc/unix_datagram_socket.h>
 #include <llis/ipc/defs.h>
 
 namespace llis {
@@ -14,16 +15,16 @@ class ClientConnection {
         s2c_channel_ = std::move(s2c_channel);
     }
 
-    void use_s2c_socket(int sock) {
-        s2c_socket_ = sock;
+    void use_s2c_socket(ipc::UnixDatagramSocket&& sock) {
+        s2c_socket_ = std::move(sock);
     }
 
     ipc::ShmChannel* get_s2c_channel() {
         return &s2c_channel_;
     }
 
-    int get_s2c_socket() {
-        return s2c_socket_;
+    ipc::UnixDatagramSocket* get_s2c_socket() {
+        return &s2c_socket_;
     }
 
     ClientId get_client_id() const {
@@ -34,7 +35,7 @@ class ClientConnection {
     ClientId client_id_;
     
     ipc::ShmChannel s2c_channel_;
-    int s2c_socket_;
+    ipc::UnixDatagramSocket s2c_socket_;
 };
 
 }

@@ -95,6 +95,10 @@ class Job {
         return client_id_;
     }
 
+    JobInstanceRefId get_job_instance_ref_id() const {
+        return job_instance_ref_id_;
+    }
+
   protected:
     void unset_running() {
         is_running_ = false;
@@ -111,7 +115,7 @@ class Job {
     unsigned smem_size_per_block_;
     unsigned num_registers_per_thread_;
 
-    bool has_started_;
+    bool has_started_ = false;
     ClientId client_id_;
     JobInstanceRefId job_instance_ref_id_;
 };

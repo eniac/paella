@@ -69,6 +69,9 @@ void Scheduer::handle_block_finish() {
 
     job->mark_block_finish();
     if (!job->is_running()) {
+        if (!job->has_next()) {
+            server_->notify_job_ends(job);
+        }
         cuda_streams_.push_back(job->get_cuda_stream());
     }
 
@@ -94,7 +97,10 @@ void Scheduer::schedule_job() {
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
             if (job_fits(job.get())) {
-                server_->notify_start(job.get());
+                if (!job->has_started()) {
+                    server_->notify_job_starts(job.get());
+                    job->set_started();
+                }
                 job->set_running(cuda_streams_.back());
                 cuda_streams_.pop_back();
                 job->run_next();

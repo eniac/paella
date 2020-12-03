@@ -15,12 +15,12 @@ class JobInstanceRef {
     ~JobInstanceRef();
 
     void launch();
-    void wait();
 
     void* get_input_ptr();
     void* get_output_ptr();
 
     void set_id(JobInstanceRefId id);
+    JobInstanceRefId get_id() const;
 
   private:
     JobRef* job_ref_;
