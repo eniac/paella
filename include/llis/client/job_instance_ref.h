@@ -11,6 +11,7 @@ class JobRef;
 class JobInstanceRef {
   public:
     JobInstanceRef(JobRef* job_ref, IoShmEntry io_shm_entry);
+    ~JobInstanceRef();
 
     void launch();
     void wait();
@@ -22,7 +23,6 @@ class JobInstanceRef {
     JobRef* job_ref_;
     IoShmEntry io_shm_entry_;
 
-    ipc::ShmChannel* s2c_channel_;
     ipc::ShmChannel* c2s_channel_;
 };
 

@@ -1,13 +1,22 @@
 #include <llis/job/job.h>
 #include <llis/client/job_ref.h>
 #include <llis/client/job_instance_ref.h>
+#include <llis/client/client.h>
+
+#include <unistd.h>
+
+#include <cmath>
 
 namespace llis {
 namespace client {
 
 JobInstanceRef::JobInstanceRef(JobRef* job_ref, IoShmEntry io_shm_entry) : job_ref_(job_ref), io_shm_entry_(io_shm_entry) {
-    s2c_channel_ = job_ref_->get_s2c_channel();
     c2s_channel_ = job_ref_->get_c2s_channel();
+}
+
+JobInstanceRef::~JobInstanceRef() {
+    // TODO: release the shm
+
 }
 
 void* JobInstanceRef::get_input_ptr() {

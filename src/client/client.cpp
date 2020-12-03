@@ -1,7 +1,13 @@
 #include <llis/client/client.h>
 #include <llis/job/job.h>
+#include <llis/ipc/name_format.h>
 
 #include <dlfcn.h>
+#include <string>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
 #include <random>
 
 namespace llis {
@@ -9,11 +15,16 @@ namespace client {
 
 Client::Client(std::string server_name) :
         server_name_(std::move(server_name)),
-        c2s_channel_("server:" + server_name_) {
+        c2s_channel_(ipc::c2s_channel_name(server_name_)) {
     generate_client_id();
     create_s2c_channel();
     register_client();
     reconnect_s2c_channel(); // reconnect after getting the permanent client id
+    connect_s2c_socket();
+}
+
+Client::~Client() {
+    close(s2c_socket_);
 }
 
 void Client::generate_client_id() {
@@ -22,12 +33,25 @@ void Client::generate_client_id() {
 }
 
 void Client::create_s2c_channel() {
-    s2c_channel_.connect("server:" + server_name_ + ":client:" + std::to_string(client_id_), 8);
+    s2c_channel_.connect(ipc::s2c_channel_name(server_name_, client_id_), 8);
 }
 
 void Client::reconnect_s2c_channel() {
     s2c_channel_.disconnect();
-    s2c_channel_.connect("server:" + server_name_ + ":client:" + std::to_string(client_id_));
+    s2c_channel_.connect(ipc::s2c_channel_name(server_name_, client_id_));
+}
+
+void Client::connect_s2c_socket() {
+    s2c_socket_ = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+    sockaddr_un addr;
+    bzero(&addr, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    // TODO: check length. It should not be >= 108
+    strcpy(addr.sun_path, ipc::s2c_socket_path(server_name_, client_id_).c_str());
+
+    // TODO: check if it succeeds
+    (void)connect(s2c_socket_, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
 }
 
 void Client::register_client() {

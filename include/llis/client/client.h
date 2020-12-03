@@ -14,6 +14,7 @@ namespace client {
 class Client {
   public:
     Client(std::string server_name);
+    ~Client();
 
     JobRef register_job(std::string path);
 
@@ -34,13 +35,17 @@ class Client {
     void create_s2c_channel();
     void reconnect_s2c_channel();
     void register_client();
+    void connect_s2c_socket();
 
     std::string server_name_;
 
     ClientId client_id_;
 
+    std::string s2c_socket_prefix_;
+
     ipc::ShmChannel c2s_channel_;
     ipc::ShmChannel s2c_channel_;
+    int s2c_socket_;
 };
 
 }

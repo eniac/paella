@@ -71,7 +71,7 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
 
     if (name != "") {
         is_create_ = (size > 0);
-        name_with_prefix_ = "llis:" + name;
+        name_with_prefix_ = "llis:channel:" + name;
         if (is_create_) {
             fd_ = shm_open(name_with_prefix_.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
         } else {

@@ -2,6 +2,7 @@
 
 #include <llis/ipc/shm_channel.h>
 #include <llis/job/job.h>
+#include <llis/server/server.h>
 
 #include <cuda_runtime.h>
 
@@ -14,8 +15,12 @@ namespace server {
 
 class Scheduer {
   public:
-    Scheduer(ipc::ShmChannel* ser2sched_channel);
-    void serve();
+    Scheduer();
+
+    void set_server(Server* server);
+
+    void handle_new_job(std::unique_ptr<job::Job> job);
+    void try_handle_block_start_finish();
 
   private:
     struct SmAvail {
@@ -25,7 +30,6 @@ class Scheduer {
         unsigned nblocks = 0;
     };
 
-    void handle_new_job();
     void handle_block_start_finish();
     void handle_block_start();
     void handle_block_finish();
@@ -33,7 +37,7 @@ class Scheduer {
     void schedule_job();
     bool job_fits(job::Job* job);
 
-    ipc::ShmChannel* ser2sched_channel_;
+    Server* server_;
     ipc::ShmChannelGpu gpu2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;

@@ -1,13 +1,19 @@
-#include <llis/ipc/shm_channel.h>
 #include <llis/server/scheduler.h>
+
+#include <llis/ipc/shm_channel.h>
+#include <llis/server/server.h>
 #include <llis/job/job.h>
+
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #include <memory>
 #include <string>
 
 namespace llis {
 namespace server {
 
-Scheduer::Scheduer(ipc::ShmChannel* ser2sched_channel) : ser2sched_channel_(ser2sched_channel), gpu2sched_channel_(1024), cuda_streams_(100) {
+Scheduer::Scheduer() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) {
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
@@ -23,15 +29,13 @@ Scheduer::Scheduer(ipc::ShmChannel* ser2sched_channel) : ser2sched_channel_(ser2
     }
 }
 
-void Scheduer::serve() {
-    while (true) {
-        if (ser2sched_channel_->can_read()) {
-            handle_new_job();
-        }
+void Scheduer::set_server(Server* server) {
+    server_ = server;
+}
 
-        if (gpu2sched_channel_.can_read()) {
-            handle_block_start_finish();
-        }
+void Scheduer::try_handle_block_start_finish() {
+    if (gpu2sched_channel_.can_read()) {
+        handle_block_start_finish();
     }
 }
 
@@ -73,10 +77,7 @@ void Scheduer::handle_block_finish() {
     schedule_job();
 }
 
-void Scheduer::handle_new_job() {
-    std::unique_ptr<job::Job> job;
-    ser2sched_channel_->read(&job);
-
+void Scheduer::handle_new_job(std::unique_ptr<job::Job> job) {
     job->set_channel(gpu2sched_channel_.fork());
 
     jobs_.push_back(std::move(job));
@@ -93,6 +94,7 @@ void Scheduer::schedule_job() {
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
             if (job_fits(job.get())) {
+                server_->notify_start(job.get());
                 job->set_running(cuda_streams_.back());
                 cuda_streams_.pop_back();
                 job->run_next();

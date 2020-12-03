@@ -1,7 +1,8 @@
 #pragma once
 
-#include "llis/utils/align.h"
+#include <llis/utils/align.h>
 #include <llis/ipc/shm_channel.h>
+#include <llis/ipc/defs.h>
 
 #include <cuda_runtime.h>
 
@@ -77,6 +78,22 @@ class Job {
         return cuda_stream_;
     }
 
+    void set_started() {
+        has_started_ = true;
+    }
+
+    bool has_started() const {
+        return has_started_;
+    }
+
+    void set_client_id(ClientId client_id) {
+        client_id_ = client_id;
+    }
+
+    ClientId get_client_id() const {
+        return client_id_;
+    }
+
   protected:
     void unset_running() {
         is_running_ = false;
@@ -92,6 +109,9 @@ class Job {
     unsigned num_threads_per_block_;
     unsigned smem_size_per_block_;
     unsigned num_registers_per_thread_;
+
+    bool has_started_;
+    ClientId client_id_;
 };
 
 }

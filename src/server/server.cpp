@@ -1,7 +1,12 @@
-#include "llis/ipc/shm_channel.h"
-#include "llis/server/scheduler.h"
+#include <llis/ipc/shm_channel.h>
+#include <llis/server/scheduler.h>
 #include <llis/server/server.h>
 #include <llis/ipc/defs.h>
+#include <llis/ipc/name_format.h>
+
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #include <memory>
 #include <thread>
@@ -9,38 +14,50 @@
 namespace llis {
 namespace server {
 
-Server::Server(std::string server_name, ipc::ShmChannel* ser2sched_channel) : server_name_(server_name), ser2sched_channel_(ser2sched_channel), c2s_channel_("server:" + server_name_, 1024) {
+Server::Server(std::string server_name, Scheduer* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), 1024) {
+    scheduler_->set_server(this);
 }
 
 void Server::serve() {
     while (true) {
-        MsgType msg_type;
-        c2s_channel_.read(&msg_type);
+        try_handle_c2s();
+        scheduler_->try_handle_block_start_finish();
+    }
+}
 
-        switch (msg_type) {
-            case MsgType::REGISTER_CLIENT:
-                handle_register_client();
-                break;
+void Server::try_handle_c2s() {
+    if (c2s_channel_.can_read()) {
+        handle_c2s();
+    }
+}
 
-            case MsgType::REGISTER_JOB:
-                handle_register_job();
-                break;
+void Server::handle_c2s() {
+    MsgType msg_type;
+    c2s_channel_.read(&msg_type);
 
-            case MsgType::LAUNCH_JOB:
-                handle_launch_job();
-                break;
+    switch (msg_type) {
+        case MsgType::REGISTER_CLIENT:
+            handle_register_client();
+            break;
 
-            case MsgType::GROW_POOL:
-                handle_grow_pool();
-                break;
-        }
+        case MsgType::REGISTER_JOB:
+            handle_register_job();
+            break;
+
+        case MsgType::LAUNCH_JOB:
+            handle_launch_job();
+            break;
+
+        case MsgType::GROW_POOL:
+            handle_grow_pool();
+            break;
     }
 }
 
 void Server::handle_register_client() {
     ClientId client_id;
     c2s_channel_.read(&client_id);
-    ipc::ShmChannel s2c_channel_tmp("server:" + server_name_ + ":client:" + std::to_string(client_id));
+    ipc::ShmChannel s2c_channel_tmp(ipc::s2c_channel_name(server_name_, client_id));
 
     ClientConnection* client_connection;
     if (unused_client_connections_.empty()) {
@@ -53,8 +70,21 @@ void Server::handle_register_client() {
         client_connection = &client_connections_[client_id];
     }
 
-    ipc::ShmChannel s2c_channel("server:" + server_name_ + ":client:" + std::to_string(client_id), s2c_channel_size);
+    ipc::ShmChannel s2c_channel(ipc::s2c_channel_name(server_name_, client_id), s2c_channel_size);
     client_connection->use_s2c_channel(std::move(s2c_channel));
+    
+    int s2c_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
+
+    sockaddr_un addr;
+    bzero(&addr, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    // TODO: check length. It should not be >= 108
+    strcpy(addr.sun_path, ipc::s2c_socket_path(server_name_, client_id).c_str());
+
+    // TODO: check if it succeeds
+    (void)bind(s2c_socket, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+
+    client_connection->use_s2c_socket(s2c_socket);
 
     s2c_channel_tmp.write(client_id);
 }
@@ -79,7 +109,7 @@ void Server::handle_launch_job() {
 
     std::unique_ptr<job::Job> job = registered_jobs_[registered_job_id].create_instance();
 
-    ser2sched_channel_->write(std::move(job));
+    scheduler_->handle_new_job(std::move(job));
 }
 
 void Server::handle_grow_pool() {
@@ -87,6 +117,14 @@ void Server::handle_grow_pool() {
     c2s_channel_.read(&registered_job_id);
 
     registered_jobs_[registered_job_id].grow_pool();
+}
+
+void Server::notify_start(job::Job* job) {
+    if (!job->has_started()) {
+        int s2c_socket = client_connections_[job->get_client_id()].get_s2c_socket();
+        bool msg = true;
+        write(s2c_socket, &msg, sizeof(msg));
+    }
 }
 
 }
@@ -97,12 +135,8 @@ int main(int argc, char** argv) {
 
     llis::ipc::ShmChannel ser2sched_channel(1024);
 
-    llis::server::Server server(server_name, &ser2sched_channel);
-    llis::server::Scheduer scheduler(&ser2sched_channel);
+    llis::server::Scheduer scheduler;
+    llis::server::Server server(server_name, &scheduler);
 
-    std::thread server_thread([&server]() {server.serve();});
-    std::thread scheduler_thread([&scheduler]() {scheduler.serve();});
-
-    server_thread.join();
-    scheduler_thread.join();
+    server.serve();
 }

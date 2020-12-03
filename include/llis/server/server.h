@@ -1,3 +1,5 @@
+#pragma once
+
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/client_connection.h>
 #include <llis/ipc/defs.h>
@@ -9,15 +11,21 @@
 namespace llis {
 namespace server {
 
-const size_t s2c_channel_size = 1024;
+class Scheduer;
+
+constexpr size_t s2c_channel_size = 1024;
 
 class Server {
   public:
-    Server(std::string server_name, ipc::ShmChannel* ser2sched_channel);
+    Server(std::string server_name, Scheduer* scheduler);
 
     void serve();
 
+    void notify_start(job::Job* job);
+
   private:
+    void try_handle_c2s();
+    void handle_c2s();
     void handle_register_client();
     void handle_register_job();
     void handle_launch_job();
@@ -25,7 +33,7 @@ class Server {
     void handle_release_job_instance();
 
     std::string server_name_;
-    ipc::ShmChannel* ser2sched_channel_;
+    Scheduer* scheduler_;
 
     ipc::ShmChannel c2s_channel_;
 
