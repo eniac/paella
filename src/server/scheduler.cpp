@@ -13,7 +13,7 @@
 namespace llis {
 namespace server {
 
-Scheduer::Scheduer() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) {
+Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) {
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
@@ -29,17 +29,17 @@ Scheduer::Scheduer() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_
     }
 }
 
-void Scheduer::set_server(Server* server) {
+void Scheduler::set_server(Server* server) {
     server_ = server;
 }
 
-void Scheduer::try_handle_block_start_finish() {
+void Scheduler::try_handle_block_start_finish() {
     if (gpu2sched_channel_.can_read()) {
         handle_block_start_finish();
     }
 }
 
-void Scheduer::handle_block_start_finish() {
+void Scheduler::handle_block_start_finish() {
     bool is_start;
     gpu2sched_channel_.read(&is_start);
     
@@ -50,7 +50,7 @@ void Scheduer::handle_block_start_finish() {
     }
 }
 
-void Scheduer::handle_block_start() {
+void Scheduler::handle_block_start() {
     job::Job* job;
     gpu2sched_channel_.read(&job);
 
@@ -63,7 +63,7 @@ void Scheduer::handle_block_start() {
     sm_avails_[smid].smem -= job->get_smem_size_per_block();
 }
 
-void Scheduer::handle_block_finish() {
+void Scheduler::handle_block_finish() {
     job::Job* job;
     gpu2sched_channel_.read(&job);
 
@@ -80,7 +80,7 @@ void Scheduer::handle_block_finish() {
     schedule_job();
 }
 
-void Scheduer::handle_new_job(std::unique_ptr<job::Job> job) {
+void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
     job->set_channel(gpu2sched_channel_.fork());
 
     jobs_.push_back(std::move(job));
@@ -88,7 +88,7 @@ void Scheduer::handle_new_job(std::unique_ptr<job::Job> job) {
     schedule_job();
 }
 
-void Scheduer::schedule_job() {
+void Scheduler::schedule_job() {
     while (!jobs_.empty() && !jobs_.front()->has_next() && !jobs_.front()->is_running()) {
         jobs_.pop_front();
     }
@@ -110,7 +110,7 @@ void Scheduer::schedule_job() {
     }
 }
 
-bool Scheduer::job_fits(job::Job* job) {
+bool Scheduler::job_fits(job::Job* job) {
     unsigned num_avail_blocks = 0;
 
     for (auto& sm_avail : sm_avails_) {

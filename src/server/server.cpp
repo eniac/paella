@@ -11,7 +11,7 @@
 namespace llis {
 namespace server {
 
-Server::Server(std::string server_name, Scheduer* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), 1024) {
+Server::Server(std::string server_name, Scheduler* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), 1024) {
     scheduler_->set_server(this);
 }
 
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
     llis::ipc::ShmChannel ser2sched_channel(1024);
 
-    llis::server::Scheduer scheduler;
+    llis::server::Scheduler scheduler;
     llis::server::Server server(server_name, &scheduler);
 
     server.serve();

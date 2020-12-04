@@ -13,9 +13,9 @@
 namespace llis {
 namespace server {
 
-class Scheduer {
+class Scheduler {
   public:
-    Scheduer();
+    Scheduler();
 
     void set_server(Server* server);
 

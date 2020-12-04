@@ -12,13 +12,13 @@
 namespace llis {
 namespace server {
 
-class Scheduer;
+class Scheduler;
 
 constexpr size_t s2c_channel_size = 1024;
 
 class Server {
   public:
-    Server(std::string server_name, Scheduer* scheduler);
+    Server(std::string server_name, Scheduler* scheduler);
 
     void serve();
 
@@ -35,7 +35,7 @@ class Server {
     void handle_release_job_instance();
 
     std::string server_name_;
-    Scheduer* scheduler_;
+    Scheduler* scheduler_;
     ipc::UnixDatagramSocket s2c_socket_;
 
     ipc::ShmChannel c2s_channel_;
