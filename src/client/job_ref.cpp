@@ -21,11 +21,16 @@ JobRef::JobRef(job::Job* job, Client* client, std::string model_path) : job_(job
     client_id_ = client_->get_client_id();
 
     shm_name_ = "llis:shm:" + std::to_string(client_id_) + ":" + std::to_string((intptr_t)this);
-    shm_fd_ = shm_open(shm_name_.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
+    shm_fd_ = shm_open(shm_name_.c_str(), O_CREAT | O_RDWR, 0600);
 
     register_job();
 
     grow_pool(2); // Initialize the pool to support 2 concurrent requests
+}
+
+JobRef::~JobRef() {
+    close(shm_fd_);
+    shm_unlink(shm_name_.c_str());
 }
 
 void JobRef::register_job() {

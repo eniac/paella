@@ -15,23 +15,6 @@
 namespace llis {
 namespace ipc {
 
-template <>
-CUDA_HOSTDEV void* ShmChannelBase<false>::my_memcpy(void* dest, const void* src, size_t count) {
-    return memcpy(dest, src, count);
-}
-
-template <>
-CUDA_HOSTDEV void* ShmChannelBase<true>::my_memcpy(void* dest_, const void* src_, size_t count) {
-    volatile char* dest = reinterpret_cast<volatile char*>(dest_);
-    volatile const char* src = reinterpret_cast<volatile const char*>(src_);
-
-    for (size_t i = 0; i < count; ++i) {
-        dest[i] = src[i];
-    }
-
-    return dest_;
-}
-
 template <bool for_gpu>
 ShmChannelBase<for_gpu>::ShmChannelBase(std::string name, size_t size) {
     connect(name, size);
@@ -73,7 +56,7 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
         is_create_ = (size > 0);
         name_with_prefix_ = "llis:channel:" + name;
         if (is_create_) {
-            fd_ = shm_open(name_with_prefix_.c_str(), O_CREAT | O_EXCL | O_RDWR, 0600);
+            fd_ = shm_open(name_with_prefix_.c_str(), O_CREAT | O_RDWR, 0600);
         } else {
             fd_ = shm_open(name_with_prefix_.c_str(), O_RDWR, 0600);
         }

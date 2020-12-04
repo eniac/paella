@@ -5,10 +5,6 @@
 #include <llis/ipc/defs.h>
 #include <llis/ipc/name_format.h>
 
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-
 #include <memory>
 #include <thread>
 

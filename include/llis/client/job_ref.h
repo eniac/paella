@@ -16,6 +16,7 @@ class Client;
 class JobRef {
   public:
     JobRef(job::Job* job, Client* client, std::string path);
+    ~JobRef();
 
     JobInstanceRef* create_instance();
 
