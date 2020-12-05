@@ -1,5 +1,6 @@
 #include <llis/job/job.h>
 #include <llis/job/instrument.h>
+#include <llis/job/context.h>
 
 #include <cstdio>
 
@@ -61,7 +62,7 @@ class RunForeverJob : public llis::job::Job {
         ++num_;
 
         num_running_blocks_ = num_;
-        run<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, gpu2sched_channel_.fork());
+        run<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
 
         set_num_blocks(num_ + 1);
     }

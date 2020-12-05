@@ -70,10 +70,6 @@ class Job {
         cuda_stream_ = cuda_stream;
     }
 
-    void set_channel(ipc::ShmChannelGpu&& gpu2sched_channel) {
-        gpu2sched_channel_ = std::move(gpu2sched_channel);
-    }
-
     cudaStream_t get_cuda_stream() const {
         return cuda_stream_;
     }
@@ -103,8 +99,6 @@ class Job {
     void unset_running() {
         is_running_ = false;
     }
-
-    ipc::ShmChannelGpu gpu2sched_channel_;
 
   private:
     bool is_running_ = false;

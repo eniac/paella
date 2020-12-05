@@ -1,4 +1,4 @@
-#include <llis/job/job.h>
+#include <llis/job/coroutine_job.h>
 #include <llis/job/context.h>
 #include <llis/job/instrument.h>
 
@@ -14,10 +14,9 @@ __global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_
     llis::job::kernel_end(job, &gpu2sched_channel);
 }
 
-class HelloWorldJob : public llis::job::Job {
+class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
   public:
-    HelloWorldJob() {
-        set_num_blocks(1);
+    HelloWorldCoroutineJob() {
         set_num_threads_per_block(1);
         set_smem_size_per_block(0);
         set_num_registers_per_thread(32);
@@ -36,20 +35,20 @@ class HelloWorldJob : public llis::job::Job {
     }
 
     void full_init(void* io_ptr) override {
+        CoroutineJob::full_init(io_ptr);
+
         io_ptr_ = io_ptr;
     }
 
-    void run_next() override {
-        ++num_;
+    void body(boost::coroutines2::coroutine<void>::push_type& coroutine_push) override {
+        for (int i = 0; i < 5; ++i) {
+            ++num_;
+            set_num_blocks(num_);
 
-        num_running_blocks_ = num_;
-        helloworld<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
-
-        set_num_blocks(num_ + 1);
-    }
-
-    bool has_next() const override {
-        return num_ < 5;
+            coroutine_push();
+            num_running_blocks_ = num_;
+            helloworld<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
+        }
     }
 
     void mark_block_finish() override {
@@ -68,7 +67,7 @@ class HelloWorldJob : public llis::job::Job {
 extern "C" {
 
 llis::job::Job* init_job() {
-    return new HelloWorldJob();
+    return new HelloWorldCoroutineJob();
 }
 
 }

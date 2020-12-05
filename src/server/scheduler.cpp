@@ -3,6 +3,7 @@
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/server.h>
 #include <llis/job/job.h>
+#include <llis/job/context.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -14,6 +15,8 @@ namespace llis {
 namespace server {
 
 Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) {
+    job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
+
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
@@ -81,8 +84,6 @@ void Scheduler::handle_block_finish() {
 }
 
 void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
-    job->set_channel(gpu2sched_channel_.fork());
-
     jobs_.push_back(std::move(job));
 
     schedule_job();
@@ -103,6 +104,7 @@ void Scheduler::schedule_job() {
                 }
                 job->set_running(cuda_streams_.back());
                 cuda_streams_.pop_back();
+                job::Context::set_current_job(job.get());
                 job->run_next();
                 break;
             }
