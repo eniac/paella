@@ -46,22 +46,13 @@ class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
             set_num_blocks(num_);
 
             yield();
-            num_running_blocks_ = num_;
-            helloworld<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
-        }
-    }
-
-    void mark_block_finish() override {
-        num_running_blocks_--;
-        if (num_running_blocks_ == 0) {
-            unset_running();
+            helloworld<<<num_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
         }
     }
 
   private:
     void* io_ptr_;
     int num_ = 0;
-    int num_running_blocks_;
 };
 
 extern "C" {

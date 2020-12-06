@@ -19,7 +19,6 @@ class Job {
     virtual void full_init(void* io_ptr) = 0;
     virtual void run_next() = 0;
     virtual bool has_next() const = 0;
-    virtual void mark_block_finish() = 0;
 
     size_t get_output_offset() {
         return utils::next_aligned_pos(get_input_size(), 8);
@@ -68,6 +67,14 @@ class Job {
     void set_running(cudaStream_t cuda_stream) {
         is_running_ = true;
         cuda_stream_ = cuda_stream;
+        num_running_blocks_ = num_blocks_;
+    }
+
+    void mark_block_finish() {
+        num_running_blocks_--;
+        if (num_running_blocks_ == 0) {
+            unset_running();
+        }
     }
 
     cudaStream_t get_cuda_stream() const {
@@ -108,6 +115,8 @@ class Job {
     unsigned num_threads_per_block_;
     unsigned smem_size_per_block_;
     unsigned num_registers_per_thread_;
+
+    unsigned num_running_blocks_;
 
     bool has_started_ = false;
     ClientId client_id_;

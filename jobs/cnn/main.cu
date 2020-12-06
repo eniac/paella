@@ -31,8 +31,6 @@ class CNNJob : public llis::job::Job {
     }
 
     void run_next() override {
-        num_running_blocks_ = get_num_blocks();
-
         if (stage_ == 0) {
             llis::job::memset(l_input.output, 0x00, sizeof(float) * l_input.O, this, llis::job::Context::get_gpu2sched_channel());
             llis::job::memset_res(sizeof(float) * l_input.O, this);
@@ -82,13 +80,6 @@ class CNNJob : public llis::job::Job {
         return stage_ <= 14;
     }
 
-    void mark_block_finish() override {
-        num_running_blocks_--;
-        if (num_running_blocks_ == 0) {
-            unset_running();
-        }
-    }
-
   private:
     Layer l_input;
     Layer l_c1;
@@ -96,7 +87,6 @@ class CNNJob : public llis::job::Job {
     Layer l_f;
 
     int stage_ = 0;
-    int num_running_blocks_;
     float* input_;
     float* output_;
 };

@@ -61,8 +61,7 @@ class RunForeverJob : public llis::job::Job {
     void run_next() override {
         ++num_;
 
-        num_running_blocks_ = num_;
-        run<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
+        run<<<num_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
 
         set_num_blocks(num_ + 1);
     }
@@ -71,17 +70,9 @@ class RunForeverJob : public llis::job::Job {
         return num_ < 5;
     }
 
-    void mark_block_finish() override {
-        num_running_blocks_--;
-        if (num_running_blocks_ == 0) {
-            unset_running();
-        }
-    }
-
   private:
     void* io_ptr_;
     int num_ = 0;
-    int num_running_blocks_;
 };
 
 extern "C" {
