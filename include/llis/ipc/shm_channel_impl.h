@@ -47,7 +47,7 @@ CUDA_HOSTDEV void ShmChannelBase<for_gpu>::read(void* buf, size_t size) {
         }
 
         size_t size_can_read = write_pos - read_pos;
-        size_t size_reading = std::min(size_to_read, size_can_read);
+        size_t size_reading = ((size_to_read < size_can_read) ? size_to_read : size_can_read);
 
         my_memcpy(reinterpret_cast<char*>(buf) + size_read, ring_buf_ + read_pos, size_reading);
 
@@ -83,7 +83,7 @@ CUDA_HOSTDEV void ShmChannelBase<for_gpu>::write(const void* buf, size_t size) {
             size_can_write = read_pos - write_pos - 1;
         }
 
-        size_t size_writing = std::min(size_to_write, size_can_write);
+        size_t size_writing = ((size_to_write < size_can_write) ? size_to_write : size_can_write);
         
         my_memcpy(ring_buf_ + write_pos, reinterpret_cast<const char*>(buf) + size_written, size_writing);
 
