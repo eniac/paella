@@ -54,7 +54,7 @@ class AtomicWrapper<T, true> {
     CUDA_HOSTDEV inline void add(T val) {
 #ifdef __CUDA_ARCH__
         // TODO: _system is necessary if both CPU and GPU are writing, but not sure if it is necessary if only GPU is writing and CPU is reading
-        atomicAdd(&val_, val);
+        atomicAdd(const_cast<T*>(&val_), val);
 #else
         static_assert(sizeof(std::atomic<T>) == sizeof(T));
 
@@ -63,9 +63,17 @@ class AtomicWrapper<T, true> {
 #endif
     }
 
+    CUDA_HOSTDEV inline T inc(T compare) {
+#ifdef __CUDA_ARCH__
+        return atomicInc(const_cast<T*>(&val_), compare);
+#else
+        // TODO
+#endif
+    }
+
     CUDA_HOSTDEV inline T cas(T compare, T val) {
 #ifdef __CUDA_ARCH__
-        return atomicCAS(&val_, compare, val);
+        return atomicCAS(const_cast<T*>(&val_), compare, val);
 #else
         // TODO
 #endif

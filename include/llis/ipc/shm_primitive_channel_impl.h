@@ -46,22 +46,8 @@ CUDA_HOSTDEV void ShmPrimitiveChannelBase<T, for_gpu>::write(U val) {
 
     static_assert(sizeof(T) == sizeof(U), "The type being written must be of the same size as the type of the channel");
 
-    size_t write_pos;
-    U* ptr;
-    while (true) {
-        write_pos = write_pos_->load();
-        ptr = reinterpret_cast<U*>(ring_buf_ + write_pos);
-        if (ptr->acquire()) {
-            break;
-        }
-    }
-
-    if (write_pos == count_ - 1) {
-        write_pos_->store(0);
-    } else {
-        // Note: we do not need atomic add because only one thread can be at this position
-        write_pos_->store(write_pos + 1);
-    }
+    size_t write_pos = write_pos_->inc(count_ - 1);
+    U* ptr = reinterpret_cast<U*>(ring_buf_ + write_pos);
 
     reinterpret_cast<AtomicWrapper<T, for_gpu>*>(ptr)->store(*reinterpret_cast<T*>(&val));
 }

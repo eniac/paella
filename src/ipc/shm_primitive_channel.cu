@@ -76,12 +76,11 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
 
     total_size_ = sizeof(size_t);
 
-    size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
-    total_size_ = write_pos_pos + sizeof(AtomicWrapper<size_t, for_gpu>);
+    size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<unsigned, for_gpu>));
+    total_size_ = write_pos_pos + sizeof(AtomicWrapper<unsigned, for_gpu>);
 
-    size_t ring_buf_offset = total_size_;
-
-    total_size_ += size;
+    size_t ring_buf_offset = utils::next_aligned_pos(total_size_, alignof(T));
+    total_size_ = ring_buf_offset + size;
 
     if (name_with_prefix_ != "") {
         if (is_create_) {
@@ -99,7 +98,7 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
     ring_buf_ = reinterpret_cast<T*>(shm_ + ring_buf_offset);
 
     read_pos_ = 0;
-    write_pos_ = reinterpret_cast<AtomicWrapper<size_t, for_gpu>*>(shm_ + write_pos_pos);
+    write_pos_ = reinterpret_cast<AtomicWrapper<unsigned, for_gpu>*>(shm_ + write_pos_pos);
 
     if (is_create_) {
         *reinterpret_cast<size_t*>(shm_) = count_;

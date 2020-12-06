@@ -54,8 +54,8 @@ class ShmPrimitiveChannelBase {
     bool is_create_;
     std::string name_with_prefix_;
 
-    size_t read_pos_;
-    AtomicWrapper<size_t, for_gpu>* write_pos_;
+    unsigned read_pos_;
+    AtomicWrapper<unsigned, for_gpu>* write_pos_;
 };
 
 template <typename T>

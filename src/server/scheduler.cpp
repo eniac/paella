@@ -15,7 +15,7 @@
 namespace llis {
 namespace server {
 
-Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) {
+Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 
     for (auto& stream : cuda_streams_) {
