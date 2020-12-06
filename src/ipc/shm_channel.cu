@@ -2,8 +2,6 @@
 #include <llis/utils/gpu.h>
 #include <llis/utils/align.h>
 
-#include <cuda_runtime_api.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -77,11 +75,11 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
 
     total_size_ = sizeof(size_t);
 
-    size_t read_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
-    total_size_ = read_pos_pos + sizeof(AtomicWrapper<size_t, for_gpu>);
+    size_t read_pos_pos = utils::next_aligned_pos(total_size_, alignof(ThreadfenceWrapper<size_t, for_gpu>));
+    total_size_ = read_pos_pos + sizeof(ThreadfenceWrapper<size_t, for_gpu>);
 
-    size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<size_t, for_gpu>));
-    total_size_ = write_pos_pos + sizeof(AtomicWrapper<size_t, for_gpu>);
+    size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(ThreadfenceWrapper<size_t, for_gpu>));
+    total_size_ = write_pos_pos + sizeof(ThreadfenceWrapper<size_t, for_gpu>);
 
     size_t writer_lock_pos = utils::next_aligned_pos(total_size_, alignof(AtomicLock<for_gpu>));
     total_size_ = writer_lock_pos + sizeof(AtomicLock<for_gpu>);
@@ -105,8 +103,8 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
 
     ring_buf_ = shm_ + ring_buf_offset;
 
-    read_pos_ = reinterpret_cast<AtomicWrapper<size_t, for_gpu>*>(shm_ + read_pos_pos);
-    write_pos_ = reinterpret_cast<AtomicWrapper<size_t, for_gpu>*>(shm_ + write_pos_pos);
+    read_pos_ = reinterpret_cast<ThreadfenceWrapper<size_t, for_gpu>*>(shm_ + read_pos_pos);
+    write_pos_ = reinterpret_cast<ThreadfenceWrapper<size_t, for_gpu>*>(shm_ + write_pos_pos);
     writer_lock_ = reinterpret_cast<AtomicLock<for_gpu>*>(shm_ + writer_lock_pos);
 
     if (is_create_) {

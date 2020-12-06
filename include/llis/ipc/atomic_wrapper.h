@@ -11,11 +11,15 @@ template <typename T>
 class AtomicWrapper<T, false> {
   public:
     inline T load() const {
-        return val_.load(std::memory_order_acquire);
+        return val_.load(std::memory_order_relaxed);
     }
 
     inline void store(T desired) {
-        val_.store(desired, std::memory_order_release);
+        val_.store(desired, std::memory_order_relaxed);
+    }
+
+    inline void add(T val) {
+        val_.fetch_add(val, std::memory_order_relaxed);
     }
     
   private:
@@ -26,23 +30,31 @@ template <typename T>
 class AtomicWrapper<T, true> {
   public:
     CUDA_HOSTDEV inline T load() const {
-        T val = val_;
 #ifdef __CUDA_ARCH__
-        __threadfence_system();
+        return val_;
 #else
-        atomic_thread_fence(std::memory_order_acquire);
+        std::atomic<T>* tmp = const_cast<std::atomic<T>*>(&val_);
+        return tmp->load(std::memory_order_relaxed);
 #endif
-        return val;
     }
 
     CUDA_HOSTDEV inline void store(T desired) {
 #ifdef __CUDA_ARCH__
-        __threadfence_system();
-#else
-        // TODO: check if this is good between CPU and GPU
-        atomic_thread_fence(std::memory_order_release);
-#endif
         val_ = desired;
+#else
+        std::atomic<T>* tmp = const_cast<std::atomic<T>*>(&val_);
+        tmp->store(desired, std::memory_order_relaxed);
+#endif
+    }
+
+    CUDA_HOSTDEV inline void add(T val) {
+#ifdef __CUDA_ARCH__
+        // TODO: _system is necessary if both CPU and GPU are writing, but not sure if it is necessary if only GPU is writing and CPU is reading
+        atomicAdd(&val_, val);
+#else
+        std::atomic<T>* tmp = const_cast<std::atomic<T>*>(&val_);
+        tmp->fetch_add(val, std::memory_order_relaxed);
+#endif
     }
 
   private:

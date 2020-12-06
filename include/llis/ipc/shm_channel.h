@@ -1,6 +1,6 @@
 #pragma once
 
-#include <llis/ipc/atomic_wrapper.h>
+#include <llis/ipc/threadfence_wrapper.h>
 #include <llis/ipc/atomic_lock.h>
 #include <llis/utils/gpu.h>
 
@@ -93,8 +93,8 @@ class ShmChannelBase {
     bool is_create_;
     std::string name_with_prefix_;
 
-    AtomicWrapper<size_t, for_gpu>* read_pos_;
-    AtomicWrapper<size_t, for_gpu>* write_pos_;
+    ThreadfenceWrapper<size_t, for_gpu>* read_pos_;
+    ThreadfenceWrapper<size_t, for_gpu>* write_pos_;
     AtomicLock<for_gpu>* writer_lock_;
 };
 

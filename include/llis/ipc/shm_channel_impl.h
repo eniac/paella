@@ -4,8 +4,6 @@
 #include <llis/utils/gpu.h>
 #include <llis/utils/align.h>
 
-#include <cuda_runtime_api.h>
-
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
