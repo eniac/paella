@@ -40,12 +40,12 @@ class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
         io_ptr_ = io_ptr;
     }
 
-    void body(boost::coroutines2::coroutine<void>::push_type& coroutine_push) override {
+    void body() override {
         for (int i = 0; i < 5; ++i) {
             ++num_;
             set_num_blocks(num_);
 
-            coroutine_push();
+            yield();
             num_running_blocks_ = num_;
             helloworld<<<num_running_blocks_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
         }
