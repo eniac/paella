@@ -24,7 +24,7 @@ void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_
 
     std::string model_path;
     c2s_channel_->read(&model_path);
-    void* handle = dlopen(model_path.c_str(), RTLD_LAZY);
+    void* handle = dlopen(model_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
     init_job_ = (init_job_t)(dlsym(handle, "init_job"));
     job_ = init_job_();
 
