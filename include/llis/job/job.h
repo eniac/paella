@@ -1,7 +1,6 @@
 #pragma once
 
 #include <llis/utils/align.h>
-#include <llis/ipc/shm_channel.h>
 #include <llis/ipc/defs.h>
 
 #include <cuda_runtime.h>
@@ -19,6 +18,14 @@ class Job {
     virtual void full_init(void* io_ptr) = 0;
     virtual void run_next() = 0;
     virtual bool has_next() const = 0;
+
+    void set_id(JobId id) {
+        id_ = id;
+    }
+
+    JobId get_id() const {
+        return id_;
+    }
 
     size_t get_output_offset() {
         return utils::next_aligned_pos(get_input_size(), 8);
@@ -121,6 +128,7 @@ class Job {
     bool has_started_ = false;
     ClientId client_id_;
     JobInstanceRefId job_instance_ref_id_;
+    JobId id_;
 };
 
 }

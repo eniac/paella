@@ -1,29 +1,32 @@
 #pragma once
 
-#include <llis/ipc/shm_channel.h>
+#include <llis/ipc/shm_primitive_channel.h>
+#include <llis/job/instrument_info.h>
 
 namespace llis {
 namespace job {
 
-__device__ inline void kernel_start(void* job, ipc::ShmChannelGpu* gpu2sched_channel) {
+__device__ inline void kernel_start(JobId job_id, ipc::Gpu2SchedChannel* gpu2sched_channel) {
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
         unsigned smid;
         asm("mov.u32 %0, %smid;" : "=r"(smid));
 
-        gpu2sched_channel->acquire_writer_lock();
-        gpu2sched_channel->write(true);
-        gpu2sched_channel->write(job);
-        gpu2sched_channel->write(smid);
-        gpu2sched_channel->release_writer_lock();
+        InstrumentInfo info;
+        info.is_start = 1;
+        info.smid = smid;
+        info.job_id = job_id;
+
+        gpu2sched_channel->write(info);
     }
 }
 
-__device__ inline void kernel_end(void* job, ipc::ShmChannelGpu* gpu2sched_channel) {
+__device__ inline void kernel_end(JobId job_id, ipc::Gpu2SchedChannel* gpu2sched_channel) {
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-        gpu2sched_channel->acquire_writer_lock();
-        gpu2sched_channel->write(false);
-        gpu2sched_channel->write(job);
-        gpu2sched_channel->release_writer_lock();
+        InstrumentInfo info;
+        info.is_start = 0;
+        info.job_id = job_id;
+
+        gpu2sched_channel->write(info);
     }
 }
 

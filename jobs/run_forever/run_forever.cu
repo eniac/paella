@@ -1,22 +1,14 @@
+#include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/job.h>
 #include <llis/job/instrument.h>
 #include <llis/job/context.h>
 
 #include <cstdio>
 
-__global__ void run(int n, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
-    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-        unsigned smid;
-        asm("mov.u32 %0, %smid;" : "=r"(smid));
+__global__ void run(int n, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel) {
+    llis::job::kernel_start(job_id, &gpu2sched_channel);
 
-        gpu2sched_channel.acquire_writer_lock();
-        gpu2sched_channel.write(true);
-        gpu2sched_channel.write(job);
-        gpu2sched_channel.write(smid);
-        gpu2sched_channel.release_writer_lock();
-    }
-
-    printf("run_forever %p\n", job);
+    printf("run_forever %u\n", job_id);
 
     if (n < 5) {
         volatile int i;
@@ -25,12 +17,7 @@ __global__ void run(int n, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel
         while (true);
     }
 
-    if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
-        gpu2sched_channel.acquire_writer_lock();
-        gpu2sched_channel.write(false);
-        gpu2sched_channel.write(job);
-        gpu2sched_channel.release_writer_lock();
-    }
+    llis::job::kernel_end(job_id, &gpu2sched_channel);
 }
 
 class RunForeverJob : public llis::job::Job {
@@ -61,7 +48,7 @@ class RunForeverJob : public llis::job::Job {
     void run_next() override {
         ++num_;
 
-        run<<<num_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
+        run<<<num_, 1, 0, get_cuda_stream()>>>(num_, get_id(), llis::job::Context::get_gpu2sched_channel()->fork());
 
         set_num_blocks(num_ + 1);
     }

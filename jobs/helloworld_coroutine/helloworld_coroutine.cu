@@ -1,17 +1,18 @@
+#include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/coroutine_job.h>
 #include <llis/job/context.h>
 #include <llis/job/instrument.h>
 
 #include <cstdio>
 
-__global__ void helloworld(int i, void* job, llis::ipc::ShmChannelGpu gpu2sched_channel) {
-    llis::job::kernel_start(job, &gpu2sched_channel);
+__global__ void helloworld(int i, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel) {
+    llis::job::kernel_start(job_id, &gpu2sched_channel);
 
     unsigned nsmid;
     asm("mov.u32 %0, %nsmid;" : "=r"(nsmid));
     printf("Hello world %d %d\n", i, nsmid);
 
-    llis::job::kernel_end(job, &gpu2sched_channel);
+    llis::job::kernel_end(job_id, &gpu2sched_channel);
 }
 
 class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
@@ -46,7 +47,7 @@ class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
             set_num_blocks(num_);
 
             yield();
-            helloworld<<<num_, 1, 0, get_cuda_stream()>>>(num_, this, llis::job::Context::get_gpu2sched_channel()->fork());
+            helloworld<<<num_, 1, 0, get_cuda_stream()>>>(num_, get_id(), llis::job::Context::get_gpu2sched_channel()->fork());
         }
     }
 

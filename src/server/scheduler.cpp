@@ -1,9 +1,10 @@
 #include <llis/server/scheduler.h>
 
-#include <llis/ipc/shm_channel.h>
+#include <llis/ipc/shm_primitive_channel.h>
 #include <llis/server/server.h>
 #include <llis/job/job.h>
 #include <llis/job/context.h>
+#include <llis/job/instrument_info.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -37,38 +38,32 @@ void Scheduler::set_server(Server* server) {
 }
 
 void Scheduler::try_handle_block_start_finish() {
-    if (gpu2sched_channel_.can_read()) {
+    if (gpu2sched_channel_.can_read<job::InstrumentInfo>()) {
         handle_block_start_finish();
     }
 }
 
 void Scheduler::handle_block_start_finish() {
-    bool is_start;
-    gpu2sched_channel_.read(&is_start);
+    job::InstrumentInfo info = gpu2sched_channel_.read<job::InstrumentInfo>();
     
-    if (is_start) {
-        handle_block_start();
+    if (info.is_start) {
+        handle_block_start(info);
     } else {
-        handle_block_finish();
+        handle_block_finish(info);
     }
 }
 
-void Scheduler::handle_block_start() {
-    job::Job* job;
-    gpu2sched_channel_.read(&job);
-
-    unsigned smid;
-    gpu2sched_channel_.read(&smid);
+void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
+    job::Job* job = job_id_to_job_map_[info.job_id];
 
     // TODO: handle allocation granularity
-    sm_avails_[smid].nregs -= job->get_num_registers_per_thread() * job->get_num_threads_per_block(); // TODO: use an actual number
-    sm_avails_[smid].nthrs -= job->get_num_threads_per_block();
-    sm_avails_[smid].smem -= job->get_smem_size_per_block();
+    sm_avails_[info.smid].nregs -= job->get_num_registers_per_thread() * job->get_num_threads_per_block(); // TODO: use an actual number
+    sm_avails_[info.smid].nthrs -= job->get_num_threads_per_block();
+    sm_avails_[info.smid].smem -= job->get_smem_size_per_block();
 }
 
-void Scheduler::handle_block_finish() {
-    job::Job* job;
-    gpu2sched_channel_.read(&job);
+void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
+    job::Job* job = job_id_to_job_map_[info.job_id];
 
     job->mark_block_finish();
     if (!job->is_running()) {
@@ -84,6 +79,15 @@ void Scheduler::handle_block_finish() {
 }
 
 void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
+    if (unused_job_id_.empty()) {
+        job->set_id(job_id_to_job_map_.size());
+        job_id_to_job_map_.push_back(job.get());
+    } else {
+        job->set_id(unused_job_id_.back());
+        unused_job_id_.pop_back();
+        job_id_to_job_map_[job->get_id()] = job.get();
+    }
+
     jobs_.push_back(std::move(job));
 
     schedule_job();

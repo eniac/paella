@@ -1,7 +1,8 @@
 #pragma once
 
-#include <llis/ipc/shm_channel.h>
+#include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/job.h>
+#include <llis/job/instrument_info.h>
 #include <llis/server/server.h>
 
 #include <cuda_runtime.h>
@@ -31,18 +32,21 @@ class Scheduler {
     };
 
     void handle_block_start_finish();
-    void handle_block_start();
-    void handle_block_finish();
+    void handle_block_start(const job::InstrumentInfo& info);
+    void handle_block_finish(const job::InstrumentInfo& info);
 
     void schedule_job();
     bool job_fits(job::Job* job);
 
     Server* server_;
-    ipc::ShmChannelGpu gpu2sched_channel_;
+    ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;
 
     std::deque<std::unique_ptr<job::Job>> jobs_;
+
+    std::vector<job::Job*> job_id_to_job_map_;
+    std::vector<JobId> unused_job_id_;
 
     std::vector<SmAvail> sm_avails_;
 };

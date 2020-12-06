@@ -33,7 +33,9 @@ class AtomicWrapper<T, true> {
 #ifdef __CUDA_ARCH__
         return val_;
 #else
-        std::atomic<T>* tmp = const_cast<std::atomic<T>*>(&val_);
+        static_assert(sizeof(std::atomic<T>) == sizeof(T));
+
+        std::atomic<T>* tmp = reinterpret_cast<std::atomic<T>*>(const_cast<T*>(&val_));
         return tmp->load(std::memory_order_relaxed);
 #endif
     }
@@ -42,7 +44,9 @@ class AtomicWrapper<T, true> {
 #ifdef __CUDA_ARCH__
         val_ = desired;
 #else
-        std::atomic<T>* tmp = const_cast<std::atomic<T>*>(&val_);
+        static_assert(sizeof(std::atomic<T>) == sizeof(T));
+
+        std::atomic<T>* tmp = reinterpret_cast<std::atomic<T>*>(const_cast<T*>(&val_));
         tmp->store(desired, std::memory_order_relaxed);
 #endif
     }
@@ -52,8 +56,18 @@ class AtomicWrapper<T, true> {
         // TODO: _system is necessary if both CPU and GPU are writing, but not sure if it is necessary if only GPU is writing and CPU is reading
         atomicAdd(&val_, val);
 #else
-        std::atomic<T>* tmp = const_cast<std::atomic<T>*>(&val_);
+        static_assert(sizeof(std::atomic<T>) == sizeof(T));
+
+        std::atomic<T>* tmp = reinterpret_cast<std::atomic<T>*>(const_cast<T*>(&val_));
         tmp->fetch_add(val, std::memory_order_relaxed);
+#endif
+    }
+
+    CUDA_HOSTDEV inline T cas(T compare, T val) {
+#ifdef __CUDA_ARCH__
+        return atomicCAS(&val_, compare, val);
+#else
+        // TODO
 #endif
     }
 

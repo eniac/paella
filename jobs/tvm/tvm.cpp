@@ -2,6 +2,8 @@
 
 #include <tvm/runtime/module.h>
 
+#include <iostream>
+
 class TVMJob : public llis::job::CoroutineJob {
   public:
     TVMJob() {
@@ -23,10 +25,16 @@ class TVMJob : public llis::job::CoroutineJob {
     void full_init(void* io_ptr) override {
         io_ptr_ = io_ptr;
 
+        auto start_time = std::chrono::steady_clock::now();
+
         ctx_gpu_ = DLContext{kDLGPU, 0};
         mod_factory_ = tvm::runtime::Module::LoadFromFile("model-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
+
+        auto end_time = std::chrono::steady_clock::now();
+
+        std::cout << "Time taken for TVM startup: " << std::chrono::duration<double, std::micro>(end_time - start_time).count() << std::endl;
 
         CoroutineJob::full_init(io_ptr);
     }
