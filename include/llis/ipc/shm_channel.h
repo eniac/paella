@@ -83,7 +83,7 @@ class ShmChannelBase {
     CUDA_HOSTDEV void release_writer_lock();
 
   private:
-    CUDA_HOSTDEV static void* my_memcpy(void* dest, const void* src, size_t count);
+    CUDA_HOSTDEV inline static void* my_memcpy(void* dest, const void* src, size_t count);
 
     int fd_;
     char* shm_;
@@ -103,4 +103,6 @@ using ShmChannelGpu = ShmChannelBase<true>;
 
 }
 }
+
+#include "shm_channel_impl.h"
 
