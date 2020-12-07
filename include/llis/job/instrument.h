@@ -21,6 +21,8 @@ __device__ inline void kernel_start(JobId job_id, ipc::Gpu2SchedChannel* gpu2sch
 }
 
 __device__ inline void kernel_end(JobId job_id, ipc::Gpu2SchedChannel* gpu2sched_channel) {
+    __syncthreads();
+
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
         InstrumentInfo info;
         info.is_start = 0;
