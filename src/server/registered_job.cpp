@@ -31,6 +31,11 @@ void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_
     c2s_channel_->read(&shm_name_);
     shm_fd_ = shm_open(shm_name_.c_str(), O_RDWR, 0600);
 
+    pool_size_in_bytes_ = 0;
+    mapped_mem_.clear();
+
+    unused_job_instances_.clear();
+
     s2c_channel_->write(registered_job_id_);
 }
 
@@ -42,13 +47,31 @@ std::unique_ptr<job::Job> RegisteredJob::create_instance() {
     JobInstanceRefId job_instance_ref_id;
     c2s_channel_->read(&job_instance_ref_id);
 
-    std::unique_ptr<job::Job> job(init_job());
+    if (unused_job_instances_.empty()) {
+        std::unique_ptr<job::Job> job(init_job());
 
-    job->set_client_details(client_connection_->get_client_id(), job_instance_ref_id);
-    job::Context::set_current_job(job.get());
-    job->full_init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
+        job->set_client_details(client_connection_->get_client_id(), registered_job_id_);
+        job->set_job_instance_ref_id(job_instance_ref_id);
+        job::Context::set_current_job(job.get());
+        job->full_init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
 
-    return job;
+        return job;
+    } else {
+        std::unique_ptr<job::Job> job = std::move(unused_job_instances_.back());
+        unused_job_instances_.pop_back();
+
+        job->set_job_instance_ref_id(job_instance_ref_id);
+        job->unset_running();
+        job->unset_started();
+        job::Context::set_current_job(job.get());
+        job->init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
+
+        return job;
+    }
+}
+
+void RegisteredJob::release_instance(std::unique_ptr<job::Job> job) {
+    unused_job_instances_.push_back(std::move(job));
 }
 
 void RegisteredJob::grow_pool() {

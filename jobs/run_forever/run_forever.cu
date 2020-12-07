@@ -22,13 +22,6 @@ __global__ void run(int n, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2s
 
 class RunForeverJob : public llis::job::Job {
   public:
-    RunForeverJob() {
-        set_num_blocks(1);
-        set_num_threads_per_block(1);
-        set_smem_size_per_block(0);
-        set_num_registers_per_thread(32);
-    }
-
     size_t get_input_size() override {
         return 5;
     }
@@ -43,6 +36,21 @@ class RunForeverJob : public llis::job::Job {
 
     void full_init(void* io_ptr) override {
         io_ptr_ = io_ptr;
+
+        num_ = 0;
+
+        set_num_blocks(1);
+        set_num_threads_per_block(1);
+        set_smem_size_per_block(0);
+        set_num_registers_per_thread(32);
+    }
+
+    void init(void* io_ptr) override {
+        io_ptr_ = io_ptr;
+
+        num_ = 0;
+
+        set_num_blocks(1);
     }
 
     void run_next() override {

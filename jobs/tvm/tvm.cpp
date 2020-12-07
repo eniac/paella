@@ -6,10 +6,6 @@
 
 class TVMJob : public llis::job::CoroutineJob {
   public:
-    TVMJob() {
-        set_smem_size_per_block(0);
-    }
-
     size_t get_input_size() override {
         return 5;
     }
@@ -22,24 +18,16 @@ class TVMJob : public llis::job::CoroutineJob {
         return 4;
     }
 
-    void full_init(void* io_ptr) override {
-        io_ptr_ = io_ptr;
-
-        auto start_time = std::chrono::steady_clock::now();
-
+    void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
         mod_factory_ = tvm::runtime::Module::LoadFromFile("model-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
-
-        auto end_time = std::chrono::steady_clock::now();
-
-        std::cout << "Time taken for TVM startup: " << std::chrono::duration<double, std::micro>(end_time - start_time).count() << std::endl;
-
-        CoroutineJob::full_init(io_ptr);
     }
 
-    void body() override {
+    void body(void* io_ptr) override {
+        io_ptr_ = io_ptr;
+
         // TODO: set input, etc
         run_();
     }

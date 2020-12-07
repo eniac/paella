@@ -20,6 +20,7 @@ class RegisteredJob {
     std::unique_ptr<job::Job> create_instance();
     void grow_pool();
     std::unique_ptr<job::Job> init_job();
+    void release_instance(std::unique_ptr<job::Job> job);
 
   private:
     typedef job::Job* (*init_job_t)();
@@ -36,6 +37,8 @@ class RegisteredJob {
 
     size_t pool_size_in_bytes_;
     std::vector<void*> mapped_mem_;
+
+    std::vector<std::unique_ptr<job::Job>> unused_job_instances_;
 };
 
 }

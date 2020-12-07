@@ -95,8 +95,12 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 
 void Scheduler::schedule_job() {
     while (!jobs_.empty() && !jobs_.front()->has_next() && !jobs_.front()->is_running()) {
-        unused_job_id_.push_back(jobs_.front()->get_id());
+        std::unique_ptr<job::Job> job = std::move(jobs_.front());
         jobs_.pop_front();
+
+        unused_job_id_.push_back(job->get_id());
+
+        server_->release_job_instance(std::move(job));
     }
 
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO

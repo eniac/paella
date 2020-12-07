@@ -17,12 +17,6 @@ __global__ void helloworld(int i, llis::JobId job_id, llis::ipc::Gpu2SchedChanne
 
 class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
   public:
-    HelloWorldCoroutineJob() {
-        set_num_threads_per_block(1);
-        set_smem_size_per_block(0);
-        set_num_registers_per_thread(32);
-    }
-
     size_t get_input_size() override {
         return 5;
     }
@@ -35,25 +29,25 @@ class HelloWorldCoroutineJob : public llis::job::CoroutineJob {
         return 4;
     }
 
-    void full_init(void* io_ptr) override {
-        CoroutineJob::full_init(io_ptr);
-
-        io_ptr_ = io_ptr;
+    void one_time_init() override {
+        set_num_threads_per_block(1);
+        set_smem_size_per_block(0);
+        set_num_registers_per_thread(32);
     }
 
-    void body() override {
-        for (int i = 0; i < 5; ++i) {
-            ++num_;
-            set_num_blocks(num_);
+    void body(void* io_ptr) override {
+        io_ptr_ = io_ptr;
+
+        for (int i = 1; i <= 5; ++i) {
+            set_num_blocks(i);
 
             yield();
-            helloworld<<<num_, 1, 0, get_cuda_stream()>>>(num_, get_id(), llis::job::Context::get_gpu2sched_channel()->fork());
+            helloworld<<<i, 1, 0, get_cuda_stream()>>>(i, get_id(), llis::job::Context::get_gpu2sched_channel()->fork());
         }
     }
 
   private:
     void* io_ptr_;
-    int num_ = 0;
 };
 
 extern "C" {

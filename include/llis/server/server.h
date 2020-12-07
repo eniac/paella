@@ -25,6 +25,8 @@ class Server {
     void notify_job_starts(job::Job* job);
     void notify_job_ends(job::Job* job);
 
+    void release_job_instance(std::unique_ptr<job::Job> job);
+
   private:
     void try_handle_c2s();
     void handle_c2s();

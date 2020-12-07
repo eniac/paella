@@ -1,3 +1,4 @@
+#include "llis/job/job.h"
 #include <llis/ipc/unix_datagram_socket.h>
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/scheduler.h>
@@ -108,12 +109,16 @@ void Server::handle_grow_pool() {
 void Server::notify_job_starts(job::Job* job) {
     ipc::UnixDatagramSocket* s2c_socket = client_connections_[job->get_client_id()].get_s2c_socket();
     bool msg = true;
-    ssize_t size_written = s2c_socket->write(&msg, sizeof(msg));
+    s2c_socket->write(&msg, sizeof(msg));
 }
 
 void Server::notify_job_ends(job::Job* job) {
     ipc::ShmChannel* s2c_channel = client_connections_[job->get_client_id()].get_s2c_channel();
     s2c_channel->write(job->get_job_instance_ref_id());
+}
+
+void Server::release_job_instance(std::unique_ptr<job::Job> job) {
+    registered_jobs_[job->get_registered_job_id()].release_instance(std::move(job));
 }
 
 }
