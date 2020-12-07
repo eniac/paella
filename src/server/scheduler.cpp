@@ -15,7 +15,7 @@
 namespace llis {
 namespace server {
 
-Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(1024), cuda_streams_(100) { // TODO: size of the channel must be larger than number of total blocks * 2
+Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(10240), cuda_streams_(100) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 
     for (auto& stream : cuda_streams_) {
@@ -95,6 +95,7 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 
 void Scheduler::schedule_job() {
     while (!jobs_.empty() && !jobs_.front()->has_next() && !jobs_.front()->is_running()) {
+        unused_job_id_.push_back(jobs_.front()->get_id());
         jobs_.pop_front();
     }
 
