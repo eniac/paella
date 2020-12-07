@@ -24,8 +24,12 @@ __device__ inline void kernel_end(JobId job_id, ipc::Gpu2SchedChannel* gpu2sched
     __syncthreads();
 
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) {
+        unsigned smid;
+        asm("mov.u32 %0, %smid;" : "=r"(smid));
+
         InstrumentInfo info;
         info.is_start = 0;
+        info.smid = smid;
         info.job_id = job_id;
 
         gpu2sched_channel->write(info);

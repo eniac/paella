@@ -49,6 +49,7 @@ class Scheduler {
     std::vector<JobId> unused_job_id_;
 
     std::vector<SmAvail> sm_avails_;
+    unsigned num_pending_blocks_ = 0;
 };
 
 }

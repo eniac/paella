@@ -54,10 +54,12 @@ void Scheduler::handle_block_start_finish() {
 }
 
 void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
+    --num_pending_blocks_;
+
     job::Job* job = job_id_to_job_map_[info.job_id];
 
     // TODO: handle allocation granularity
-    sm_avails_[info.smid].nregs -= job->get_num_registers_per_thread() * job->get_num_threads_per_block(); // TODO: use an actual number
+    sm_avails_[info.smid].nregs -= job->get_num_registers_per_thread() * job->get_num_threads_per_block();
     sm_avails_[info.smid].nthrs -= job->get_num_threads_per_block();
     sm_avails_[info.smid].smem -= job->get_smem_size_per_block();
 }
@@ -73,7 +75,9 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
         cuda_streams_.push_back(job->get_cuda_stream());
     }
 
-    // TODO: handle resouce release
+    sm_avails_[info.smid].nregs += job->get_num_registers_per_thread() * job->get_num_threads_per_block();
+    sm_avails_[info.smid].nthrs += job->get_num_threads_per_block();
+    sm_avails_[info.smid].smem += job->get_smem_size_per_block();
 
     schedule_job();
 }
@@ -103,6 +107,10 @@ void Scheduler::schedule_job() {
         server_->release_job_instance(std::move(job));
     }
 
+    if (num_pending_blocks_) {
+        return;
+    }
+
     if (cuda_streams_.empty()) {
         return;
     }
@@ -116,6 +124,7 @@ void Scheduler::schedule_job() {
                     job->set_started();
                 }
                 job->set_running(cuda_streams_.back());
+                num_pending_blocks_ += job->get_num_blocks();
                 cuda_streams_.pop_back();
                 job::Context::set_current_job(job.get());
                 job->run_next();
