@@ -103,6 +103,10 @@ void Scheduler::schedule_job() {
         server_->release_job_instance(std::move(job));
     }
 
+    if (cuda_streams_.empty()) {
+        return;
+    }
+
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
