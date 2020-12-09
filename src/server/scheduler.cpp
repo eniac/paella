@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <string>
+#include <algorithm>
 
 namespace llis {
 namespace server {
@@ -24,13 +25,16 @@ Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(10240), cuda_strea
 
     // TODO: query the numbers
     // Some of them can be zero because some smid may not reflect an actual SM
-    sm_avails_.resize(56);
+    sm_avails_.resize(40);
     for (auto& sm_avail : sm_avails_) {
         sm_avail.nregs = 65536;
         sm_avail.nthrs = 2048;
         sm_avail.smem = 65536;
         sm_avail.nblocks = 32;
     }
+
+    gpc_num_blocks_.resize(5);
+    gpc_next_sms_.resize(5);
 }
 
 void Scheduler::set_server(Server* server) {
@@ -54,14 +58,23 @@ void Scheduler::handle_block_start_finish() {
 }
 
 void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
-    --num_pending_blocks_;
-
     job::Job* job = job_id_to_job_map_[info.job_id];
 
-    // TODO: handle allocation granularity
-    sm_avails_[info.smid].nregs -= job->get_num_registers_per_thread() * job->get_num_threads_per_block();
-    sm_avails_[info.smid].nthrs -= job->get_num_threads_per_block();
-    sm_avails_[info.smid].smem -= job->get_smem_size_per_block();
+    if (!job->has_predicted_smid(info.smid)) {
+        sm_avails_[info.smid].minus(job, 1);
+    } else {
+        job->dec_predicted_smid(info.smid);
+    }
+
+    if (!job->mark_block_start()) {
+        const unsigned* predicted_smid_nums = job->get_predicted_smid_nums();
+        for (unsigned smid = 0; smid < 40; ++smid) {
+            unsigned num = predicted_smid_nums[smid];
+
+            // TODO: handle allocation granularity
+            sm_avails_[smid].add(job, num);
+        }
+    }
 }
 
 void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
@@ -72,12 +85,14 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
         if (!job->has_next()) {
             server_->notify_job_ends(job);
         }
+#ifdef PRINT_NUM_RUNNING_KERNELS
+        --num_running_kernels_;
+        printf("num_running_kernels_: %u\n", num_running_kernels_);
+#endif
         cuda_streams_.push_back(job->get_cuda_stream());
     }
 
-    sm_avails_[info.smid].nregs += job->get_num_registers_per_thread() * job->get_num_threads_per_block();
-    sm_avails_[info.smid].nthrs += job->get_num_threads_per_block();
-    sm_avails_[info.smid].smem += job->get_smem_size_per_block();
+    sm_avails_[info.smid].add(job, 1);
 
     schedule_job();
 }
@@ -107,10 +122,6 @@ void Scheduler::schedule_job() {
         server_->release_job_instance(std::move(job));
     }
 
-    if (num_pending_blocks_) {
-        return;
-    }
-
     if (cuda_streams_.empty()) {
         return;
     }
@@ -124,11 +135,14 @@ void Scheduler::schedule_job() {
                     job->set_started();
                 }
                 job->set_running(cuda_streams_.back());
-                num_pending_blocks_ += job->get_num_blocks();
+#ifdef PRINT_NUM_RUNNING_KERNELS
+                ++num_running_kernels_;
+                printf("num_running_kernels_: %u\n", num_running_kernels_);
+#endif
+                choose_sms(job.get());
                 cuda_streams_.pop_back();
                 job::Context::set_current_job(job.get());
                 job->run_next();
-                break;
             }
         }
     }
@@ -138,6 +152,10 @@ bool Scheduler::job_fits(job::Job* job) {
     unsigned num_avail_blocks = 0;
 
     for (auto& sm_avail : sm_avails_) {
+        if (!sm_avail.is_ok()) {
+            continue;
+        }
+
         unsigned tmp = sm_avail.nblocks;
 
         if (job->get_num_threads_per_block() > 0) {
@@ -157,6 +175,24 @@ bool Scheduler::job_fits(job::Job* job) {
     }
 
     return false;
+}
+
+void Scheduler::choose_sms(job::Job* job) {
+    unsigned num_blocks = job->get_num_blocks();
+
+    for (unsigned blockId = 0; blockId < num_blocks; ++blockId) {
+        unsigned gpc = std::min_element(gpc_num_blocks_.begin(), gpc_num_blocks_.end()) - gpc_num_blocks_.begin();
+        unsigned smid = gpc_sms_[gpc][gpc_next_sms_[gpc]];
+
+        ++gpc_num_blocks_[gpc];
+        gpc_next_sms_[gpc] = (gpc_next_sms_[gpc] + 1) % 8;
+
+        sm_avails_[smid].minus(job, 1);
+
+        // TODO: handle overusing resources
+
+        job->add_predicted_smid(smid);
+    }
 }
 
 }

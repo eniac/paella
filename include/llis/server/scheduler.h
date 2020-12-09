@@ -25,10 +25,30 @@ class Scheduler {
 
   private:
     struct SmAvail {
-        unsigned nregs = 0;
-        unsigned smem = 0;
-        unsigned nthrs = 0;
-        unsigned nblocks = 0;
+        int nregs = 0;
+        int smem = 0;
+        int nthrs = 0;
+        int nblocks = 0;
+
+        bool is_ok() const {
+            return nregs >= 0 & smem >= 0 & nthrs >= 0 & nblocks >= 0;
+        }
+
+        void add(job::Job* job, int num) {
+            // TODO: handle allocation granularity
+            nregs += job->get_cur_num_registers_per_thread() * job->get_cur_num_threads_per_block() * num;
+            nthrs += job->get_cur_num_threads_per_block() * num;
+            smem += job->get_cur_smem_size_per_block() * num;
+            nblocks += job->get_cur_num_blocks() * num;
+        }
+
+        void minus(job::Job* job, int num) {
+            // TODO: handle allocation granularity
+            nregs -= job->get_cur_num_registers_per_thread() * job->get_cur_num_threads_per_block() * num;
+            nthrs -= job->get_cur_num_threads_per_block() * num;
+            smem -= job->get_cur_smem_size_per_block() * num;
+            nblocks -= job->get_cur_num_blocks() * num;
+        }
     };
 
     void handle_block_start_finish();
@@ -37,6 +57,7 @@ class Scheduler {
 
     void schedule_job();
     bool job_fits(job::Job* job);
+    void choose_sms(job::Job* job);
 
     Server* server_;
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
@@ -49,7 +70,13 @@ class Scheduler {
     std::vector<JobId> unused_job_id_;
 
     std::vector<SmAvail> sm_avails_;
-    unsigned num_pending_blocks_ = 0;
+    std::vector<unsigned> gpc_num_blocks_;
+    std::vector<unsigned> gpc_next_sms_;
+    constexpr static unsigned gpc_sms_[5][8] = {{0, 10, 20, 30, 1, 11, 21, 31}, {2, 12, 22, 32, 3, 13, 23, 33}, {4, 14, 24, 34, 5, 15, 25, 35}, {6, 16, 26, 36, 7, 17, 27, 37}, {8, 18, 28, 38, 9, 19, 29, 39}};
+
+#ifdef PRINT_NUM_RUNNING_KERNELS
+    unsigned num_running_kernels_ = 0;
+#endif
 };
 
 }

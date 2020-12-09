@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 
 #include <cstddef>
+#include <vector>
 
 namespace llis {
 namespace job {
@@ -52,6 +53,22 @@ class Job {
         return num_registers_per_thread_;
     }
 
+    unsigned get_cur_num_blocks() const {
+        return cur_num_blocks_;
+    }
+
+    unsigned get_cur_num_threads_per_block() const {
+        return cur_num_threads_per_block_;
+    }
+
+    unsigned get_cur_smem_size_per_block() const {
+        return cur_smem_size_per_block_;
+    }
+
+    unsigned get_cur_num_registers_per_thread() const {
+        return cur_num_registers_per_thread_;
+    }
+
     void set_num_blocks(unsigned num_blocks) {
         num_blocks_ = num_blocks;
     }
@@ -76,10 +93,21 @@ class Job {
         is_running_ = true;
         cuda_stream_ = cuda_stream;
         num_running_blocks_ = num_blocks_;
+        num_pending_blocks_ = num_blocks_;
+        clear_predicted_smids();
+
+        cur_num_blocks_ = num_blocks_;
+        cur_num_threads_per_block_ = num_threads_per_block_;
+        cur_smem_size_per_block_ = smem_size_per_block_;
+        cur_num_registers_per_thread_ = num_registers_per_thread_;
     }
 
     void unset_running() {
         is_running_ = false;
+    }
+
+    bool mark_block_start() {
+        return --num_pending_blocks_;
     }
 
     void mark_block_finish() {
@@ -126,6 +154,26 @@ class Job {
         job_instance_ref_id_ = id;
     }
 
+    void add_predicted_smid(unsigned smid) {
+        ++predicted_smid_nums_[smid];
+    }
+
+    const unsigned* get_predicted_smid_nums() const {
+        return predicted_smid_nums_;
+    }
+
+    bool has_predicted_smid(unsigned smid) const {
+        return predicted_smid_nums_[smid] > 0;
+    }
+
+    void dec_predicted_smid(unsigned smid) {
+        --predicted_smid_nums_[smid];
+    }
+
+    void clear_predicted_smids() {
+        std::fill(predicted_smid_nums_, predicted_smid_nums_ + 40, 0);
+    }
+
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
@@ -135,13 +183,20 @@ class Job {
     unsigned smem_size_per_block_;
     unsigned num_registers_per_thread_;
 
+    unsigned cur_num_blocks_;
+    unsigned cur_num_threads_per_block_;
+    unsigned cur_smem_size_per_block_;
+    unsigned cur_num_registers_per_thread_;
+
     unsigned num_running_blocks_;
+    unsigned num_pending_blocks_;
 
     bool has_started_ = false;
     ClientId client_id_;
     JobRefId registered_job_id_;
     JobInstanceRefId job_instance_ref_id_;
     JobId id_;
+    unsigned predicted_smid_nums_[40];
 };
 
 }
