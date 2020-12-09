@@ -50,6 +50,10 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
     shm_ = nullptr;
 
     if (name != "") {
+        if constexpr (for_gpu) {
+            fprintf(stderr, "GPU queue cannot be on shared memory\n");
+        }
+
         is_create_ = (count > 0);
         name_with_prefix_ = "llis:pchannel:" + name;
         if (is_create_) {
@@ -69,6 +73,9 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
     } else {
         is_create_ = true;
         name_with_prefix_ = "";
+        if (count <= 0) {
+            fprintf(stderr, "Count must be > 0\n");
+        }
         count_ = count;
     }
 
@@ -77,7 +84,9 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
     total_size_ = sizeof(size_t);
 
     size_t write_pos_pos = utils::next_aligned_pos(total_size_, alignof(AtomicWrapper<unsigned, for_gpu>));
-    total_size_ = write_pos_pos + sizeof(AtomicWrapper<unsigned, for_gpu>);
+    if constexpr (!for_gpu) {
+        total_size_ = write_pos_pos + sizeof(AtomicWrapper<unsigned, for_gpu>);
+    }
 
     size_t ring_buf_offset = utils::next_aligned_pos(total_size_, alignof(T));
     total_size_ = ring_buf_offset + size;
@@ -98,11 +107,19 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
     ring_buf_ = reinterpret_cast<T*>(shm_ + ring_buf_offset);
 
     read_pos_ = 0;
-    write_pos_ = reinterpret_cast<AtomicWrapper<unsigned, for_gpu>*>(shm_ + write_pos_pos);
+    if constexpr (for_gpu) {
+        cudaMalloc(&write_pos_, sizeof(AtomicWrapper<unsigned, for_gpu>));
+    } else {
+        write_pos_ = reinterpret_cast<AtomicWrapper<unsigned, for_gpu>*>(shm_ + write_pos_pos);
+    }
 
     if (is_create_) {
         *reinterpret_cast<size_t*>(shm_) = count_;
-        write_pos_->store(0);
+        if constexpr (for_gpu) {
+            cudaMemset(&write_pos_, 0, sizeof(*write_pos_));
+        } else {
+            write_pos_->store(0);
+        }
 
         memset(ring_buf_, 0, size);
     }
@@ -131,6 +148,9 @@ void ShmPrimitiveChannelBase<T, for_gpu>::disconnect() {
             }
             if (is_create_) {
                 shm_unlink(name_with_prefix_.c_str());
+                if constexpr (for_gpu) {
+                    cudaFree(write_pos_);
+                }
             }
         } else {
             if (is_create_) {
