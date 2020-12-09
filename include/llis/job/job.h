@@ -198,6 +198,14 @@ class Job {
         deficit_counter_ += val;
     }
 
+    void set_priority(double priority) {
+        priority_ = priority;
+    }
+
+    double get_priority() const {
+        return priority_;
+    }
+
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
@@ -218,6 +226,7 @@ class Job {
     unsigned predicted_smid_nums_[40];
 
     float deficit_counter_ = 0;
+    double priority_;
 
     bool has_started_ = false;
 

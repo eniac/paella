@@ -56,11 +56,11 @@ class Scheduler {
     void handle_block_finish(const job::InstrumentInfo& info);
 
     void schedule_job();
-    void schedule_job(bool is_high);
     bool job_fits(job::Job* job);
     void choose_sms(job::Job* job);
     void update_deficit_counters(job::Job* job_scheduled);
 
+    double calculate_priority(job::Job* job) const;
     static float normalize_resources(job::Job* job);
 
     Server* server_;
@@ -68,7 +68,7 @@ class Scheduler {
     
     std::vector<cudaStream_t> cuda_streams_;
 
-    std::deque<std::unique_ptr<job::Job>> jobs_;
+    std::vector<std::unique_ptr<job::Job>> jobs_;
 
     std::vector<job::Job*> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;

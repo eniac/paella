@@ -125,6 +125,22 @@ float RegisteredJob::get_stage_resource(unsigned stage_id) const {
     }
 }
 
+double RegisteredJob::get_remaining_length(unsigned from_stage) const {
+    double sum = 0;
+    for (unsigned i = from_stage; i < stage_lengths_.size(); ++i) {
+        sum += stage_lengths_[i];
+    }
+    return sum;
+}
+
+double RegisteredJob::get_remaining_rl(unsigned from_stage) const {
+    double sum = 0;
+    for (unsigned i = from_stage; i < stage_lengths_.size(); ++i) {
+        sum += stage_lengths_[i] * stage_resources_[i];
+    }
+    return sum;
+}
+
 }
 }
 

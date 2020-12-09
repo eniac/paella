@@ -1,4 +1,3 @@
-#include <chrono>
 #include <llis/server/scheduler.h>
 
 #include <llis/ipc/shm_primitive_channel.h>
@@ -13,6 +12,8 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <chrono>
+#include <cfloat>
 
 namespace llis {
 namespace server {
@@ -116,7 +117,12 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
         job_id_to_job_map_[job->get_id()] = job.get();
     }
 
-    server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
+    if (job->has_next()) {
+        server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
+        job->set_priority(calculate_priority(job.get()));
+    } else {
+        job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
+    }
 
     jobs_.push_back(std::move(job));
 
@@ -126,14 +132,15 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 }
 
 void Scheduler::schedule_job() {
-    schedule_job(true);
-    schedule_job(false);
-}
+    // Sort the job list in descending order of priority
+    std::sort(jobs_.begin(), jobs_.end(), [](const std::unique_ptr<job::Job>& left, const std::unique_ptr<job::Job>& right) {
+        return left->get_priority() > right->get_priority();
+    });
 
-void Scheduler::schedule_job(bool is_high) {
-    while (!jobs_.empty() && !jobs_.front()->has_next() && !jobs_.front()->is_running()) {
-        std::unique_ptr<job::Job> job = std::move(jobs_.front());
-        jobs_.pop_front();
+    // All jobs that does not have a next stage to run are pushed to the end
+    while (!jobs_.empty() && !jobs_.back()->has_next() && !jobs_.back()->is_running()) {
+        std::unique_ptr<job::Job> job = std::move(jobs_.back());
+        jobs_.pop_back();
 
         unused_job_id_.push_back(job->get_id());
 
@@ -147,26 +154,31 @@ void Scheduler::schedule_job(bool is_high) {
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
-            if (is_high && !job->has_started()) {
-                // When scheduling high priority jobs, only schedule those that are started
-                continue;
-            }
-
             if (job_fits(job.get())) {
                 if (!job->has_started()) {
                     server_->notify_job_starts(job.get());
                     job->set_started();
                 }
+
                 job->set_running(cuda_streams_.back());
+                cuda_streams_.pop_back();
+
 #ifdef PRINT_NUM_RUNNING_KERNELS
                 ++num_running_kernels_;
                 printf("num_running_kernels_: %u\n", num_running_kernels_);
 #endif
+
                 choose_sms(job.get());
-                cuda_streams_.pop_back();
+
                 job::Context::set_current_job(job.get());
                 job->run_next();
-                server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
+
+                if (job->has_next()) {
+                    server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
+                    job->set_priority(calculate_priority(job.get()));
+                } else {
+                    job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
+                }
             }
         }
     }
@@ -233,6 +245,10 @@ void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
 
 float Scheduler::normalize_resources(job::Job* job) {
     return ((float)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()) / total_nregs_ + (float)job->get_num_threads_per_block() / total_nthrs_ + (float)job->get_smem_size_per_block() / total_smem_) * job->get_num_blocks() + (float)job->get_num_blocks() / total_nblocks_;
+}
+
+double Scheduler::calculate_priority(job::Job* job) const {
+    return -server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
 }
 
 }
