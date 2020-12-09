@@ -56,6 +56,7 @@ class Scheduler {
     void handle_block_finish(const job::InstrumentInfo& info);
 
     void schedule_job();
+    void schedule_job(bool is_high);
     bool job_fits(job::Job* job);
     void choose_sms(job::Job* job);
 

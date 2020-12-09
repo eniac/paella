@@ -113,6 +113,11 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 }
 
 void Scheduler::schedule_job() {
+    schedule_job(true);
+    schedule_job(false);
+}
+
+void Scheduler::schedule_job(bool is_high) {
     while (!jobs_.empty() && !jobs_.front()->has_next() && !jobs_.front()->is_running()) {
         std::unique_ptr<job::Job> job = std::move(jobs_.front());
         jobs_.pop_front();
@@ -129,6 +134,11 @@ void Scheduler::schedule_job() {
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
+            if (is_high && !job->has_started()) {
+                // When scheduling high priority jobs, only schedule those that are started
+                continue;
+            }
+
             if (job_fits(job.get())) {
                 if (!job->has_started()) {
                     server_->notify_job_starts(job.get());
