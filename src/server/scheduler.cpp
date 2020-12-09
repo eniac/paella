@@ -84,6 +84,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     if (!job->is_running()) {
         if (!job->has_next()) {
             server_->notify_job_ends(job);
+            --num_jobs_;
         }
 #ifdef PRINT_NUM_RUNNING_KERNELS
         --num_running_kernels_;
@@ -108,6 +109,8 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
     }
 
     jobs_.push_back(std::move(job));
+
+    ++num_jobs_;
 
     schedule_job();
 }
@@ -202,6 +205,18 @@ void Scheduler::choose_sms(job::Job* job) {
         // TODO: handle overusing resources
 
         job->add_predicted_smid(smid);
+    }
+}
+
+void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
+    float val = 1. / num_jobs_;
+
+    for (auto& job : jobs_) {
+        if (job.get() == job_scheduled) {
+            job->inc_deficit_counter(1. - val);
+        } else {
+            job->inc_deficit_counter(val);
+        }
     }
 }
 

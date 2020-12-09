@@ -61,8 +61,7 @@ std::unique_ptr<job::Job> RegisteredJob::create_instance() {
         unused_job_instances_.pop_back();
 
         job->set_job_instance_ref_id(job_instance_ref_id);
-        job->unset_running();
-        job->unset_started();
+        job->reset_internal();
         job::Context::set_current_job(job.get());
         job->init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
 

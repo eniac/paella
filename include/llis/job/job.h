@@ -21,6 +21,12 @@ class Job {
     virtual void run_next() = 0;
     virtual bool has_next() const = 0;
 
+    void reset_internal() {
+        unset_running();
+        unset_started();
+        deficit_counter_ = 0;
+    }
+
     void set_id(JobId id) {
         id_ = id;
     }
@@ -174,6 +180,10 @@ class Job {
         std::fill(predicted_smid_nums_, predicted_smid_nums_ + 40, 0);
     }
 
+    void inc_deficit_counter(float val) {
+        deficit_counter_ += val;
+    }
+
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
@@ -197,6 +207,7 @@ class Job {
     JobInstanceRefId job_instance_ref_id_;
     JobId id_;
     unsigned predicted_smid_nums_[40];
+    float deficit_counter_ = 0;
 };
 
 }
