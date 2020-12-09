@@ -61,6 +61,8 @@ class Scheduler {
     void choose_sms(job::Job* job);
     void update_deficit_counters(job::Job* job_scheduled);
 
+    static float normalize_resources(job::Job* job);
+
     Server* server_;
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
     
@@ -75,6 +77,10 @@ class Scheduler {
     std::vector<unsigned> gpc_num_blocks_;
     std::vector<unsigned> gpc_next_sms_;
     constexpr static unsigned gpc_sms_[5][8] = {{0, 10, 20, 30, 1, 11, 21, 31}, {2, 12, 22, 32, 3, 13, 23, 33}, {4, 14, 24, 34, 5, 15, 25, 35}, {6, 16, 26, 36, 7, 17, 27, 37}, {8, 18, 28, 38, 9, 19, 29, 39}};
+    constexpr static unsigned total_nregs_ = 65536 * 40;
+    constexpr static unsigned total_nthrs_ = 2048 * 40;
+    constexpr static unsigned total_smem_ = 65536 * 40;
+    constexpr static unsigned total_nblocks_ = 32 * 40;
 
     unsigned num_jobs_ = 0;
 

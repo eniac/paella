@@ -121,12 +121,12 @@ void Server::release_job_instance(std::unique_ptr<job::Job> job) {
     registered_jobs_[job->get_registered_job_id()].release_instance(std::move(job));
 }
 
-void Server::update_job_stage_length(job::Job* job, double len) {
-    registered_jobs_[job->get_registered_job_id()].update_stage_length(job->get_cur_stage(), len);
+void Server::update_job_stage_length(job::Job* job, unsigned stage_id, double len) {
+    registered_jobs_[job->get_registered_job_id()].update_stage_length(stage_id, len);
 }
 
-void Server::set_job_stage_resource(job::Job* job, float res) {
-    registered_jobs_[job->get_registered_job_id()].set_stage_resource(job->get_cur_stage(), res);
+void Server::set_job_stage_resource(job::Job* job, unsigned stage_id, float res) {
+    registered_jobs_[job->get_registered_job_id()].set_stage_resource(stage_id, res);
 }
 
 }

@@ -24,6 +24,8 @@ class RegisteredJob {
 
     void update_stage_length(unsigned stage_id, double len);
     void set_stage_resource(unsigned stage_id, float res);
+    double get_stage_length(unsigned stage_id) const;
+    float get_stage_resource(unsigned stage_id) const;
 
   private:
     typedef job::Job* (*init_job_t)();

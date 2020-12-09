@@ -91,7 +91,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
         auto end_time = std::chrono::steady_clock::now();
         auto start_time = job->get_stage_start_time();
         double length = std::chrono::duration<double, std::micro>(end_time - start_time).count();
-        server_->update_job_stage_length(job, length);
+        server_->update_job_stage_length(job, job->get_cur_stage(), length);
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
         --num_running_kernels_;
@@ -115,6 +115,8 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
         unused_job_id_.pop_back();
         job_id_to_job_map_[job->get_id()] = job.get();
     }
+
+    server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
 
     jobs_.push_back(std::move(job));
 
@@ -164,6 +166,7 @@ void Scheduler::schedule_job(bool is_high) {
                 cuda_streams_.pop_back();
                 job::Context::set_current_job(job.get());
                 job->run_next();
+                server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
             }
         }
     }
@@ -226,6 +229,10 @@ void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
             job->inc_deficit_counter(val);
         }
     }
+}
+
+float Scheduler::normalize_resources(job::Job* job) {
+    return ((float)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()) / total_nregs_ + (float)job->get_num_threads_per_block() / total_nthrs_ + (float)job->get_smem_size_per_block() / total_smem_) * job->get_num_blocks() + (float)job->get_num_blocks() / total_nblocks_;
 }
 
 }

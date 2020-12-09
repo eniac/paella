@@ -107,6 +107,24 @@ void RegisteredJob::set_stage_resource(unsigned stage_id, float res) {
     // Don't need to do anything otherwise, because resource needs do not change
 }
 
+double RegisteredJob::get_stage_length(unsigned stage_id) const {
+    if (stage_lengths_.size() > stage_id) {
+        return stage_lengths_[stage_id];
+    } else {
+        // TODO: tune the default value when it is unknown
+        return 0;
+    }
+}
+
+float RegisteredJob::get_stage_resource(unsigned stage_id) const {
+    if (stage_resources_.size() > stage_id) {
+        return stage_resources_[stage_id];
+    } else {
+        // TODO: tune the default value when it is unknown
+        return 0;
+    }
+}
+
 }
 }
 

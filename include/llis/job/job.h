@@ -37,7 +37,7 @@ class Job {
         return id_;
     }
 
-    unsigned get_cur_stage() const {
+    int get_cur_stage() const {
         return cur_stage_;
     }
 
