@@ -1,3 +1,4 @@
+#include <chrono>
 #include <llis/server/scheduler.h>
 
 #include <llis/ipc/shm_primitive_channel.h>
@@ -86,10 +87,17 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
             server_->notify_job_ends(job);
             --num_jobs_;
         }
+
+        auto end_time = std::chrono::steady_clock::now();
+        auto start_time = job->get_stage_start_time();
+        double length = std::chrono::duration<double, std::micro>(end_time - start_time).count();
+        server_->update_job_stage_length(job, length);
+
 #ifdef PRINT_NUM_RUNNING_KERNELS
         --num_running_kernels_;
         printf("num_running_kernels_: %u\n", num_running_kernels_);
 #endif
+
         cuda_streams_.push_back(job->get_cuda_stream());
     }
 

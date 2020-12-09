@@ -36,6 +36,9 @@ void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_
 
     unused_job_instances_.clear();
 
+    stage_lengths_.clear();
+    stage_resources_.clear();
+
     s2c_channel_->write(registered_job_id_);
 }
 
@@ -86,6 +89,22 @@ void RegisteredJob::grow_pool() {
 std::unique_ptr<job::Job> RegisteredJob::init_job() {
     std::unique_ptr<job::Job> job(init_job_());
     return job;
+}
+
+void RegisteredJob::update_stage_length(unsigned stage_id, double len) {
+    if (stage_lengths_.size() > stage_id) {
+        // TODO: tune the update rule
+        stage_lengths_[stage_id] = (stage_lengths_[stage_id] + len) / 2;
+    } else {
+        stage_lengths_.push_back(len);
+    }
+}
+
+void RegisteredJob::set_stage_resource(unsigned stage_id, float res) {
+    if (stage_resources_.size() <= stage_id) {
+        stage_resources_.push_back(res);
+    }
+    // Don't need to do anything otherwise, because resource needs do not change
 }
 
 }

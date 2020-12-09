@@ -27,6 +27,9 @@ class Server {
 
     void release_job_instance(std::unique_ptr<job::Job> job);
 
+    void update_job_stage_length(job::Job* job, double len);
+    void set_job_stage_resource(job::Job* job, float res);
+
   private:
     void try_handle_c2s();
     void handle_c2s();

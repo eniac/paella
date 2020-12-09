@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <vector>
+#include <chrono>
 
 namespace llis {
 namespace job {
@@ -25,6 +26,7 @@ class Job {
         unset_running();
         unset_started();
         deficit_counter_ = 0;
+        cur_stage_ = -1;
     }
 
     void set_id(JobId id) {
@@ -33,6 +35,10 @@ class Job {
 
     JobId get_id() const {
         return id_;
+    }
+
+    unsigned get_cur_stage() const {
+        return cur_stage_;
     }
 
     size_t get_output_offset() {
@@ -106,6 +112,14 @@ class Job {
         cur_num_threads_per_block_ = num_threads_per_block_;
         cur_smem_size_per_block_ = smem_size_per_block_;
         cur_num_registers_per_thread_ = num_registers_per_thread_;
+
+        stage_start_time_ = std::chrono::steady_clock::now();
+
+        ++cur_stage_;
+    }
+
+    std::chrono::time_point<std::chrono::steady_clock> get_stage_start_time() const {
+        return stage_start_time_;
     }
 
     void unset_running() {
@@ -201,13 +215,20 @@ class Job {
     unsigned num_running_blocks_;
     unsigned num_pending_blocks_;
 
+    unsigned predicted_smid_nums_[40];
+
+    float deficit_counter_ = 0;
+
     bool has_started_ = false;
+
+    int cur_stage_ = -1;
+
+    std::chrono::time_point<std::chrono::steady_clock> stage_start_time_;
+
     ClientId client_id_;
     JobRefId registered_job_id_;
     JobInstanceRefId job_instance_ref_id_;
     JobId id_;
-    unsigned predicted_smid_nums_[40];
-    float deficit_counter_ = 0;
 };
 
 }

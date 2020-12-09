@@ -22,6 +22,9 @@ class RegisteredJob {
     std::unique_ptr<job::Job> init_job();
     void release_instance(std::unique_ptr<job::Job> job);
 
+    void update_stage_length(unsigned stage_id, double len);
+    void set_stage_resource(unsigned stage_id, float res);
+
   private:
     typedef job::Job* (*init_job_t)();
 
@@ -39,6 +42,9 @@ class RegisteredJob {
     std::vector<void*> mapped_mem_;
 
     std::vector<std::unique_ptr<job::Job>> unused_job_instances_;
+
+    std::vector<double> stage_lengths_;
+    std::vector<float> stage_resources_;
 };
 
 }
