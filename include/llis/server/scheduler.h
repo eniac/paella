@@ -56,6 +56,7 @@ class Scheduler {
     void handle_block_start_finish();
     void handle_block_start(const job::InstrumentInfo& info);
     void handle_block_finish(const job::InstrumentInfo& info);
+    void handle_mem_finish();
 
     void schedule_job();
     bool job_fits(job::Job* job);
@@ -67,6 +68,7 @@ class Scheduler {
 
     Server* server_;
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
+    ipc::ShmChannel mem2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;
 

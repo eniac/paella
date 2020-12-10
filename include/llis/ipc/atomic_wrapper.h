@@ -67,7 +67,10 @@ class AtomicWrapper<T, true> {
 #ifdef __CUDA_ARCH__
         return atomicInc(const_cast<T*>(&val_), compare);
 #else
-        // TODO
+        // FIXME: make it actually atomic
+        T old = val_;
+        val_ = (old >= compare) ? 0 : (old + 1);
+        return old;
 #endif
     }
 

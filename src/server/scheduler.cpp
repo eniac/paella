@@ -1,3 +1,4 @@
+#include "llis/ipc/shm_channel.h"
 #include <llis/server/scheduler.h>
 
 #include <llis/ipc/shm_primitive_channel.h>
@@ -18,8 +19,11 @@
 namespace llis {
 namespace server {
 
-Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(10240), cuda_streams_(100) { // TODO: size of the channel must be larger than number of total blocks * 2
+void mem_notification_callback(void* job);
+
+Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(10240), mem2sched_channel_(10240), cuda_streams_(100) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
+    job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
@@ -46,6 +50,10 @@ void Scheduler::set_server(Server* server) {
 void Scheduler::try_handle_block_start_finish() {
     if (gpu2sched_channel_.can_read<job::InstrumentInfo>()) {
         handle_block_start_finish();
+    }
+
+    if (mem2sched_channel_.can_read()) {
+        handle_mem_finish();
     }
 }
 
@@ -107,6 +115,32 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     schedule_job();
 }
 
+void Scheduler::handle_mem_finish() {
+    job::Job* job;
+    mem2sched_channel_.read(&job);
+
+    if (!job->has_next()) {
+        server_->notify_job_ends(job);
+        --num_jobs_;
+    }
+
+    job->unset_running();
+
+    auto end_time = std::chrono::steady_clock::now();
+    auto start_time = job->get_stage_start_time();
+    double length = std::chrono::duration<double, std::micro>(end_time - start_time).count();
+    server_->update_job_stage_length(job, job->get_cur_stage(), length);
+
+#ifdef PRINT_NUM_RUNNING_KERNELS
+    --num_running_kernels_;
+    printf("num_running_kernels_: %u\n", num_running_kernels_);
+#endif
+
+    cuda_streams_.push_back(job->get_cuda_stream());
+
+    schedule_job();
+}
+
 void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
     if (unused_job_id_.empty()) {
         job->set_id(job_id_to_job_map_.size());
@@ -162,7 +196,7 @@ void Scheduler::schedule_job() {
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
-            if (job_fits(job.get())) {
+            if (job->is_mem() || job_fits(job.get())) {
                 if (!job->has_started()) {
                     server_->notify_job_starts(job.get());
                     job->set_started();
@@ -176,16 +210,29 @@ void Scheduler::schedule_job() {
                 printf("num_running_kernels_: %u\n", num_running_kernels_);
 #endif
 
-                choose_sms(job.get());
+                if (!job->is_mem()) {
+                    choose_sms(job.get());
+                }
+
+                bool job_is_mem = job->is_mem();
 
                 job::Context::set_current_job(job.get());
                 job->run_next();
+                
+                // Note: after run_next, the is_mem flag may change, but we want to use the old one
+                if (job_is_mem) {
+                    cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job.get());
+                }
 
                 if (job->has_next()) {
                     server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
                     job->set_priority(calculate_priority(job.get()));
                 } else {
                     job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
+                }
+
+                if (cuda_streams_.empty()) {
+                    return;
                 }
             }
         }
@@ -257,6 +304,11 @@ float Scheduler::normalize_resources(job::Job* job) {
 
 double Scheduler::calculate_priority(job::Job* job) const {
     return -server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
+}
+
+void mem_notification_callback(void* job) {
+    ipc::ShmChannel* channel = job::Context::get_mem2sched_channel();
+    channel->write(job);
 }
 
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "llis/ipc/shm_channel.h"
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/job.h>
 
@@ -24,9 +25,18 @@ class Context {
         return &gpu2sched_channel_;
     }
 
+    static void set_mem2sched_channel(ipc::ShmChannel* mem2sched_channel) {
+        mem2sched_channel_ = mem2sched_channel->fork();
+    }
+
+    static ipc::ShmChannel* get_mem2sched_channel() {
+        return &mem2sched_channel_;
+    }
+
   private:
     static Job* current_job_;
     static ipc::Gpu2SchedChannel gpu2sched_channel_;
+    static ipc::ShmChannel mem2sched_channel_;
 };
 
 }

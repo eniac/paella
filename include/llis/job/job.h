@@ -25,6 +25,7 @@ class Job {
     void reset_internal() {
         unset_running();
         unset_started();
+        unset_is_mem();
         deficit_counter_ = 0;
         cur_stage_ = -1;
     }
@@ -79,6 +80,18 @@ class Job {
 
     unsigned get_cur_num_registers_per_thread() const {
         return cur_num_registers_per_thread_;
+    }
+
+    bool is_mem() const {
+        return is_mem_;
+    }
+
+    void set_is_mem() {
+        is_mem_ = true;
+    }
+
+    void unset_is_mem() {
+        is_mem_ = false;
     }
 
     void set_num_blocks(unsigned num_blocks) {
@@ -214,6 +227,7 @@ class Job {
     unsigned num_threads_per_block_;
     unsigned smem_size_per_block_;
     unsigned num_registers_per_thread_;
+    bool is_mem_ = false;
 
     unsigned cur_num_blocks_;
     unsigned cur_num_threads_per_block_;
