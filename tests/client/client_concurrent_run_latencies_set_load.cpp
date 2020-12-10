@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
     double mean_inter_time = atof(argv[3]);
     max_num_jobs = atoi(argv[4]);
     const char* output_path = argv[5];
+    const char* raw_output_path = argv[6];
 
     llis::client::Client client(server_name);
     llis::client::JobRef job_ref = client.register_job(job_path);
@@ -138,6 +139,12 @@ int main(int argc, char** argv) {
 
     FILE* fp = fopen(output_path, "a");
     fprintf(fp, "%d,%f,%f,%f,%f,%f,%f\n", (int)mean_inter_time, throughput, mean, p50, p90, p95, p99);
+    fclose(fp);
+
+    fp = fopen(raw_output_path, "w");
+    for (double latency : latencies) {
+        fprintf(fp, "%f\n", latency);
+    }
     fclose(fp);
 }
 
