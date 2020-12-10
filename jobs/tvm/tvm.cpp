@@ -1,7 +1,8 @@
-#include "tvm/runtime/ndarray.h"
 #include <llis/job/coroutine_job.h>
+#include <llis/job/context.h>
 
 #include <tvm/runtime/module.h>
+#include <tvm/runtime/ndarray.h>
 
 #include <iostream>
 
@@ -40,6 +41,7 @@ class TVMJob : public llis::job::CoroutineJob {
         run_();
 
         set_is_mem();
+        set_pre_notify();
         yield();
         cudaMemcpyAsync((char*)io_ptr + get_input_size(), input_dev->data, get_output_size(), cudaMemcpyDeviceToHost, get_cuda_stream());
     }

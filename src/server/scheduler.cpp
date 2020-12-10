@@ -198,7 +198,7 @@ void Scheduler::schedule_job() {
         if (job->has_next() && !job->is_running()) {
             if (job->is_mem() || job_fits(job.get())) {
                 if (!job->has_started()) {
-                    server_->notify_job_starts(job.get());
+                    //server_->notify_job_starts(job.get());
                     job->set_started();
                 }
 
@@ -215,6 +215,10 @@ void Scheduler::schedule_job() {
                 }
 
                 bool job_is_mem = job->is_mem();
+
+                if (job->is_pre_notify()) {
+                    server_->notify_job_starts(job.get());
+                }
 
                 job::Context::set_current_job(job.get());
                 job->run_next();
