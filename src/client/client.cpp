@@ -3,12 +3,15 @@
 #include <llis/ipc/name_format.h>
 
 #include <dlfcn.h>
-#include <string>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <memory>
+#include <mutex>
 #include <random>
+#include <string>
 
 namespace llis {
 namespace client {
@@ -73,21 +76,30 @@ JobRef Client::register_job(std::string path) {
 }
 
 JobInstanceRef* Client::add_job_instance_ref(JobInstanceRef job_instance_ref) {
+    std::unique_lock<std::mutex> lk(mtx_);
+
     if (unused_job_instance_refs_.empty()) {
+        lk.unlock();
+
         JobInstanceRefId id = job_instance_refs_.size();
         job_instance_ref.set_id(id);
-        job_instance_refs_.push_back(std::move(job_instance_ref));
-        return &job_instance_refs_.back();
+        job_instance_refs_.push_back(std::make_unique<JobInstanceRef>(std::move(job_instance_ref)));
+        return job_instance_refs_.back().get();
     } else {
         JobInstanceRefId id = unused_job_instance_refs_.back();
         unused_job_instance_refs_.pop_back();
+
+        lk.unlock();
+
         job_instance_ref.set_id(id);
-        job_instance_refs_[id] = std::move(job_instance_ref);
-        return &job_instance_refs_[id];
+        *(job_instance_refs_[id]) = std::move(job_instance_ref);
+        return job_instance_refs_[id].get();
     }
 }
 
 void Client::release_job_instance_ref(JobInstanceRef* job_instance_ref) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
     unused_job_instance_refs_.push_back(job_instance_ref->get_id());
 }
 
@@ -97,10 +109,10 @@ JobInstanceRef* Client::wait() {
     s2c_socket_.read(&flag, sizeof(flag));
 
     // Wait for end notification
-    JobInstanceRefId id;
-    s2c_channel_.read(&id);
+    JobInstanceRef* res;
+    s2c_channel_.read(&res);
 
-    return &job_instance_refs_[id];
+    return res;
 }
 
 }

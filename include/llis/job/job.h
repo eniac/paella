@@ -166,12 +166,12 @@ class Job {
         return registered_job_id_;
     }
 
-    JobInstanceRefId get_job_instance_ref_id() const {
-        return job_instance_ref_id_;
+    void* get_remote_ptr() const {
+        return remote_ptr_;
     }
 
-    void set_job_instance_ref_id(JobInstanceRefId id) {
-        job_instance_ref_id_ = id;
+    void set_remote_ptr(void* remote_ptr) {
+        remote_ptr_ = remote_ptr;
     }
 
     void add_predicted_smid(unsigned smid) {
@@ -236,7 +236,7 @@ class Job {
 
     ClientId client_id_;
     JobRefId registered_job_id_;
-    JobInstanceRefId job_instance_ref_id_;
+    void* remote_ptr_;
     JobId id_;
 };
 

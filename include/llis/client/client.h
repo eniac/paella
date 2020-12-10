@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <string>
+#include <mutex>
 
 namespace llis {
 namespace client {
@@ -53,8 +54,10 @@ class Client {
     ipc::ShmChannel s2c_channel_;
     ipc::UnixDatagramSocket s2c_socket_;
 
-    std::vector<JobInstanceRef> job_instance_refs_;
+    std::vector<std::unique_ptr<JobInstanceRef>> job_instance_refs_;
     std::vector<JobInstanceRefId> unused_job_instance_refs_;
+
+    std::mutex mtx_;
 };
 
 }

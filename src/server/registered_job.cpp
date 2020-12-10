@@ -47,14 +47,14 @@ std::unique_ptr<job::Job> RegisteredJob::create_instance() {
     c2s_channel_->read(&mapped_mem_id);
     size_t offset;
     c2s_channel_->read(&offset);
-    JobInstanceRefId job_instance_ref_id;
-    c2s_channel_->read(&job_instance_ref_id);
+    void* remote_ptr;
+    c2s_channel_->read(&remote_ptr);
 
     if (unused_job_instances_.empty()) {
         std::unique_ptr<job::Job> job(init_job());
 
         job->set_client_details(client_connection_->get_client_id(), registered_job_id_);
-        job->set_job_instance_ref_id(job_instance_ref_id);
+        job->set_remote_ptr(remote_ptr);
         job::Context::set_current_job(job.get());
         job->full_init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));
 
@@ -63,7 +63,7 @@ std::unique_ptr<job::Job> RegisteredJob::create_instance() {
         std::unique_ptr<job::Job> job = std::move(unused_job_instances_.back());
         unused_job_instances_.pop_back();
 
-        job->set_job_instance_ref_id(job_instance_ref_id);
+        job->set_remote_ptr(remote_ptr);
         job->reset_internal();
         job::Context::set_current_job(job.get());
         job->init(reinterpret_cast<void*>(reinterpret_cast<char*>(mapped_mem_[mapped_mem_id]) + offset));

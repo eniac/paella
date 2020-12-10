@@ -34,7 +34,7 @@ void JobInstanceRef::launch() {
     c2s_channel_->write(job_ref_->get_job_ref_id());
     c2s_channel_->write(io_shm_entry_.id);
     c2s_channel_->write(io_shm_entry_.offset);
-    c2s_channel_->write(id_);
+    c2s_channel_->write(this);
 
     c2s_channel_->release_writer_lock();
 }

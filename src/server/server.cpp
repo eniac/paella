@@ -114,7 +114,7 @@ void Server::notify_job_starts(job::Job* job) {
 
 void Server::notify_job_ends(job::Job* job) {
     ipc::ShmChannel* s2c_channel = client_connections_[job->get_client_id()].get_s2c_channel();
-    s2c_channel->write(job->get_job_instance_ref_id());
+    s2c_channel->write(job->get_remote_ptr());
 }
 
 void Server::release_job_instance(std::unique_ptr<job::Job> job) {
