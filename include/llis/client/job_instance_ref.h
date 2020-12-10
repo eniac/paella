@@ -4,8 +4,6 @@
 #include <llis/ipc/defs.h>
 #include <llis/client/io_shm_entry.h>
 
-#include <chrono>
-
 namespace llis {
 namespace client {
 
@@ -25,9 +23,8 @@ class JobInstanceRef {
     void set_id(JobInstanceRefId id);
     JobInstanceRefId get_id() const;
 
-    void record_start_time();
-    void set_start_time(std::chrono::time_point<std::chrono::steady_clock> time_point);
-    std::chrono::time_point<std::chrono::steady_clock> get_start_time() const;
+    void set_start_time(double time_point);
+    double get_start_time() const;
 
   private:
     JobRef* job_ref_;
@@ -37,7 +34,7 @@ class JobInstanceRef {
 
     ipc::ShmChannel* c2s_channel_;
 
-    std::chrono::time_point<std::chrono::steady_clock> start_time_;
+    double start_time_;
 };
 
 }

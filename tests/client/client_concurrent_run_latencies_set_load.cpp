@@ -10,6 +10,7 @@
 #include <vector>
 #include <thread>
 #include <algorithm>
+#include <random>
 
 using namespace std::chrono_literals;
 
@@ -20,6 +21,8 @@ std::atomic_int num_outstanding_jobs = 0;
 std::vector<llis::client::JobInstanceRef*> job_instance_refs;
 std::vector<llis::client::JobInstanceRef*> unused_job_instance_refs;
 std::mutex mtx;
+
+int max_num_jobs;
 
 void monitor(llis::client::Client* client) {
     auto very_start_time = std::chrono::steady_clock::now();
@@ -37,7 +40,7 @@ void monitor(llis::client::Client* client) {
 
         --num_outstanding_jobs;
 
-        double latency = std::chrono::duration<double, std::micro>(cur_time - job_instance_ref->get_start_time()).count();
+        double latency = std::chrono::duration<double, std::micro>(cur_time.time_since_epoch()).count() - job_instance_ref->get_start_time();
         double time_elasped = std::chrono::duration<double, std::micro>(cur_time - very_start_time).count();
 
         if (time_elasped > 10000000) { // 10s
@@ -50,10 +53,15 @@ void monitor(llis::client::Client* client) {
     }
 }
 
-void submit(llis::client::JobRef* job_ref, double next_submit_time_incr) {
+void submit(llis::client::JobRef* job_ref, double mean_inter_time) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::exponential_distribution<> d(1. / mean_inter_time);
+
     double next_submit_time = 0;
 
     auto start_time = std::chrono::steady_clock::now();
+    double start_time_us = std::chrono::duration<double, std::micro>(start_time.time_since_epoch()).count();
 
     while (true) {
         auto cur_time = std::chrono::steady_clock::now();
@@ -64,19 +72,22 @@ void submit(llis::client::JobRef* job_ref, double next_submit_time_incr) {
         }
 
         if (time_elasped >= next_submit_time) {
-            while (num_outstanding_jobs >= 10);
+            auto start_time = std::chrono::steady_clock::now();
+
+            while (num_outstanding_jobs >= max_num_jobs);
 
             //llis::client::JobInstanceRef* job_instance_ref = job_ref->create_instance();
             std::unique_lock<std::mutex> lk(mtx);
             llis::client::JobInstanceRef* job_instance_ref = unused_job_instance_refs.back();
             unused_job_instance_refs.pop_back();
             lk.unlock();
-            job_instance_ref->record_start_time();
+            job_instance_ref->set_start_time(start_time_us + next_submit_time);
             job_instance_ref->launch();
 
-            double start_time_us = std::chrono::duration<double, std::micro>(job_instance_ref->get_start_time() - start_time).count();
+            //double start_time_us = std::chrono::duration<double, std::micro>(job_instance_ref->get_start_time() - start_time).count();
 
-            next_submit_time = start_time_us + next_submit_time_incr;
+            //next_submit_time = start_time_us + next_submit_time_incr;
+            next_submit_time += d(gen);
 
             ++num_outstanding_jobs;
         }
@@ -86,26 +97,27 @@ void submit(llis::client::JobRef* job_ref, double next_submit_time_incr) {
 int main(int argc, char** argv) {
     const char* server_name = argv[1];
     const char* job_path = argv[2];
-    double next_submit_time_incr = atof(argv[3]);
-    const char* output_path = argv[4];
+    double mean_inter_time = atof(argv[3]);
+    max_num_jobs = atoi(argv[4]);
+    const char* output_path = argv[5];
 
     llis::client::Client client(server_name);
     llis::client::JobRef job_ref = client.register_job(job_path);
 
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < max_num_jobs; ++i) {
         llis::client::JobInstanceRef* job_instance_ref = job_ref.create_instance();
         job_instance_refs.push_back(job_instance_ref);
         unused_job_instance_refs.push_back(job_instance_ref);
         job_instance_ref->launch();
     }
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < max_num_jobs; ++i) {
         llis::client::JobInstanceRef* job_instance_ref = client.wait();
         //client.release_job_instance_ref(job_instance_ref);
     }
     //printf("Finished init\n");
 
     std::thread monitor_thr(monitor, &client);
-    std::thread submit_thr(submit, &job_ref, next_submit_time_incr);
+    std::thread submit_thr(submit, &job_ref, mean_inter_time);
 
     std::this_thread::sleep_for(40s);
 
@@ -125,7 +137,7 @@ int main(int argc, char** argv) {
     double p99 = latencies[latencies.size() * 0.99];
 
     FILE* fp = fopen(output_path, "a");
-    fprintf(fp, "%f,%f,%f,%f,%f,%f\n", throughput, mean, p50, p90, p95, p99);
+    fprintf(fp, "%d,%f,%f,%f,%f,%f,%f\n", (int)mean_inter_time, throughput, mean, p50, p90, p95, p99);
     fclose(fp);
 }
 

@@ -52,15 +52,11 @@ JobInstanceRefId JobInstanceRef::get_id() const {
     return id_;
 }
 
-void JobInstanceRef::record_start_time() {
-    start_time_ = std::chrono::steady_clock::now();
-}
-
-void JobInstanceRef::set_start_time(std::chrono::time_point<std::chrono::steady_clock> time_point) {
+void JobInstanceRef::set_start_time(double time_point) {
     start_time_ = time_point;
 }
 
-std::chrono::time_point<std::chrono::steady_clock> JobInstanceRef::get_start_time() const {
+double JobInstanceRef::get_start_time() const {
     return start_time_;
 }
 
