@@ -6,5 +6,7 @@ add_subdirectory(run_forever)
 
 if(TVM_PATH)
     add_subdirectory(tvm)
+    add_subdirectory(tvm_mobilenet)
+    add_subdirectory(tvm_resnet18)
 endif(TVM_PATH)
 

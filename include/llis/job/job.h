@@ -224,6 +224,10 @@ class Job {
         deficit_counter_ += val;
     }
 
+    float get_deficit_counter() const {
+        return deficit_counter_;
+    }
+
     void set_priority(double priority) {
         priority_ = priority;
     }

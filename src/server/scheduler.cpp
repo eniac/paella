@@ -21,7 +21,7 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-Scheduler::Scheduler() : server_(nullptr), gpu2sched_channel_(10240), mem2sched_channel_(10240), cuda_streams_(100) { // TODO: size of the channel must be larger than number of total blocks * 2
+Scheduler::Scheduler(float unfairness_threshold) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(100), unfairness_threshold_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
     job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
@@ -170,8 +170,17 @@ void Scheduler::schedule_job() {
 #ifdef PRINT_SORT_TIME
     auto start_sort_time = std::chrono::steady_clock::now();
 #endif
-    std::sort(jobs_.begin(), jobs_.end(), [](const std::unique_ptr<job::Job>& left, const std::unique_ptr<job::Job>& right) {
-        return left->get_priority() > right->get_priority();
+    std::sort(jobs_.begin(), jobs_.end(), [this](const std::unique_ptr<job::Job>& left, const std::unique_ptr<job::Job>& right) {
+        int is_left_unfair = left->get_deficit_counter() >= unfairness_threshold_;
+        int is_right_unfair = right->get_deficit_counter() >= unfairness_threshold_;
+
+        if (is_left_unfair > is_right_unfair) {
+            return true;
+        } else if (is_left_unfair == is_right_unfair) {
+            return left->get_priority() > right->get_priority();
+        } else {
+            return false;
+        }
     });
 #ifdef PRINT_SORT_TIME
     auto end_sort_time = std::chrono::steady_clock::now();
@@ -196,48 +205,49 @@ void Scheduler::schedule_job() {
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
-            if (job->is_mem() || job_fits(job.get())) {
-                if (!job->has_started()) {
-                    //server_->notify_job_starts(job.get());
-                    job->set_started();
-                }
+            if (!job->has_started()) {
+                //server_->notify_job_starts(job.get());
+                job->set_started();
+            }
 
-                job->set_running(cuda_streams_.back());
-                cuda_streams_.pop_back();
+            job->set_running(cuda_streams_.back());
+            cuda_streams_.pop_back();
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
-                ++num_running_kernels_;
-                printf("num_running_kernels_: %u\n", num_running_kernels_);
+            ++num_running_kernels_;
+            printf("num_running_kernels_: %u\n", num_running_kernels_);
 #endif
 
-                if (!job->is_mem()) {
-                    choose_sms(job.get());
-                }
+            bool job_is_mem = job->is_mem();
 
-                bool job_is_mem = job->is_mem();
+            bool fits;
+            if (job_is_mem) {
+                fits = true;
+            } else {
+                fits = job_fits(job.get());
+            }
 
-                if (job->is_pre_notify()) {
-                    server_->notify_job_starts(job.get());
-                }
+            if (job->is_pre_notify()) {
+                server_->notify_job_starts(job.get());
+            }
 
-                job::Context::set_current_job(job.get());
-                job->run_next();
-                
-                // Note: after run_next, the is_mem flag may change, but we want to use the old one
-                if (job_is_mem) {
-                    cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job.get());
-                }
+            job::Context::set_current_job(job.get());
+            job->run_next();
+            
+            // Note: after run_next, the is_mem flag may change, but we want to use the old one
+            if (job_is_mem) {
+                cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job.get());
+            }
 
-                if (job->has_next()) {
-                    server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
-                    job->set_priority(calculate_priority(job.get()));
-                } else {
-                    job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
-                }
+            if (job->has_next()) {
+                server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
+                job->set_priority(calculate_priority(job.get()));
+            } else {
+                job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
+            }
 
-                if (cuda_streams_.empty()) {
-                    return;
-                }
+            if (!fits || cuda_streams_.empty()) {
+                return;
             }
         }
     }

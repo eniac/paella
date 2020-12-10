@@ -18,7 +18,7 @@ namespace server {
 
 class Scheduler {
   public:
-    Scheduler();
+    Scheduler(float unfairness_threshold);
 
     void set_server(Server* server);
 
@@ -91,6 +91,8 @@ class Scheduler {
 #ifdef PRINT_NUM_RUNNING_KERNELS
     unsigned num_running_kernels_ = 0;
 #endif
+
+    float unfairness_threshold_;
 };
 
 }
