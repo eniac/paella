@@ -6,20 +6,23 @@
 #include <iostream>
 
 __global__ void helloworld(int i, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel) {
-    llis::job::kernel_start(job_id, &gpu2sched_channel);
-    llis::job::kernel_end(job_id, &gpu2sched_channel);
+    //llis::job::kernel_start(job_id, &gpu2sched_channel);
+    //llis::job::kernel_end(job_id, &gpu2sched_channel);
 }
 
-int main() {
+int main(int argc, char** argv) {
+    int num_blocks = atoi(argv[1]);
+    int num_iters = atoi(argv[2]);
+
     cudaStream_t stream;
     cudaStreamCreate(&stream);
 
     llis::ipc::Gpu2SchedChannel gpu2sched_channel(1024);
 
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < num_iters; ++i) {
         auto start_time = std::chrono::steady_clock::now();
 
-        helloworld<<<1, 1, 0, stream>>>(i, 0, gpu2sched_channel.fork());
+        helloworld<<<num_blocks, 1, 0, stream>>>(i, 0, gpu2sched_channel.fork());
         cudaStreamSynchronize(stream);
 
         auto end_time = std::chrono::steady_clock::now();
