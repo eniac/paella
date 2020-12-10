@@ -116,7 +116,7 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
     if (is_create_) {
         *reinterpret_cast<size_t*>(shm_) = count_;
         if constexpr (for_gpu) {
-            cudaMemset(&write_pos_, 0, sizeof(*write_pos_));
+            cudaMemset(write_pos_, 0, sizeof(*write_pos_));
         } else {
             write_pos_->store(0);
         }

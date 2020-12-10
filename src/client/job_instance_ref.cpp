@@ -1,3 +1,4 @@
+#include <chrono>
 #include <llis/job/job.h>
 #include <llis/client/job_ref.h>
 #include <llis/client/job_instance_ref.h>
@@ -15,8 +16,8 @@ JobInstanceRef::JobInstanceRef(JobRef* job_ref, IoShmEntry io_shm_entry) : job_r
 }
 
 JobInstanceRef::~JobInstanceRef() {
-    // TODO: release the shm
-
+    // TODO
+    //release();
 }
 
 void* JobInstanceRef::get_input_ptr() {
@@ -39,12 +40,28 @@ void JobInstanceRef::launch() {
     c2s_channel_->release_writer_lock();
 }
 
+void JobInstanceRef::release() {
+    job_ref_->release_io_shm_entry(io_shm_entry_);
+}
+
 void JobInstanceRef::set_id(JobInstanceRefId id) {
     id_ = id;
 }
 
 JobInstanceRefId JobInstanceRef::get_id() const {
     return id_;
+}
+
+void JobInstanceRef::record_start_time() {
+    start_time_ = std::chrono::steady_clock::now();
+}
+
+void JobInstanceRef::set_start_time(std::chrono::time_point<std::chrono::steady_clock> time_point) {
+    start_time_ = time_point;
+}
+
+std::chrono::time_point<std::chrono::steady_clock> JobInstanceRef::get_start_time() const {
+    return start_time_;
 }
 
 }

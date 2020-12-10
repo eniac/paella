@@ -58,6 +58,10 @@ JobInstanceRef* JobRef::create_instance() {
     return client_->add_job_instance_ref(std::move(job_instance_ref));
 }
 
+void JobRef::release_io_shm_entry(IoShmEntry io_shm_entry) {
+    pinned_mem_free_list_.push_back(io_shm_entry);
+}
+
 void JobRef::grow_pool(size_t least_num_new_entries) {
     size_t least_num_new_bytes = least_num_new_entries * pinned_mem_size_;
     size_t num_new_bytes = utils::next_aligned_pos(least_num_new_bytes, sysconf(_SC_PAGE_SIZE));

@@ -19,6 +19,7 @@ class JobRef {
     ~JobRef();
 
     JobInstanceRef* create_instance();
+    void release_io_shm_entry(IoShmEntry io_shm_entry);
 
     job::Job* get_job() {
         return job_;

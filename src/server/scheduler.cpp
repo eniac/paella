@@ -133,9 +133,17 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 
 void Scheduler::schedule_job() {
     // Sort the job list in descending order of priority
+#ifdef PRINT_SORT_TIME
+    auto start_sort_time = std::chrono::steady_clock::now();
+#endif
     std::sort(jobs_.begin(), jobs_.end(), [](const std::unique_ptr<job::Job>& left, const std::unique_ptr<job::Job>& right) {
         return left->get_priority() > right->get_priority();
     });
+#ifdef PRINT_SORT_TIME
+    auto end_sort_time = std::chrono::steady_clock::now();
+    double time_taken_to_sort = std::chrono::duration<double, std::micro>(end_sort_time - start_sort_time).count();
+    printf("Sort time: %lf\n", time_taken_to_sort);
+#endif
 
     // All jobs that does not have a next stage to run are pushed to the end
     while (!jobs_.empty() && !jobs_.back()->has_next() && !jobs_.back()->is_running()) {
