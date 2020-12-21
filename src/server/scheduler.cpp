@@ -16,6 +16,8 @@
 #include <chrono>
 #include <cfloat>
 
+#define PRINT_SCHEDULE_TIME
+
 namespace llis {
 namespace server {
 
@@ -167,6 +169,13 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 
 void Scheduler::schedule_job() {
     // Sort the job list in descending order of priority
+#ifdef PRINT_SCHEDULE_TIME
+    auto start_schedule_time = std::chrono::steady_clock::now();
+    static unsigned num_scheduled_stages = 0;
+    static double total_schedule_time = 0;
+    constexpr unsigned print_interval = 100000;
+    static unsigned next_print = print_interval;
+#endif
 #ifdef PRINT_SORT_TIME
     auto start_sort_time = std::chrono::steady_clock::now();
 #endif
@@ -202,9 +211,17 @@ void Scheduler::schedule_job() {
         return;
     }
 
+#ifdef PRINT_SCHEDULE_TIME
+    bool has_scheduled = false;
+#endif
+
     // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
     for (const auto& job : jobs_) {
         if (job->has_next() && !job->is_running()) {
+#ifdef PRINT_SCHEDULE_TIME
+            ++num_scheduled_stages;
+            has_scheduled = true;
+#endif
             if (!job->has_started()) {
                 //server_->notify_job_starts(job.get());
                 job->set_started();
@@ -247,10 +264,21 @@ void Scheduler::schedule_job() {
             }
 
             if (!fits || cuda_streams_.empty()) {
-                return;
+                break;
             }
         }
     }
+
+#ifdef PRINT_SCHEDULE_TIME
+    if (has_scheduled) {
+        auto end_schedule_time = std::chrono::steady_clock::now();
+        total_schedule_time += std::chrono::duration<double, std::micro>(end_schedule_time - start_schedule_time).count();
+        if (num_scheduled_stages >= next_print) {
+            printf("Schedule time, # stages: %lf %u %lf\n", total_schedule_time, num_scheduled_stages, total_schedule_time / num_scheduled_stages);
+            next_print += print_interval;
+        }
+    }
+#endif
 }
 
 bool Scheduler::job_fits(job::Job* job) {
