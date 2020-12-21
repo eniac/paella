@@ -16,7 +16,8 @@
 #include <chrono>
 #include <cfloat>
 
-#define PRINT_SCHEDULE_TIME
+//#define PRINT_SCHEDULE_TIME
+#define PRINT_SORT_TIME
 
 namespace llis {
 namespace server {
@@ -173,10 +174,12 @@ void Scheduler::schedule_job() {
     auto start_schedule_time = std::chrono::steady_clock::now();
     static unsigned num_scheduled_stages = 0;
     static double total_schedule_time = 0;
-    constexpr unsigned print_interval = 100000;
-    static unsigned next_print = print_interval;
+    constexpr unsigned schedule_time_print_interval = 100000;
+    static unsigned schedule_time_next_print = schedule_time_print_interval;
 #endif
 #ifdef PRINT_SORT_TIME
+    constexpr unsigned sort_time_next_print = 100000;
+    static unsigned sort_time_i = 0;
     auto start_sort_time = std::chrono::steady_clock::now();
 #endif
     std::sort(jobs_.begin(), jobs_.end(), [this](const std::unique_ptr<job::Job>& left, const std::unique_ptr<job::Job>& right) {
@@ -192,9 +195,13 @@ void Scheduler::schedule_job() {
         }
     });
 #ifdef PRINT_SORT_TIME
-    auto end_sort_time = std::chrono::steady_clock::now();
-    double time_taken_to_sort = std::chrono::duration<double, std::micro>(end_sort_time - start_sort_time).count();
-    printf("Sort time: %lf\n", time_taken_to_sort);
+    if (sort_time_i >= sort_time_next_print) {
+        auto end_sort_time = std::chrono::steady_clock::now();
+        double time_taken_to_sort = std::chrono::duration<double, std::micro>(end_sort_time - start_sort_time).count();
+        printf("Sort time: %lf\n", time_taken_to_sort);
+        sort_time_i = 0;
+    }
+    ++sort_time_i;
 #endif
 
     // All jobs that does not have a next stage to run are pushed to the end
@@ -273,9 +280,9 @@ void Scheduler::schedule_job() {
     if (has_scheduled) {
         auto end_schedule_time = std::chrono::steady_clock::now();
         total_schedule_time += std::chrono::duration<double, std::micro>(end_schedule_time - start_schedule_time).count();
-        if (num_scheduled_stages >= next_print) {
+        if (num_scheduled_stages >= schedule_time_next_print) {
             printf("Schedule time, # stages: %lf %u %lf\n", total_schedule_time, num_scheduled_stages, total_schedule_time / num_scheduled_stages);
-            next_print += print_interval;
+            next_print += schedule_time_print_interval;
         }
     }
 #endif
