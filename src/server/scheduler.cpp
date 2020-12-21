@@ -16,9 +16,6 @@
 #include <chrono>
 #include <cfloat>
 
-//#define PRINT_SCHEDULE_TIME
-#define PRINT_SORT_TIME
-
 namespace llis {
 namespace server {
 
@@ -161,6 +158,8 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
         job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
     }
 
+    job->inc_deficit_counter(new_job_deficit_);
+
     jobs_.push_back(std::move(job));
 
     ++num_jobs_;
@@ -282,7 +281,7 @@ void Scheduler::schedule_job() {
         total_schedule_time += std::chrono::duration<double, std::micro>(end_schedule_time - start_schedule_time).count();
         if (num_scheduled_stages >= schedule_time_next_print) {
             printf("Schedule time, # stages: %lf %u %lf\n", total_schedule_time, num_scheduled_stages, total_schedule_time / num_scheduled_stages);
-            next_print += schedule_time_print_interval;
+            schedule_time_next_print += schedule_time_print_interval;
         }
     }
 #endif
@@ -336,14 +335,15 @@ void Scheduler::choose_sms(job::Job* job) {
 }
 
 void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
-    float val = 1. / num_jobs_;
+    job_scheduled->inc_deficit_counter(-1);
+    new_job_deficit_ = -1. / num_jobs_;
 
-    for (auto& job : jobs_) {
-        if (job.get() == job_scheduled) {
-            job->inc_deficit_counter(val - 1.);
-        } else {
-            job->inc_deficit_counter(val);
+    // To avoid overflow
+    if (new_job_deficit_ < 10. - DBL_MAX) {
+        for (const auto& job : jobs_) {
+            job->inc_deficit_counter(new_job_deficit_);
         }
+        new_job_deficit_ = 0;
     }
 }
 

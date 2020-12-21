@@ -93,6 +93,7 @@ class Scheduler {
 #endif
 
     float unfairness_threshold_;
+    float new_job_deficit_ = 0;
 };
 
 }
