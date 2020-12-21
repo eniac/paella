@@ -333,7 +333,7 @@ void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
 
     for (auto& job : jobs_) {
         if (job.get() == job_scheduled) {
-            job->inc_deficit_counter(1. - val);
+            job->inc_deficit_counter(val - 1.);
         } else {
             job->inc_deficit_counter(val);
         }
