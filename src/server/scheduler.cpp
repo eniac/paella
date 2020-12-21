@@ -336,12 +336,12 @@ void Scheduler::choose_sms(job::Job* job) {
 
 void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
     job_scheduled->inc_deficit_counter(-1);
-    new_job_deficit_ = -1. / num_jobs_;
+    new_job_deficit_ -= 1. / num_jobs_;
 
     // To avoid overflow
     if (new_job_deficit_ < 10. - DBL_MAX) {
         for (const auto& job : jobs_) {
-            job->inc_deficit_counter(new_job_deficit_);
+            job->inc_deficit_counter(-new_job_deficit_);
         }
         new_job_deficit_ = 0;
     }
