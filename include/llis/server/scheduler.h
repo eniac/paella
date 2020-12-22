@@ -8,6 +8,7 @@
 #include <cuda_runtime.h>
 
 #include <deque>
+#include <queue>
 #include <vector>
 #include <memory>
 
@@ -53,6 +54,27 @@ class Scheduler {
         }
     };
 
+    class JobLess {
+      public:
+        JobLess(float unfairness_threshold) : unfairness_threshold_(unfairness_threshold) {}
+
+        bool operator()(const job::Job* left, const job::Job* right) const {
+            int is_left_unfair = left->get_deficit_counter() >= unfairness_threshold_;
+            int is_right_unfair = right->get_deficit_counter() >= unfairness_threshold_;
+
+            if (is_left_unfair < is_right_unfair) {
+                return true;
+            } else if (is_left_unfair == is_right_unfair) {
+                return left->get_priority() < right->get_priority();
+            } else {
+                return false;
+            }
+        }
+
+      private:
+        float unfairness_threshold_;
+    };
+
     void handle_block_start_finish();
     void handle_block_start(const job::InstrumentInfo& info);
     void handle_block_finish(const job::InstrumentInfo& info);
@@ -72,9 +94,10 @@ class Scheduler {
     
     std::vector<cudaStream_t> cuda_streams_;
 
-    std::vector<std::unique_ptr<job::Job>> jobs_;
+    float unfairness_threshold_;
+    std::priority_queue<job::Job*, std::vector<job::Job*>, JobLess> job_queue_;
 
-    std::vector<job::Job*> job_id_to_job_map_;
+    std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
 
     std::vector<SmAvail> sm_avails_;
@@ -92,7 +115,6 @@ class Scheduler {
     unsigned num_running_kernels_ = 0;
 #endif
 
-    float unfairness_threshold_;
     float new_job_deficit_ = 0;
 };
 

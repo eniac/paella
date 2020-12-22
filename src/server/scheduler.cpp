@@ -21,7 +21,7 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-Scheduler::Scheduler(float unfairness_threshold) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(100), unfairness_threshold_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
+Scheduler::Scheduler(float unfairness_threshold) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(100), unfairness_threshold_(unfairness_threshold), job_queue_(JobLess(unfairness_threshold_)) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
     job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
@@ -68,7 +68,7 @@ void Scheduler::handle_block_start_finish() {
 }
 
 void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
-    job::Job* job = job_id_to_job_map_[info.job_id];
+    job::Job* job = job_id_to_job_map_[info.job_id].get();
 
     if (!job->has_predicted_smid(info.smid)) {
         sm_avails_[info.smid].minus(job, 1);
@@ -88,11 +88,13 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
 }
 
 void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
-    job::Job* job = job_id_to_job_map_[info.job_id];
+    job::Job* job = job_id_to_job_map_[info.job_id].get();
 
     job->mark_block_finish();
     if (!job->is_running()) {
-        if (!job->has_next()) {
+        if (job->has_next()) {
+            job_queue_.push(job);
+        } else {
             server_->notify_job_ends(job);
             --num_jobs_;
         }
@@ -112,6 +114,11 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
 
     sm_avails_[info.smid].add(job, 1);
 
+    if (!job->is_running() && !job->has_next()) {
+        unused_job_id_.push_back(job->get_id());
+        server_->release_job_instance(std::move(job_id_to_job_map_[info.job_id]));
+    }
+
     schedule_job();
 }
 
@@ -119,7 +126,9 @@ void Scheduler::handle_mem_finish() {
     job::Job* job;
     mem2sched_channel_.read(&job);
 
-    if (!job->has_next()) {
+    if (job->has_next()) {
+        job_queue_.push(job);
+    } else {
         server_->notify_job_ends(job);
         --num_jobs_;
     }
@@ -138,29 +147,37 @@ void Scheduler::handle_mem_finish() {
 
     cuda_streams_.push_back(job->get_cuda_stream());
 
+    if (!job->has_next()) {
+        unused_job_id_.push_back(job->get_id());
+        server_->release_job_instance(std::move(job_id_to_job_map_[job->get_id()]));
+    }
+
     schedule_job();
 }
 
-void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
+void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
+    job::Job* job = job_.get();
+    if (!job->has_next()) {
+        unused_job_id_.push_back(job->get_id());
+        server_->release_job_instance(std::move(job_));
+        return;
+    }
+
     if (unused_job_id_.empty()) {
         job->set_id(job_id_to_job_map_.size());
-        job_id_to_job_map_.push_back(job.get());
+        job_id_to_job_map_.push_back(std::move(job_));
     } else {
         job->set_id(unused_job_id_.back());
         unused_job_id_.pop_back();
-        job_id_to_job_map_[job->get_id()] = job.get();
+        job_id_to_job_map_[job->get_id()] = std::move(job_);
     }
 
-    if (job->has_next()) {
-        server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
-        job->set_priority(calculate_priority(job.get()));
-    } else {
-        job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
-    }
+    server_->set_job_stage_resource(job, job->get_cur_stage() + 1, normalize_resources(job));
+    job->set_priority(calculate_priority(job));
 
     job->inc_deficit_counter(new_job_deficit_);
 
-    jobs_.push_back(std::move(job));
+    job_queue_.push(job);
 
     ++num_jobs_;
 
@@ -168,7 +185,6 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job) {
 }
 
 void Scheduler::schedule_job() {
-    // Sort the job list in descending order of priority
 #ifdef PRINT_SCHEDULE_TIME
     auto start_schedule_time = std::chrono::steady_clock::now();
     static unsigned num_scheduled_stages = 0;
@@ -176,42 +192,6 @@ void Scheduler::schedule_job() {
     constexpr unsigned schedule_time_print_interval = 100000;
     static unsigned schedule_time_next_print = schedule_time_print_interval;
 #endif
-#ifdef PRINT_SORT_TIME
-    constexpr unsigned sort_time_next_print = 100000;
-    static unsigned sort_time_i = 0;
-    auto start_sort_time = std::chrono::steady_clock::now();
-#endif
-    std::sort(jobs_.begin(), jobs_.end(), [this](const std::unique_ptr<job::Job>& left, const std::unique_ptr<job::Job>& right) {
-        int is_left_unfair = left->get_deficit_counter() >= unfairness_threshold_;
-        int is_right_unfair = right->get_deficit_counter() >= unfairness_threshold_;
-
-        if (is_left_unfair > is_right_unfair) {
-            return true;
-        } else if (is_left_unfair == is_right_unfair) {
-            return left->get_priority() > right->get_priority();
-        } else {
-            return false;
-        }
-    });
-#ifdef PRINT_SORT_TIME
-    if (sort_time_i >= sort_time_next_print) {
-        auto end_sort_time = std::chrono::steady_clock::now();
-        double time_taken_to_sort = std::chrono::duration<double, std::micro>(end_sort_time - start_sort_time).count();
-        printf("Sort time: %lf\n", time_taken_to_sort);
-        sort_time_i = 0;
-    }
-    ++sort_time_i;
-#endif
-
-    // All jobs that does not have a next stage to run are pushed to the end
-    while (!jobs_.empty() && !jobs_.back()->has_next() && !jobs_.back()->is_running()) {
-        std::unique_ptr<job::Job> job = std::move(jobs_.back());
-        jobs_.pop_back();
-
-        unused_job_id_.push_back(job->get_id());
-
-        server_->release_job_instance(std::move(job));
-    }
 
     if (cuda_streams_.empty()) {
         return;
@@ -221,57 +201,71 @@ void Scheduler::schedule_job() {
     bool has_scheduled = false;
 #endif
 
-    // TODO: do actual scheduling. Now it is just running whatever runnable, FIFO
-    for (const auto& job : jobs_) {
-        if (job->has_next() && !job->is_running()) {
-#ifdef PRINT_SCHEDULE_TIME
-            ++num_scheduled_stages;
-            has_scheduled = true;
-#endif
-            if (!job->has_started()) {
-                //server_->notify_job_starts(job.get());
-                job->set_started();
-            }
+#ifdef PRINT_QUEUE_SIZE
+    static unsigned total_queue_size = 0;
+    static unsigned queue_size_i = 0;
+    constexpr unsigned queue_size_print_interval = 100000;
 
-            job->set_running(cuda_streams_.back());
-            cuda_streams_.pop_back();
+    if (!job_queue_.empty()) {
+        total_queue_size += job_queue_.size();
+        ++queue_size_i;
+    }
+
+    if (queue_size_i >= queue_size_print_interval) {
+        printf("queue size: %lf\n", (double)total_queue_size / queue_size_i);
+        queue_size_i = 0;
+        total_queue_size = 0;
+    }
+#endif
+
+    while (!job_queue_.empty()) {
+        job::Job* job = job_queue_.top();
+        job_queue_.pop();
+
+#ifdef PRINT_SCHEDULE_TIME
+        ++num_scheduled_stages;
+        has_scheduled = true;
+#endif
+        if (!job->has_started()) {
+            job->set_started();
+        }
+
+        job->set_running(cuda_streams_.back());
+        cuda_streams_.pop_back();
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
-            ++num_running_kernels_;
-            printf("num_running_kernels_: %u\n", num_running_kernels_);
+        ++num_running_kernels_;
+        printf("num_running_kernels_: %u\n", num_running_kernels_);
 #endif
 
-            bool job_is_mem = job->is_mem();
+        bool job_is_mem = job->is_mem();
 
-            bool fits;
-            if (job_is_mem) {
-                fits = true;
-            } else {
-                fits = job_fits(job.get());
-            }
+        bool fits;
+        if (job_is_mem) {
+            fits = true;
+        } else {
+            fits = job_fits(job);
+        }
 
-            if (job->is_pre_notify()) {
-                server_->notify_job_starts(job.get());
-            }
+        if (job->is_pre_notify()) {
+            server_->notify_job_starts(job);
+        }
 
-            job::Context::set_current_job(job.get());
-            job->run_next();
-            
-            // Note: after run_next, the is_mem flag may change, but we want to use the old one
-            if (job_is_mem) {
-                cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job.get());
-            }
+        job::Context::set_current_job(job);
+        job->run_next();
 
-            if (job->has_next()) {
-                server_->set_job_stage_resource(job.get(), job->get_cur_stage() + 1, normalize_resources(job.get()));
-                job->set_priority(calculate_priority(job.get()));
-            } else {
-                job->set_priority(-DBL_MAX); // push it to the end of the list so that it can be easily removed later
-            }
+        // Note: after run_next, the is_mem flag may change, but we want to use the old one
+        if (job_is_mem) {
+            cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
+        }
 
-            if (!fits || cuda_streams_.empty()) {
-                break;
-            }
+        if (job->has_next()) {
+            server_->set_job_stage_resource(job, job->get_cur_stage() + 1, normalize_resources(job));
+            job->set_priority(calculate_priority(job));
+        }
+
+        if (!fits || cuda_streams_.empty()) {
+            break;
         }
     }
 
@@ -280,7 +274,7 @@ void Scheduler::schedule_job() {
         auto end_schedule_time = std::chrono::steady_clock::now();
         total_schedule_time += std::chrono::duration<double, std::micro>(end_schedule_time - start_schedule_time).count();
         if (num_scheduled_stages >= schedule_time_next_print) {
-            printf("Schedule time, # stages: %lf %u %lf\n", total_schedule_time, num_scheduled_stages, total_schedule_time / num_scheduled_stages);
+            printf("Schedule time, # stages, time / stage: %lf %u %lf\n", total_schedule_time, num_scheduled_stages, total_schedule_time / num_scheduled_stages);
             schedule_time_next_print += schedule_time_print_interval;
         }
     }
@@ -340,7 +334,7 @@ void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
 
     // To avoid overflow
     if (new_job_deficit_ < 10. - DBL_MAX) {
-        for (const auto& job : jobs_) {
+        for (const auto& job : job_id_to_job_map_) {
             job->inc_deficit_counter(-new_job_deficit_);
         }
         new_job_deficit_ = 0;
