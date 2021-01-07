@@ -12,14 +12,12 @@
 #include <vector>
 #include <memory>
 
-//#define PRINT_NUM_RUNNING_KERNELS
-
 namespace llis {
 namespace server {
 
 class Scheduler {
   public:
-    Scheduler(float unfairness_threshold);
+    Scheduler(float unfairness_threshold, float eta);
 
     void set_server(Server* server);
 
@@ -51,6 +49,13 @@ class Scheduler {
             nthrs -= job->get_cur_num_threads_per_block() * num;
             smem -= job->get_cur_smem_size_per_block() * num;
             nblocks -= job->get_cur_num_blocks() * num;
+        }
+
+        double dot(job::Job* job) const {
+            double res = (double)nregs * (double)job->get_cur_num_registers_per_thread() * (double)job->get_cur_num_threads_per_block();
+            res += (double)nthrs * (double)job->get_cur_num_threads_per_block();
+            res += (double)smem * (double)job->get_smem_size_per_block();
+            return res;
         }
     };
 
@@ -86,6 +91,7 @@ class Scheduler {
     void update_deficit_counters(job::Job* job_scheduled);
 
     double calculate_priority(job::Job* job) const;
+    double calculate_packing(job::Job* job) const;
     static float normalize_resources(job::Job* job);
 
     Server* server_;
@@ -95,12 +101,14 @@ class Scheduler {
     std::vector<cudaStream_t> cuda_streams_;
 
     float unfairness_threshold_;
+    float eta_;
     std::priority_queue<job::Job*, std::vector<job::Job*>, JobLess> job_queue_;
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
 
     std::vector<SmAvail> sm_avails_;
+    SmAvail total_sm_avail_;
     std::vector<unsigned> gpc_num_blocks_;
     std::vector<unsigned> gpc_next_sms_;
     constexpr static unsigned gpc_sms_[5][8] = {{0, 10, 20, 30, 1, 11, 21, 31}, {2, 12, 22, 32, 3, 13, 23, 33}, {4, 14, 24, 34, 5, 15, 25, 35}, {6, 16, 26, 36, 7, 17, 27, 37}, {8, 18, 28, 38, 9, 19, 29, 39}};
@@ -116,6 +124,8 @@ class Scheduler {
 #endif
 
     float new_job_deficit_ = 0;
+
+    double max_resources_dot_prod_;
 };
 
 }

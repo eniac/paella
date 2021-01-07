@@ -143,10 +143,11 @@ double Server::get_job_remaining_rl(job::Job* job, unsigned from_stage) const {
 int main(int argc, char** argv) {
     std::string server_name = argv[1];
     float unfairness_threshold = atof(argv[2]);
+    float eta = atof(argv[3]);
 
     llis::ipc::ShmChannel ser2sched_channel(1024);
 
-    llis::server::Scheduler scheduler(unfairness_threshold);
+    llis::server::Scheduler scheduler(unfairness_threshold, eta);
     llis::server::Server server(server_name, &scheduler);
 
     server.serve();

@@ -21,7 +21,7 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-Scheduler::Scheduler(float unfairness_threshold) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(100), unfairness_threshold_(unfairness_threshold), job_queue_(JobLess(unfairness_threshold_)) { // TODO: size of the channel must be larger than number of total blocks * 2
+Scheduler::Scheduler(float unfairness_threshold, float eta) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(500), unfairness_threshold_(unfairness_threshold), eta_(eta), job_queue_(JobLess(unfairness_threshold_)) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
     job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
@@ -37,10 +37,19 @@ Scheduler::Scheduler(float unfairness_threshold) : server_(nullptr), gpu2sched_c
         sm_avail.nthrs = 2048;
         sm_avail.smem = 65536;
         sm_avail.nblocks = 32;
+
+        total_sm_avail_.nregs += 65536;
+        total_sm_avail_.nthrs += 2048;
+        total_sm_avail_.smem += 65536;
+        total_sm_avail_.nblocks += 32;
     }
 
     gpc_num_blocks_.resize(5);
     gpc_next_sms_.resize(5);
+
+    max_resources_dot_prod_ = (double)total_sm_avail_.nregs * (double)total_sm_avail_.nregs;
+    max_resources_dot_prod_ += (double)total_sm_avail_.nthrs * (double)total_sm_avail_.nthrs;
+    max_resources_dot_prod_ += (double)total_sm_avail_.smem * (double)total_sm_avail_.smem;
 }
 
 void Scheduler::set_server(Server* server) {
@@ -72,6 +81,7 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
 
     if (!job->has_predicted_smid(info.smid)) {
         sm_avails_[info.smid].minus(job, 1);
+        total_sm_avail_.minus(job, 1);
     } else {
         job->dec_predicted_smid(info.smid);
     }
@@ -83,6 +93,7 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
 
             // TODO: handle allocation granularity
             sm_avails_[smid].add(job, num);
+            total_sm_avail_.add(job, num);
         }
     }
 }
@@ -113,6 +124,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     }
 
     sm_avails_[info.smid].add(job, 1);
+    total_sm_avail_.add(job, 1);
 
     if (!job->is_running() && !job->has_next()) {
         unused_job_id_.push_back(job->get_id());
@@ -233,11 +245,6 @@ void Scheduler::schedule_job() {
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
 
-#ifdef PRINT_NUM_RUNNING_KERNELS
-        ++num_running_kernels_;
-        printf("num_running_kernels_: %u\n", num_running_kernels_);
-#endif
-
         bool job_is_mem = job->is_mem();
 
         bool fits;
@@ -247,9 +254,18 @@ void Scheduler::schedule_job() {
             fits = job_fits(job);
         }
 
+        if (!fits) {
+            break;
+        }
+
         if (job->is_pre_notify()) {
             server_->notify_job_starts(job);
         }
+
+#ifdef PRINT_NUM_RUNNING_KERNELS
+        ++num_running_kernels_;
+        printf("num_running_kernels_: %u\n", num_running_kernels_);
+#endif
 
         job::Context::set_current_job(job);
         job->run_next();
@@ -321,6 +337,7 @@ void Scheduler::choose_sms(job::Job* job) {
         gpc_next_sms_[gpc] = (gpc_next_sms_[gpc] + 1) % 8;
 
         sm_avails_[smid].minus(job, 1);
+        total_sm_avail_.minus(job, 1);
 
         // TODO: handle overusing resources
 
@@ -346,7 +363,11 @@ float Scheduler::normalize_resources(job::Job* job) {
 }
 
 double Scheduler::calculate_priority(job::Job* job) const {
-    return -server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
+    return calculate_packing(job) - eta_ * server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
+}
+
+double Scheduler::calculate_packing(job::Job* job) const {
+    return total_sm_avail_.dot(job) / max_resources_dot_prod_;
 }
 
 void mem_notification_callback(void* job) {
