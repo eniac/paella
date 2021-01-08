@@ -231,6 +231,17 @@ void Scheduler::schedule_job() {
 #endif
 
     while (!job_queue_.empty()) {
+        bool is_full = true;
+        for (const SmAvail& sm_avail : sm_avails_) {
+            if (sm_avail.is_ok()) {
+                is_full = false;
+                break;
+            }
+        }
+        if (is_full) {
+            break;
+        }
+
         job::Job* job = job_queue_.top();
         job_queue_.pop();
 
@@ -246,17 +257,6 @@ void Scheduler::schedule_job() {
         cuda_streams_.pop_back();
 
         bool job_is_mem = job->is_mem();
-
-        bool fits;
-        if (job_is_mem) {
-            fits = true;
-        } else {
-            fits = job_fits(job);
-        }
-
-        if (!fits) {
-            break;
-        }
 
         if (job->is_pre_notify()) {
             server_->notify_job_starts(job);
@@ -280,7 +280,7 @@ void Scheduler::schedule_job() {
             job->set_priority(calculate_priority(job));
         }
 
-        if (!fits || cuda_streams_.empty()) {
+        if (cuda_streams_.empty()) {
             break;
         }
     }
