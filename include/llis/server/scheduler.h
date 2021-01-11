@@ -102,7 +102,7 @@ class Scheduler {
 
     float unfairness_threshold_;
     float eta_;
-    std::priority_queue<job::Job*, std::vector<job::Job*>, JobLess> job_queue_;
+    std::vector<job::Job*> job_queue_;
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
@@ -126,6 +126,10 @@ class Scheduler {
     float new_job_deficit_ = 0;
 
     double max_resources_dot_prod_;
+
+    JobLess job_less_;
+
+    bool is_all_sms_full_;
 };
 
 }

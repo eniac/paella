@@ -21,7 +21,7 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-Scheduler::Scheduler(float unfairness_threshold, float eta) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(500), unfairness_threshold_(unfairness_threshold), eta_(eta), job_queue_(JobLess(unfairness_threshold_)) { // TODO: size of the channel must be larger than number of total blocks * 2
+Scheduler::Scheduler(float unfairness_threshold, float eta) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(500), unfairness_threshold_(unfairness_threshold), eta_(eta), job_less_(unfairness_threshold_) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
     job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
@@ -104,7 +104,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     job->mark_block_finish();
     if (!job->is_running()) {
         if (job->has_next()) {
-            job_queue_.push(job);
+            job_queue_.push_back(job);
         } else {
             server_->notify_job_ends(job);
             --num_jobs_;
@@ -139,7 +139,7 @@ void Scheduler::handle_mem_finish() {
     mem2sched_channel_.read(&job);
 
     if (job->has_next()) {
-        job_queue_.push(job);
+        job_queue_.push_back(job);
     } else {
         server_->notify_job_ends(job);
         --num_jobs_;
@@ -185,11 +185,10 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
     }
 
     server_->set_job_stage_resource(job, job->get_cur_stage() + 1, normalize_resources(job));
-    job->set_priority(calculate_priority(job));
 
     job->inc_deficit_counter(new_job_deficit_);
 
-    job_queue_.push(job);
+    job_queue_.push_back(job);
 
     ++num_jobs_;
 
@@ -208,6 +207,25 @@ void Scheduler::schedule_job() {
     if (cuda_streams_.empty()) {
         return;
     }
+
+#ifdef PRINT_SORT_TIME
+    constexpr unsigned sort_time_next_print = 100000;
+    static unsigned sort_time_i = 0;
+    auto start_sort_time = std::chrono::steady_clock::now();
+#endif
+    for (job::Job* job : job_queue_) {
+        job->set_priority(calculate_priority(job));
+    }
+    std::sort(job_queue_.begin(), job_queue_.end(), job_less_);
+#ifdef PRINT_SORT_TIME
+    if (sort_time_i >= sort_time_next_print) {
+        auto end_sort_time = std::chrono::steady_clock::now();
+        double time_taken_to_sort = std::chrono::duration<double, std::micro>(end_sort_time - start_sort_time).count();
+        printf("Sort time: %lf\n", time_taken_to_sort);
+        sort_time_i = 0;
+    }
+    ++sort_time_i;
+#endif
 
 #ifdef PRINT_SCHEDULE_TIME
     bool has_scheduled = false;
@@ -242,8 +260,8 @@ void Scheduler::schedule_job() {
             break;
         }
 
-        job::Job* job = job_queue_.top();
-        job_queue_.pop();
+        job::Job* job = job_queue_.back();
+        job_queue_.pop_back();
 
 #ifdef PRINT_SCHEDULE_TIME
         ++num_scheduled_stages;
@@ -277,7 +295,6 @@ void Scheduler::schedule_job() {
 
         if (job->has_next()) {
             server_->set_job_stage_resource(job, job->get_cur_stage() + 1, normalize_resources(job));
-            job->set_priority(calculate_priority(job));
         }
 
         if (cuda_streams_.empty()) {
