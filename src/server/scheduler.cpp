@@ -28,28 +28,6 @@ Scheduler::Scheduler(float unfairness_threshold, float eta) : server_(nullptr), 
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
-
-    // TODO: query the numbers
-    // Some of them can be zero because some smid may not reflect an actual SM
-    sm_avails_.resize(40);
-    for (auto& sm_avail : sm_avails_) {
-        sm_avail.nregs = 65536;
-        sm_avail.nthrs = 2048;
-        sm_avail.smem = 65536;
-        sm_avail.nblocks = 32;
-
-        total_sm_avail_.nregs += 65536;
-        total_sm_avail_.nthrs += 2048;
-        total_sm_avail_.smem += 65536;
-        total_sm_avail_.nblocks += 32;
-    }
-
-    gpc_num_blocks_.resize(5);
-    gpc_next_sms_.resize(5);
-
-    max_resources_dot_prod_ = (double)total_sm_avail_.nregs * (double)total_sm_avail_.nregs;
-    max_resources_dot_prod_ += (double)total_sm_avail_.nthrs * (double)total_sm_avail_.nthrs;
-    max_resources_dot_prod_ += (double)total_sm_avail_.smem * (double)total_sm_avail_.smem;
 }
 
 void Scheduler::set_server(Server* server) {
@@ -80,20 +58,23 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
     if (!job->has_predicted_smid(info.smid)) {
-        sm_avails_[info.smid].minus(job, 1);
-        total_sm_avail_.minus(job, 1);
+        gpu_resources_.acquire(info.smid, job, 1);
     } else {
         job->dec_predicted_smid(info.smid);
     }
 
     if (!job->mark_block_start()) {
         const unsigned* predicted_smid_nums = job->get_predicted_smid_nums();
-        for (unsigned smid = 0; smid < 40; ++smid) {
+        for (unsigned smid = 0; smid < gpu_resources_.get_num_sms(); ++smid) {
             unsigned num = predicted_smid_nums[smid];
 
-            // TODO: handle allocation granularity
-            sm_avails_[smid].add(job, num);
-            total_sm_avail_.add(job, num);
+            if (num > 0) {
+                gpu_resources_.release(info.smid, job, num);
+            }
+        }
+
+        if (!gpu_resources_.is_full()) {
+            schedule_job();
         }
     }
 }
@@ -123,15 +104,16 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
         cuda_streams_.push_back(job->get_cuda_stream());
     }
 
-    sm_avails_[info.smid].add(job, 1);
-    total_sm_avail_.add(job, 1);
+    gpu_resources_.release(info.smid, job, 1);
 
     if (!job->is_running() && !job->has_next()) {
         unused_job_id_.push_back(job->get_id());
         server_->release_job_instance(std::move(job_id_to_job_map_[info.job_id]));
     }
 
-    schedule_job();
+    if (!gpu_resources_.is_full()) {
+        schedule_job();
+    }
 }
 
 void Scheduler::handle_mem_finish() {
@@ -184,7 +166,7 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
         job_id_to_job_map_[job->get_id()] = std::move(job_);
     }
 
-    server_->set_job_stage_resource(job, job->get_cur_stage() + 1, normalize_resources(job));
+    server_->set_job_stage_resource(job, job->get_cur_stage() + 1, gpu_resources_.normalize_resources(job));
 
     job->inc_deficit_counter(new_job_deficit_);
 
@@ -249,14 +231,7 @@ void Scheduler::schedule_job() {
 #endif
 
     while (!job_queue_.empty()) {
-        bool is_full = true;
-        for (const SmAvail& sm_avail : sm_avails_) {
-            if (sm_avail.is_ok()) {
-                is_full = false;
-                break;
-            }
-        }
-        if (is_full) {
+        if (gpu_resources_.is_full()) {
             break;
         }
 
@@ -294,7 +269,7 @@ void Scheduler::schedule_job() {
         }
 
         if (job->has_next()) {
-            server_->set_job_stage_resource(job, job->get_cur_stage() + 1, normalize_resources(job));
+            server_->set_job_stage_resource(job, job->get_cur_stage() + 1, gpu_resources_.normalize_resources(job));
         }
 
         if (cuda_streams_.empty()) {
@@ -314,54 +289,6 @@ void Scheduler::schedule_job() {
 #endif
 }
 
-bool Scheduler::job_fits(job::Job* job) {
-    unsigned num_avail_blocks = 0;
-
-    for (auto& sm_avail : sm_avails_) {
-        if (!sm_avail.is_ok()) {
-            continue;
-        }
-
-        unsigned tmp = sm_avail.nblocks;
-
-        if (job->get_num_threads_per_block() > 0) {
-            tmp = std::min(tmp, sm_avail.nregs / (job->get_num_registers_per_thread() * job->get_num_threads_per_block()));
-            tmp = std::min(tmp, sm_avail.nthrs / job->get_num_threads_per_block());
-        }
-
-        if (job->get_smem_size_per_block() > 0) {
-            tmp = std::min(tmp, sm_avail.smem / job->get_smem_size_per_block());
-        }
-
-        num_avail_blocks += tmp;
-
-        if (num_avail_blocks >= job->get_num_blocks()) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void Scheduler::choose_sms(job::Job* job) {
-    unsigned num_blocks = job->get_num_blocks();
-
-    for (unsigned blockId = 0; blockId < num_blocks; ++blockId) {
-        unsigned gpc = std::min_element(gpc_num_blocks_.begin(), gpc_num_blocks_.end()) - gpc_num_blocks_.begin();
-        unsigned smid = gpc_sms_[gpc][gpc_next_sms_[gpc]];
-
-        ++gpc_num_blocks_[gpc];
-        gpc_next_sms_[gpc] = (gpc_next_sms_[gpc] + 1) % 8;
-
-        sm_avails_[smid].minus(job, 1);
-        total_sm_avail_.minus(job, 1);
-
-        // TODO: handle overusing resources
-
-        job->add_predicted_smid(smid);
-    }
-}
-
 void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
     job_scheduled->inc_deficit_counter(-1);
     new_job_deficit_ -= 1. / num_jobs_;
@@ -375,16 +302,12 @@ void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
     }
 }
 
-float Scheduler::normalize_resources(job::Job* job) {
-    return ((float)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()) / total_nregs_ + (float)job->get_num_threads_per_block() / total_nthrs_ + (float)job->get_smem_size_per_block() / total_smem_) * job->get_num_blocks() + (float)job->get_num_blocks() / total_nblocks_;
-}
-
 double Scheduler::calculate_priority(job::Job* job) const {
     return calculate_packing(job) - eta_ * server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
 }
 
 double Scheduler::calculate_packing(job::Job* job) const {
-    return total_sm_avail_.dot(job) / max_resources_dot_prod_;
+    return gpu_resources_.dot_normalized(job);
 }
 
 void mem_notification_callback(void* job) {
