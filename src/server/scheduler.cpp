@@ -73,9 +73,7 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
             }
         }
 
-        if (!gpu_resources_.is_full()) {
-            schedule_job();
-        }
+        schedule_job();
     }
 }
 
@@ -111,9 +109,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
         server_->release_job_instance(std::move(job_id_to_job_map_[info.job_id]));
     }
 
-    if (!gpu_resources_.is_full()) {
-        schedule_job();
-    }
+    schedule_job();
 }
 
 void Scheduler::handle_mem_finish() {
@@ -178,6 +174,10 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
 }
 
 void Scheduler::schedule_job() {
+    if (cuda_streams_.empty() || gpu_resources_.is_full()) {
+        return;
+    }
+
 #ifdef PRINT_SCHEDULE_TIME
     auto start_schedule_time = std::chrono::steady_clock::now();
     static unsigned num_scheduled_stages = 0;
@@ -185,10 +185,6 @@ void Scheduler::schedule_job() {
     constexpr unsigned schedule_time_print_interval = 100000;
     static unsigned schedule_time_next_print = schedule_time_print_interval;
 #endif
-
-    if (cuda_streams_.empty()) {
-        return;
-    }
 
 #ifdef PRINT_SORT_TIME
     constexpr unsigned sort_time_next_print = 100000;
