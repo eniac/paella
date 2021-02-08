@@ -174,7 +174,7 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
 }
 
 void Scheduler::schedule_job() {
-    if (cuda_streams_.empty() || gpu_resources_.is_full()) {
+    if (cuda_streams_.empty() || gpu_resources_.is_full() || job_queue_.empty()) {
         return;
     }
 
