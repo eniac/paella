@@ -48,6 +48,11 @@ class RegisteredJob {
     std::vector<std::unique_ptr<job::Job>> unused_job_instances_;
 
     std::vector<double> stage_lengths_;
+#ifdef PRINT_STAGE_LENGTH_STDDEV
+    std::vector<double> stage_lengths_sum_;
+    std::vector<double> stage_lengths_sum_sqr_;
+    std::vector<unsigned long long> stage_lengths_num_;
+#endif
     std::vector<float> stage_resources_;
 };
 

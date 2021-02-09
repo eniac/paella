@@ -2,6 +2,10 @@
 #include <llis/server/registered_job.h>
 #include <llis/job/context.h>
 
+#ifdef PRINT_STAGE_LENGTH_STDDEV
+#include <cmath>
+#endif
+
 #include <dlfcn.h>
 #include <memory>
 #include <sys/mman.h>
@@ -37,6 +41,11 @@ void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_
     unused_job_instances_.clear();
 
     stage_lengths_.clear();
+#ifdef PRINT_STAGE_LENGTH_STDDEV
+    stage_lengths_sum_.clear();
+    stage_lengths_sum_sqr_.clear();
+    stage_lengths_num_.clear();
+#endif
     stage_resources_.clear();
 
     s2c_channel_->write(registered_job_id_);
@@ -95,8 +104,26 @@ void RegisteredJob::update_stage_length(unsigned stage_id, double len) {
     if (stage_lengths_.size() > stage_id) {
         // TODO: tune the update rule
         stage_lengths_[stage_id] = (stage_lengths_[stage_id] + len) / 2;
+#ifdef PRINT_STAGE_LENGTH_STDDEV
+        stage_lengths_num_[stage_id]++;
+        stage_lengths_sum_[stage_id] += len;
+        stage_lengths_sum_sqr_[stage_id] += len * len;
+        static unsigned long long print_stage_length_counter = 0;
+        print_stage_length_counter++;
+        if (print_stage_length_counter % 10000000) {
+            double avg_stage_length = stage_lengths_sum_[stage_id] / stage_lengths_num_[stage_id];
+            double var_stage_length = stage_lengths_sum_sqr_[stage_id] / stage_lengths_num_[stage_id] - avg_stage_length * avg_stage_length;
+            double stddev_stage_length = sqrt(var_stage_length);
+            printf("stage id: %u\tavg stage length: %f\t\tstddev stage length: %f\t\travg stage length: %f\n", stage_id, avg_stage_length, stddev_stage_length, stage_lengths_[stage_id]);
+        }
+#endif
     } else {
         stage_lengths_.push_back(len);
+#ifdef PRINT_STAGE_LENGTH_STDDEV
+        stage_lengths_sum_.push_back(len);
+        stage_lengths_sum_sqr_.push_back(len * len);
+        stage_lengths_num_.push_back(1);
+#endif
     }
 }
 
