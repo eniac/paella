@@ -32,6 +32,10 @@ void JobInstanceRef::launch() {
     c2s_channel_->acquire_writer_lock();
 
     c2s_channel_->write(MsgType::LAUNCH_JOB);
+#ifdef PRINT_LAUNCH_JOB_IPC_LATENCY
+    unsigned long long cur_time = std::chrono::steady_clock::now().time_since_epoch().count();
+    c2s_channel_->write(cur_time);
+#endif
     c2s_channel_->write(job_ref_->get_job_ref_id());
     c2s_channel_->write(io_shm_entry_.id);
     c2s_channel_->write(io_shm_entry_.offset);

@@ -1,4 +1,3 @@
-#include "llis/job/job.h"
 #include <llis/ipc/unix_datagram_socket.h>
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/scheduler.h>
@@ -6,6 +5,7 @@
 #include <llis/ipc/defs.h>
 #include <llis/ipc/name_format.h>
 
+#include <chrono>
 #include <memory>
 #include <thread>
 
@@ -91,6 +91,23 @@ void Server::handle_register_job() {
 }
 
 void Server::handle_launch_job() {
+#ifdef PRINT_LAUNCH_JOB_IPC_LATENCY
+    static unsigned long long sum_ipc_latency = 0;
+    static unsigned long long num_ipc_latency = 0;
+
+    unsigned long long timestamp;
+    c2s_channel_.read(&timestamp);
+
+    unsigned long long cur_time = std::chrono::steady_clock::now().time_since_epoch().count();
+
+    sum_ipc_latency += cur_time - timestamp;
+    ++num_ipc_latency;
+
+    if (num_ipc_latency % 1000 == 0) {
+        printf("Avg launch job IPC latency: %f us\n", (double)sum_ipc_latency / (double)num_ipc_latency / (double)1000);
+    }
+#endif
+
     JobRefId registered_job_id;
     c2s_channel_.read(&registered_job_id);
 
