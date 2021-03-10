@@ -5,8 +5,17 @@
 
 #include <cstdio>
 
-__global__ void run(int n, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel) {
+__global__ void run(int n, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel
+#ifdef LLIS_MEASURE_BLOCK_TIME
+        , llis::ipc::Gpu2SchedChannel gpu2sched_block_time_channel
+#endif
+) {
+#ifdef LLIS_MEASURE_BLOCK_TIME
+    llis::job::BlockStartEndTime start_end_time;
+    llis::job::kernel_start(job_id, &gpu2sched_channel, &start_end_time);
+#else
     llis::job::kernel_start(job_id, &gpu2sched_channel);
+#endif
 
     printf("run_forever %u\n", job_id);
 
@@ -17,7 +26,11 @@ __global__ void run(int n, llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2s
         while (true);
     }
 
+#ifdef LLIS_MEASURE_BLOCK_TIME
+    llis::job::kernel_end(job_id, &gpu2sched_channel, &gpu2sched_block_time_channel, &start_end_time);
+#else
     llis::job::kernel_end(job_id, &gpu2sched_channel);
+#endif
 }
 
 class RunForeverJob : public llis::job::Job {
@@ -56,7 +69,11 @@ class RunForeverJob : public llis::job::Job {
     void run_next() override {
         ++num_;
 
-        run<<<num_, 1, 0, get_cuda_stream()>>>(num_, get_id(), llis::job::Context::get_gpu2sched_channel()->fork());
+        run<<<num_, 1, 0, get_cuda_stream()>>>(num_, get_id(), llis::job::Context::get_gpu2sched_channel()->fork()
+#ifdef LLIS_MEASURE_BLOCK_TIME
+                , llis::job::Context::get_gpu2sched_block_time_channel()->fork()
+#endif
+                );
 
         set_num_blocks(num_ + 1);
     }

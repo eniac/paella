@@ -18,7 +18,8 @@ namespace client {
 
 Client::Client(std::string server_name) :
         server_name_(std::move(server_name)),
-        c2s_channel_(ipc::c2s_channel_name(server_name_)) {
+        c2s_channel_(ipc::c2s_channel_name(server_name_)),
+        profiler_client_(&c2s_channel_) {
     generate_client_id();
     create_s2c_channel();
     register_client();

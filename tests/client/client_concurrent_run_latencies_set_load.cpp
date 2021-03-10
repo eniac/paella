@@ -24,8 +24,10 @@ std::mutex mtx;
 
 int max_num_jobs;
 
-void monitor(llis::client::Client* client) {
+void monitor(llis::client::Client* client, const std::string& profile_path) {
     auto very_start_time = std::chrono::steady_clock::now();
+
+    bool has_set_record_exec_time = false;
 
     while (true) {
         llis::client::JobInstanceRef* job_instance_ref = client->wait();
@@ -45,9 +47,19 @@ void monitor(llis::client::Client* client) {
 
         if (time_elasped > 10000000) { // 10s
             latencies.push_back(latency);
+            if (!has_set_record_exec_time) {
+                client->get_profiler_client()->set_record_kernel_exec_time();
+                client->get_profiler_client()->set_record_block_exec_time();
+                has_set_record_exec_time = true;
+            }
         }
 
+        //printf("time_elasped: %f\n", time_elasped);
+
         if (time_elasped > 30000000) { // 30s
+            client->get_profiler_client()->unset_record_kernel_exec_time();
+            client->get_profiler_client()->unset_record_block_exec_time();
+            client->get_profiler_client()->save(profile_path);
             return;
         }
     }
@@ -101,6 +113,10 @@ int main(int argc, char** argv) {
     max_num_jobs = atoi(argv[4]);
     const char* output_path = argv[5];
     const char* raw_output_path = argv[6];
+    const char* profile_path = nullptr;
+    if (argc >= 8) {
+        profile_path = argv[7];
+    }
 
     llis::client::Client client(server_name);
     llis::client::JobRef job_ref = client.register_job(job_path);
@@ -117,10 +133,11 @@ int main(int argc, char** argv) {
     }
     //printf("Finished init\n");
 
-    std::thread monitor_thr(monitor, &client);
+    std::thread monitor_thr(monitor, &client, profile_path);
     std::thread submit_thr(submit, &job_ref, mean_inter_time);
 
-    std::this_thread::sleep_for(40s);
+    //std::this_thread::sleep_for(40s);
+    submit_thr.join();
 
     double throughput = latencies.size() / 20.0;
 

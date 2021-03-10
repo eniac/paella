@@ -5,6 +5,7 @@
 #include <llis/server/client_connection.h>
 #include <llis/ipc/defs.h>
 #include <llis/server/registered_job.h>
+#include <llis/server/profiler.h>
 
 #include <vector>
 #include <string>
@@ -33,6 +34,10 @@ class Server {
     double get_job_remaining_length(job::Job* job, unsigned from_stage) const;
     double get_job_remaining_rl(job::Job* job, unsigned from_stage) const;
 
+    Profiler* get_profiler() {
+        return &profiler_;
+    }
+
   private:
     void try_handle_c2s();
     void handle_c2s();
@@ -53,6 +58,8 @@ class Server {
 
     std::vector<RegisteredJob> registered_jobs_;
     std::vector<JobRefId> unused_registered_jobs_;
+
+    Profiler profiler_;
 };
 
 }

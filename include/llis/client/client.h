@@ -1,7 +1,7 @@
 #pragma once
 
-#include "job_ref.h"
-
+#include <llis/client/job_ref.h>
+#include <llis/client/profiler_client.h>
 #include <llis/ipc/shm_channel.h>
 #include <llis/ipc/unix_datagram_socket.h>
 #include <llis/ipc/defs.h>
@@ -37,6 +37,10 @@ class Client {
 
     JobInstanceRef* wait();
 
+    ProfilerClient* get_profiler_client() {
+        return &profiler_client_;
+    }
+
   private:
     void generate_client_id();
     void create_s2c_channel();
@@ -58,6 +62,8 @@ class Client {
     std::vector<JobInstanceRefId> unused_job_instance_refs_;
 
     std::mutex mtx_;
+
+    ProfilerClient profiler_client_;
 };
 
 }

@@ -13,7 +13,16 @@ enum class MsgType : uint32_t {
     REGISTER_CLIENT,
     REGISTER_JOB,
     LAUNCH_JOB,
-    GROW_POOL
+    GROW_POOL,
+    PROFILER_CMD
+};
+
+enum class ProfilerMsgType : uint32_t {
+    SET_RECORD_KERNEL_EXEC_TIME,
+    UNSET_RECORD_KERNEL_EXEC_TIME,
+    SET_RECORD_BLOCK_EXEC_TIME,
+    UNSET_RECORD_BLOCK_EXEC_TIME,
+    SAVE
 };
 
 }

@@ -12,7 +12,7 @@
 namespace llis {
 namespace server {
 
-Server::Server(std::string server_name, Scheduler* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), 1024) {
+Server::Server(std::string server_name, Scheduler* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), 1024), profiler_(&c2s_channel_) {
     scheduler_->set_server(this);
 }
 
@@ -48,6 +48,10 @@ void Server::handle_c2s() {
 
         case MsgType::GROW_POOL:
             handle_grow_pool();
+            break;
+
+        case MsgType::PROFILER_CMD:
+            profiler_.handle_cmd();
             break;
     }
 }

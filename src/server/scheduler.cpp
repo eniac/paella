@@ -21,8 +21,21 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-Scheduler::Scheduler(float unfairness_threshold, float eta) : server_(nullptr), gpu2sched_channel_(1024000), mem2sched_channel_(10240), cuda_streams_(500), unfairness_threshold_(unfairness_threshold), eta_(eta), job_less_(unfairness_threshold_) { // TODO: size of the channel must be larger than number of total blocks * 2
+Scheduler::Scheduler(float unfairness_threshold, float eta) :
+        server_(nullptr),
+        gpu2sched_channel_(1024000),
+#ifdef LLIS_MEASURE_BLOCK_TIME
+        gpu2sched_block_time_channel_(10240000),
+#endif
+        mem2sched_channel_(10240),
+        cuda_streams_(500),
+        unfairness_threshold_(unfairness_threshold),
+        eta_(eta),
+        job_less_(unfairness_threshold_) { // TODO: size of the channel must be larger than number of total blocks * 2
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
+#ifdef LLIS_MEASURE_BLOCK_TIME
+    job::Context::set_gpu2sched_block_time_channel(&gpu2sched_block_time_channel_);
+#endif
     job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
     for (auto& stream : cuda_streams_) {
@@ -32,12 +45,19 @@ Scheduler::Scheduler(float unfairness_threshold, float eta) : server_(nullptr), 
 
 void Scheduler::set_server(Server* server) {
     server_ = server;
+    profiler_ = server_->get_profiler();
 }
 
 void Scheduler::try_handle_block_start_finish() {
     if (gpu2sched_channel_.can_read<job::InstrumentInfo>()) {
         handle_block_start_finish();
     }
+
+#ifdef LLIS_MEASURE_BLOCK_TIME
+    if (gpu2sched_block_time_channel_.can_read<job::BlockStartEndTime>()) {
+        handle_block_start_end_time();
+    }
+#endif
 
     if (mem2sched_channel_.can_read()) {
         handle_mem_finish();
@@ -53,6 +73,16 @@ void Scheduler::handle_block_start_finish() {
         handle_block_finish(info);
     }
 }
+
+#ifdef LLIS_MEASURE_BLOCK_TIME
+void Scheduler::handle_block_start_end_time() {
+    job::BlockStartEndTime start_end_time = gpu2sched_block_time_channel_.read<job::BlockStartEndTime>();
+
+    uint32_t start = (uint32_t)start_end_time.data[0] << 8 | start_end_time.data[1] >> 8;
+    uint32_t end = (uint32_t)(start_end_time.data[1] & 0xFF) << 16 | start_end_time.data[2];
+    profiler_->record_block_exec_time(start, end);
+}
+#endif
 
 void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
@@ -91,6 +121,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
 
         auto end_time = std::chrono::steady_clock::now();
         auto start_time = job->get_stage_start_time();
+        profiler_->record_kernel_exec_time(start_time, end_time);
         double length = std::chrono::duration<double, std::micro>(end_time - start_time).count();
         server_->update_job_stage_length(job, job->get_cur_stage(), length);
 

@@ -48,6 +48,9 @@ class Scheduler {
     };
 
     void handle_block_start_finish();
+#ifdef LLIS_MEASURE_BLOCK_TIME
+    void handle_block_start_end_time();
+#endif
     void handle_block_start(const job::InstrumentInfo& info);
     void handle_block_finish(const job::InstrumentInfo& info);
     void handle_mem_finish();
@@ -61,7 +64,11 @@ class Scheduler {
     static float normalize_resources(job::Job* job);
 
     Server* server_;
+    Profiler* profiler_;
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
+#ifdef LLIS_MEASURE_BLOCK_TIME
+    ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_block_time_channel_;
+#endif
     ipc::ShmChannel mem2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;
