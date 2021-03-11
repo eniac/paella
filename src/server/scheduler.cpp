@@ -276,9 +276,11 @@ void Scheduler::schedule_job() {
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
 
-        gpu_resources_.choose_sms(job);
-
         bool job_is_mem = job->is_mem();
+
+        if (!job_is_mem) {
+            gpu_resources_.choose_sms(job);
+        }
 
         if (job->is_pre_notify()) {
             server_->notify_job_starts(job);
