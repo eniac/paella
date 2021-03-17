@@ -7,4 +7,5 @@ set_target_properties(llis_job_gpu PROPERTIES POSITION_INDEPENDENT_CODE ON CUDA_
 target_link_libraries(llis_job_gpu Boost::context)
 
 add_library(llis_context SHARED context.cpp)
+target_link_libraries(llis_context llis_job)
 
