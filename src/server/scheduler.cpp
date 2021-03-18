@@ -138,6 +138,10 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     if (!job->is_running() && !job->has_next()) {
         unused_job_id_.push_back(job->get_id());
         server_->release_job_instance(std::move(job_id_to_job_map_[info.job_id]));
+
+        if (num_outstanding_kernels_ > 0) {
+            --num_outstanding_kernels_;
+        }
     }
 
     schedule_job();
@@ -205,7 +209,7 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
 }
 
 void Scheduler::schedule_job() {
-    if (cuda_streams_.empty() || gpu_resources_.is_full() || job_queue_.empty()) {
+    if (cuda_streams_.empty() || job_queue_.empty()) {
         return;
     }
 
@@ -258,11 +262,22 @@ void Scheduler::schedule_job() {
 #endif
 
     while (!job_queue_.empty()) {
-        if (gpu_resources_.is_full()) {
-            break;
+        job::Job* job = job_queue_.back();
+
+        bool job_is_mem = job->is_mem();
+
+        if (!job_is_mem) {
+            if (gpu_resources_.is_full()) {
+                if (num_outstanding_kernels_ >= max_num_outstanding_kernels_) {
+                    break;
+                } else {
+                    ++num_outstanding_kernels_;
+                }
+            } else {
+                num_outstanding_kernels_ = 0;
+            }
         }
 
-        job::Job* job = job_queue_.back();
         job_queue_.pop_back();
 
 #ifdef PRINT_SCHEDULE_TIME
@@ -275,8 +290,6 @@ void Scheduler::schedule_job() {
 
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
-
-        bool job_is_mem = job->is_mem();
 
         if (!job_is_mem) {
             gpu_resources_.choose_sms(job);

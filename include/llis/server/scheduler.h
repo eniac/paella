@@ -88,6 +88,9 @@ class Scheduler {
     unsigned num_running_kernels_ = 0;
 #endif
 
+    unsigned num_outstanding_kernels_ = 0;
+    static constexpr unsigned max_num_outstanding_kernels_ = 0;
+
     float new_job_deficit_ = 0;
 
     JobLess job_less_;
