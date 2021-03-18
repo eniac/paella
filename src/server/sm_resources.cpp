@@ -14,7 +14,7 @@ void SmResources::acquire(job::Job* job, int num) {
     nregs_ -= job->get_cur_num_registers_per_thread() * job->get_cur_num_threads_per_block() * num;
     nthrs_ -= job->get_cur_num_threads_per_block() * num;
     smem_ -= job->get_cur_smem_size_per_block() * num;
-    nblocks_ -= job->get_cur_num_blocks() * num;
+    nblocks_ -= num;
 }
 
 void SmResources::release(job::Job* job, int num) {
@@ -22,7 +22,7 @@ void SmResources::release(job::Job* job, int num) {
     nregs_ += job->get_cur_num_registers_per_thread() * job->get_cur_num_threads_per_block() * num;
     nthrs_ += job->get_cur_num_threads_per_block() * num;
     smem_ += job->get_cur_smem_size_per_block() * num;
-    nblocks_ += job->get_cur_num_blocks() * num;
+    nblocks_ += num;
 }
 
 double SmResources::dot(job::Job* job) const {
