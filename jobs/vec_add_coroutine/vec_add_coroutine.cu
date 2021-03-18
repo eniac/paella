@@ -5,7 +5,7 @@
 
 #include <cstdio>
 
-__global__ void vec_add(float* output, float* input, unsigned long long dummy[10], llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel
+__global__ void vec_add(float* output, float* input, size_t count, unsigned long long dummy[10], llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel
 #ifdef LLIS_MEASURE_BLOCK_TIME
         , llis::ipc::Gpu2SchedChannel gpu2sched_block_time_channel
 #endif
@@ -18,8 +18,12 @@ __global__ void vec_add(float* output, float* input, unsigned long long dummy[10
 #endif
 
     unsigned id = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned grid_size = blockDim.x * gridDim.x;
 
-    output[id] += input[id];
+    while (id < count) {
+        output[id] += input[id];
+        id += grid_size;
+    }
 
 #ifdef LLIS_MEASURE_BLOCK_TIME
     llis::job::kernel_end(job_id, &gpu2sched_channel, &gpu2sched_block_time_channel, &start_end_time);
@@ -30,7 +34,7 @@ __global__ void vec_add(float* output, float* input, unsigned long long dummy[10
 
 class VecAddCoroutineJob : public llis::job::CoroutineJob {
   private:
-    static constexpr unsigned count_ = 12800;
+    static constexpr unsigned count_ = 128000;
 
   public:
     size_t get_input_size() override {
@@ -47,7 +51,7 @@ class VecAddCoroutineJob : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         set_num_threads_per_block(256);
-        set_num_blocks(count_ / 256);
+        set_num_blocks(count_ / 256 / 10);
         set_smem_size_per_block(0);
 
         cudaFuncAttributes attr;
@@ -71,7 +75,7 @@ class VecAddCoroutineJob : public llis::job::CoroutineJob {
 
         for (int i = 0; i < 5; ++i) {
             yield();
-            vec_add<<<count_ / 256, 256, 0, get_cuda_stream()>>>(output, input, dummy, get_id(), llis::job::Context::get_gpu2sched_channel()->fork()
+            vec_add<<<count_ / 256 / 10, 256, 0, get_cuda_stream()>>>(output, input, count_, dummy, get_id(), llis::job::Context::get_gpu2sched_channel()->fork()
 #ifdef LLIS_MEASURE_BLOCK_TIME
                 , llis::job::Context::get_gpu2sched_block_time_channel()->fork()
 #endif
