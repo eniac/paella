@@ -113,7 +113,11 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     job->mark_block_finish();
     if (!job->is_running()) {
         if (job->has_next()) {
-            job_queue_.push_back(job);
+            if (job->is_mem()) {
+                mem_job_queue_.push(job);
+            } else {
+                job_queue_.push_back(job);
+            }
         } else {
             server_->notify_job_ends(job);
             --num_jobs_;
@@ -152,7 +156,11 @@ void Scheduler::handle_mem_finish() {
     mem2sched_channel_.read(&job);
 
     if (job->has_next()) {
-        job_queue_.push_back(job);
+        if (job->is_mem()) {
+            mem_job_queue_.push(job);
+        } else {
+            job_queue_.push_back(job);
+        }
     } else {
         server_->notify_job_ends(job);
         --num_jobs_;
@@ -176,6 +184,8 @@ void Scheduler::handle_mem_finish() {
         unused_job_id_.push_back(job->get_id());
         server_->release_job_instance(std::move(job_id_to_job_map_[job->get_id()]));
     }
+
+    has_mem_job_running_ = false;
 
     schedule_job();
 }
@@ -201,7 +211,11 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
 
     job->inc_deficit_counter(new_job_deficit_);
 
-    job_queue_.push_back(job);
+    if (job->is_mem()) {
+        mem_job_queue_.push(job);
+    } else {
+        job_queue_.push_back(job);
+    }
 
     ++num_jobs_;
 
@@ -209,6 +223,11 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
 }
 
 void Scheduler::schedule_job() {
+    schedule_mem_job();
+    schedule_comp_job();
+}
+
+void Scheduler::schedule_comp_job() {
     if (cuda_streams_.empty() || job_queue_.empty()) {
         return;
     }
@@ -331,6 +350,37 @@ void Scheduler::schedule_job() {
         }
     }
 #endif
+}
+
+void Scheduler::schedule_mem_job() {
+    if (has_mem_job_running_ || cuda_streams_.empty() || mem_job_queue_.empty()) {
+        return;
+    }
+
+    job::Job* job = mem_job_queue_.front();
+    mem_job_queue_.pop();
+
+    if (!job->has_started()) {
+        job->set_started();
+    }
+
+    job->set_running(cuda_streams_.back());
+    cuda_streams_.pop_back();
+
+    if (job->is_pre_notify()) {
+        server_->notify_job_starts(job);
+    }
+
+    job::Context::set_current_job(job);
+    job->run_next();
+
+    cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
+
+    if (job->has_next()) {
+        server_->set_job_stage_resource(job, job->get_cur_stage() + 1, gpu_resources_.normalize_resources(job));
+    }
+
+    has_mem_job_running_ = true;
 }
 
 void Scheduler::update_deficit_counters(job::Job* job_scheduled) {

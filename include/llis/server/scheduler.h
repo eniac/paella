@@ -56,6 +56,8 @@ class Scheduler {
     void handle_mem_finish();
 
     void schedule_job();
+    void schedule_comp_job();
+    void schedule_mem_job();
     void choose_sms(job::Job* job);
     void update_deficit_counters(job::Job* job_scheduled);
 
@@ -76,6 +78,7 @@ class Scheduler {
     float unfairness_threshold_;
     float eta_;
     std::vector<job::Job*> job_queue_;
+    std::queue<job::Job*> mem_job_queue_;
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
@@ -90,6 +93,8 @@ class Scheduler {
 
     unsigned num_outstanding_kernels_ = 0;
     static constexpr unsigned max_num_outstanding_kernels_ = 0;
+    
+    bool has_mem_job_running_ = false;
 
     float new_job_deficit_ = 0;
 
