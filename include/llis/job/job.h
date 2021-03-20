@@ -29,6 +29,7 @@ class Job {
         unset_pre_notify();
         deficit_counter_ = 0;
         cur_stage_ = -1;
+        unset_unfit();
     }
 
     void set_id(JobId id) {
@@ -236,6 +237,18 @@ class Job {
         return priority_;
     }
 
+    bool is_unfit() const {
+        return is_unfit_;
+    }
+
+    void set_unfit() {
+        is_unfit_ = true;
+    }
+
+    void unset_unfit() {
+        is_unfit_ = false;
+    }
+
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
@@ -263,6 +276,8 @@ class Job {
     bool has_started_ = false;
 
     int cur_stage_ = -1;
+
+    bool is_unfit_ = false;
 
     std::chrono::time_point<std::chrono::steady_clock> stage_start_time_;
 

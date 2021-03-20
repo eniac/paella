@@ -92,7 +92,7 @@ class Scheduler {
 #endif
 
     unsigned num_outstanding_kernels_ = 0;
-    static constexpr unsigned max_num_outstanding_kernels_ = 0;
+    static constexpr unsigned max_num_outstanding_kernels_ = 1;
     
     bool has_mem_job_running_ = false;
 
