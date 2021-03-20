@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
         llis::client::JobInstanceRef* job_instance_ref = client.wait();
         //client.release_job_instance_ref(job_instance_ref);
     }
-    //printf("Finished init\n");
+    printf("Finished init\n");
 
     std::thread monitor_thr(monitor, &client, profile_path);
     std::thread submit_thr(submit, &job_ref, mean_inter_time);
