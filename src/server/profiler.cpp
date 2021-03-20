@@ -8,8 +8,6 @@ void Profiler::handle_cmd() {
     ProfilerMsgType msg_type;
     c2s_channel_->read(&msg_type);
 
-    printf("Profiler::handle_cmd\n");
-
     switch (msg_type) {
         case ProfilerMsgType::SET_RECORD_KERNEL_EXEC_TIME:
            kernel_exec_times_flag_ = true; 
@@ -34,8 +32,6 @@ void Profiler::handle_cmd() {
 }
 
 void Profiler::handle_cmd_save() {
-    printf("handle_cmd_save\n");
-
     std::string path;
     c2s_channel_->read(&path);
 
@@ -43,8 +39,6 @@ void Profiler::handle_cmd_save() {
 }
 
 void Profiler::save(const std::string& path) {
-    printf("Profiler::save(%s)\n", path.c_str());
-
     FILE* fp = fopen((path + "_kernel_exec_times.txt").c_str(), "w");
 
     for (auto item : kernel_exec_times_) {
