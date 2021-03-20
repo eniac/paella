@@ -95,13 +95,18 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
 
     if (!job->mark_block_start()) {
         const unsigned* predicted_smid_nums = job->get_predicted_smid_nums();
+        unsigned total_wrong_prediction = 0;
+        unsigned total_wrong_prediction_sm = 0;
         for (unsigned smid = 0; smid < gpu_resources_.get_num_sms(); ++smid) {
             unsigned num = predicted_smid_nums[smid];
 
             if (num > 0) {
+                total_wrong_prediction += num;
+                ++total_wrong_prediction_sm;
                 gpu_resources_.release(info.smid, job, num);
             }
         }
+        profiler_->recrod_kernel_block_mis_alloc(job->get_cur_num_blocks(), total_wrong_prediction, total_wrong_prediction_sm);
 
         if (job->is_unfit()) {
             if (num_outstanding_kernels_ > 0) {

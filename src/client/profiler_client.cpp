@@ -40,6 +40,24 @@ void ProfilerClient::unset_record_block_exec_time() {
     c2s_channel_->release_writer_lock();
 }
 
+void ProfilerClient::set_record_kernel_block_mis_alloc() {
+    c2s_channel_->acquire_writer_lock();
+
+    c2s_channel_->write(MsgType::PROFILER_CMD);
+    c2s_channel_->write(ProfilerMsgType::SET_RECORD_KERNEL_BLOCK_MIS_ALLOC);
+
+    c2s_channel_->release_writer_lock();
+}
+
+void ProfilerClient::unset_record_kernel_block_mis_alloc() {
+    c2s_channel_->acquire_writer_lock();
+
+    c2s_channel_->write(MsgType::PROFILER_CMD);
+    c2s_channel_->write(ProfilerMsgType::UNSET_RECORD_KERNEL_BLOCK_MIS_ALLOC);
+
+    c2s_channel_->release_writer_lock();
+}
+
 void ProfilerClient::save(const std::string& path) {
     c2s_channel_->acquire_writer_lock();
 

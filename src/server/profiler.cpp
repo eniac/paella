@@ -25,6 +25,14 @@ void Profiler::handle_cmd() {
            block_exec_times_flag_ = false; 
            break;
 
+        case ProfilerMsgType::SET_RECORD_KERNEL_BLOCK_MIS_ALLOC:
+           kernel_block_mis_alloc_flag_ = true;
+           break;
+
+        case ProfilerMsgType::UNSET_RECORD_KERNEL_BLOCK_MIS_ALLOC:
+           kernel_block_mis_alloc_flag_ = false;
+           break;
+
         case ProfilerMsgType::SAVE:
            handle_cmd_save();
            break;
@@ -54,6 +62,14 @@ void Profiler::save(const std::string& path) {
     }
 
     fclose(fp);
+
+    fp = fopen((path + "_kernel_block_mis_alloc.txt").c_str(), "w");
+
+    for (auto item : kernel_block_mis_alloc_) {
+        fprintf(fp, "%u %u %u\n", std::get<0>(item), std::get<1>(item), std::get<2>(item));
+    }
+
+    fclose(fp);
 }
 
 void Profiler::record_kernel_exec_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time) {
@@ -66,6 +82,12 @@ void Profiler::record_block_exec_time(unsigned long long start_time, unsigned lo
 //void Profiler::record_block_exec_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time) {
     if (block_exec_times_flag_) {
         block_exec_times_.emplace_back(start_time, end_time);
+    }
+}
+
+void Profiler::recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wrong_prediction, unsigned total_wrong_prediction_sm) {
+    if (kernel_block_mis_alloc_flag_) {
+        kernel_block_mis_alloc_.emplace_back(total, total_wrong_prediction, total_wrong_prediction_sm);
     }
 }
 
