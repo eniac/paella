@@ -286,16 +286,12 @@ void Scheduler::schedule_comp_job() {
     while (!job_queue_.empty()) {
         job::Job* job = job_queue_.back();
 
-        bool job_is_mem = job->is_mem();
-
-        if (!job_is_mem) {
-            if (!gpu_resources_.job_fits(job)) {
-                if (num_outstanding_kernels_ >= max_num_outstanding_kernels_) {
-                    break;
-                } else {
-                    ++num_outstanding_kernels_;
-                    job->set_unfit();
-                }
+        if (!gpu_resources_.job_fits(job)) {
+            if (num_outstanding_kernels_ >= max_num_outstanding_kernels_) {
+                break;
+            } else {
+                ++num_outstanding_kernels_;
+                job->set_unfit();
             }
         }
 
@@ -312,9 +308,7 @@ void Scheduler::schedule_comp_job() {
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
 
-        if (!job_is_mem) {
-            gpu_resources_.choose_sms(job);
-        }
+        gpu_resources_.choose_sms(job);
 
         if (job->is_pre_notify()) {
             server_->notify_job_starts(job);
@@ -327,11 +321,6 @@ void Scheduler::schedule_comp_job() {
 
         job::Context::set_current_job(job);
         job->run_next();
-
-        // Note: after run_next, the is_mem flag may change, but we want to use the old one
-        if (job_is_mem) {
-            cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
-        }
 
         if (job->has_next()) {
             server_->set_job_stage_resource(job, job->get_cur_stage() + 1, gpu_resources_.normalize_resources(job));
