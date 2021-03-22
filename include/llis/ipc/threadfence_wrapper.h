@@ -17,7 +17,7 @@ class ThreadfenceWrapper<T, false> {
     inline void store(T desired) {
         val_.store(desired, std::memory_order_release);
     }
-    
+
   private:
     std::atomic<T> val_;
 };

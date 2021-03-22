@@ -38,7 +38,7 @@ class ShmChannelBase {
 
     void disconnect();
     bool is_connected();
- 
+
     CUDA_HOSTDEV void read(void* buf, size_t size);
     CUDA_HOSTDEV void write(const void* buf, size_t size);
 

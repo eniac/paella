@@ -23,15 +23,16 @@ void mem_notification_callback(void* job);
 
 Scheduler::Scheduler(float unfairness_threshold, float eta) :
         server_(nullptr),
-        gpu2sched_channel_(1024000),
+        gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
 #ifdef LLIS_MEASURE_BLOCK_TIME
-        gpu2sched_block_time_channel_(10240000),
+        gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
         mem2sched_channel_(10240),
         cuda_streams_(500),
         unfairness_threshold_(unfairness_threshold),
         eta_(eta),
         job_less_(unfairness_threshold_) { // TODO: size of the channel must be larger than number of total blocks * 2
+    LLIS_INFO("Setting up LLIS scheduler...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
     job::Context::set_gpu2sched_block_time_channel(&gpu2sched_block_time_channel_);
@@ -66,7 +67,7 @@ void Scheduler::try_handle_block_start_finish() {
 
 void Scheduler::handle_block_start_finish() {
     job::InstrumentInfo info = gpu2sched_channel_.read<job::InstrumentInfo>();
-    
+
     if (info.is_start) {
         handle_block_start(info);
     } else {
@@ -407,4 +408,3 @@ void mem_notification_callback(void* job) {
 
 }
 }
-

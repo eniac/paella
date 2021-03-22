@@ -10,19 +10,19 @@ void Profiler::handle_cmd() {
 
     switch (msg_type) {
         case ProfilerMsgType::SET_RECORD_KERNEL_EXEC_TIME:
-           kernel_exec_times_flag_ = true; 
+           kernel_exec_times_flag_ = true;
            break;
 
         case ProfilerMsgType::UNSET_RECORD_KERNEL_EXEC_TIME:
-           kernel_exec_times_flag_ = false; 
+           kernel_exec_times_flag_ = false;
            break;
 
         case ProfilerMsgType::SET_RECORD_BLOCK_EXEC_TIME:
-           block_exec_times_flag_ = true; 
+           block_exec_times_flag_ = true;
            break;
 
         case ProfilerMsgType::UNSET_RECORD_BLOCK_EXEC_TIME:
-           block_exec_times_flag_ = false; 
+           block_exec_times_flag_ = false;
            break;
 
         case ProfilerMsgType::SET_RECORD_KERNEL_BLOCK_MIS_ALLOC:
@@ -93,4 +93,3 @@ void Profiler::recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wron
 
 }
 }
-

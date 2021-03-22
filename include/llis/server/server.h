@@ -6,9 +6,13 @@
 #include <llis/ipc/defs.h>
 #include <llis/server/registered_job.h>
 #include <llis/server/profiler.h>
+#include <llis/utils/logging.hh>
 
 #include <vector>
 #include <string>
+
+#define SER2SCHED_CHAN_SIZE 1024
+#define CLT2SCHED_CHAN_SIZE 1024
 
 namespace llis {
 namespace server {

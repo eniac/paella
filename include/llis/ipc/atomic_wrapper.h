@@ -21,7 +21,7 @@ class AtomicWrapper<T, false> {
     inline void add(T val) {
         val_.fetch_add(val, std::memory_order_relaxed);
     }
-    
+
   private:
     std::atomic<T> val_;
 };

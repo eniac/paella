@@ -8,15 +8,18 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include <iostream>
 
 namespace llis {
 namespace server {
 
-Server::Server(std::string server_name, Scheduler* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), 1024), profiler_(&c2s_channel_) {
+Server::Server(std::string server_name, Scheduler* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), CLT2SCHED_CHAN_SIZE), profiler_(&c2s_channel_) {
+    LLIS_INFO("Setting up LLIS server...");
     scheduler_->set_server(this);
 }
 
 void Server::serve() {
+    LLIS_INFO("Starting LLIS server...");
     while (true) {
         try_handle_c2s();
         scheduler_->try_handle_block_start_finish();
@@ -74,7 +77,7 @@ void Server::handle_register_client() {
 
     ipc::ShmChannel s2c_channel(ipc::s2c_channel_name(server_name_, client_id), s2c_channel_size);
     client_connection->use_s2c_channel(std::move(s2c_channel));
-    
+
     client_connection->use_s2c_socket(s2c_socket_.connect(ipc::s2c_socket_name(server_name_, client_id)));
 
     s2c_channel_tmp.write(client_id);
@@ -162,11 +165,17 @@ double Server::get_job_remaining_rl(job::Job* job, unsigned from_stage) const {
 }
 
 int main(int argc, char** argv) {
+    if (argc < 4) {
+        LLIS_ERROR("usage: ./server [server name] [unfairness threshold] [ETA]");
+        exit(1);
+    }
+
     std::string server_name = argv[1];
     float unfairness_threshold = atof(argv[2]);
     float eta = atof(argv[3]);
 
-    llis::ipc::ShmChannel ser2sched_channel(1024);
+    LLIS_INFO("Registering shared memory channel between server and scheduler");
+    llis::ipc::ShmChannel ser2sched_channel(SER2SCHED_CHAN_SIZE);
 
     llis::server::Scheduler scheduler(unfairness_threshold, eta);
     llis::server::Server server(server_name, &scheduler);

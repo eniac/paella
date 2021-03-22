@@ -82,12 +82,12 @@ CUDA_HOSTDEV void ShmChannelBase<for_gpu>::write(const void* buf, size_t size) {
         }
 
         size_t size_writing = ((size_to_write < size_can_write) ? size_to_write : size_can_write);
-        
+
         my_memcpy(ring_buf_ + write_pos, reinterpret_cast<const char*>(buf) + size_written, size_writing);
 
         size_to_write -= size_writing;
         size_written += size_writing;
-        
+
         write_pos += size_writing;
         assert(write_pos <= size_);
         if (write_pos == size_) {

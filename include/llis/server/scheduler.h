@@ -5,6 +5,7 @@
 #include <llis/job/instrument_info.h>
 #include <llis/server/server.h>
 #include <llis/server/gpu_resources.h>
+#include <llis/utils/logging.hh>
 
 #include <cuda_runtime.h>
 
@@ -12,6 +13,9 @@
 #include <queue>
 #include <vector>
 #include <memory>
+
+#define GPU2SCHED_CHAN_SIZE 1024000
+#define GPU2SCHED_CHAN_SIZE_TIME 10240000
 
 namespace llis {
 namespace server {
