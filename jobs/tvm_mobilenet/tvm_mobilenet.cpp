@@ -32,7 +32,6 @@ class TVMMobilenetJob : public llis::job::CoroutineJob {
     }
 
     void body(void* io_ptr) override {
-        // TODO: set input, etc
         set_is_mem();
         yield();
         cudaMemcpyAsync(input_dev->data, io_ptr, get_input_size(), cudaMemcpyHostToDevice, get_cuda_stream());

@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-class TVMJob : public llis::job::CoroutineJob {
+class TVMMnistJob : public llis::job::CoroutineJob {
   public:
     size_t get_input_size() override {
         return 28*28 * sizeof(float);
@@ -22,7 +22,7 @@ class TVMJob : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("model-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile("mnist-8-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
@@ -32,7 +32,6 @@ class TVMJob : public llis::job::CoroutineJob {
     }
 
     void body(void* io_ptr) override {
-        // TODO: set input, etc
         set_is_mem();
         yield();
         cudaMemcpyAsync(input_dev->data, io_ptr, get_input_size(), cudaMemcpyHostToDevice, get_cuda_stream());
@@ -58,7 +57,7 @@ class TVMJob : public llis::job::CoroutineJob {
 extern "C" {
 
 llis::job::Job* init_job() {
-    return new TVMJob();
+    return new TVMMnistJob();
 }
 
 }

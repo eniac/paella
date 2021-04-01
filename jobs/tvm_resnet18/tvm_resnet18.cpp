@@ -31,7 +31,6 @@ class TVMResnet18Job : public llis::job::CoroutineJob {
     }
 
     void body(void* io_ptr) override {
-        // TODO: set input, etc
         set_is_mem();
         yield();
         cudaMemcpyAsync(input_dev->data, io_ptr, get_input_size(), cudaMemcpyHostToDevice, get_cuda_stream());
@@ -40,6 +39,7 @@ class TVMResnet18Job : public llis::job::CoroutineJob {
         run_();
 
         set_is_mem();
+        set_pre_notify();
         yield();
         cudaMemcpyAsync((char*)io_ptr + get_input_size(), input_dev->data, get_output_size(), cudaMemcpyDeviceToHost, get_cuda_stream());
     }
