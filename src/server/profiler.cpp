@@ -9,12 +9,12 @@ void Profiler::handle_cmd() {
     c2s_channel_->read(&msg_type);
 
     switch (msg_type) {
-        case ProfilerMsgType::SET_RECORD_KERNEL_EXEC_TIME:
-           kernel_exec_times_flag_ = true;
+        case ProfilerMsgType::SET_RECORD_KERNEL_INFO:
+           kernel_info_flag_ = true; 
            break;
 
-        case ProfilerMsgType::UNSET_RECORD_KERNEL_EXEC_TIME:
-           kernel_exec_times_flag_ = false;
+        case ProfilerMsgType::UNSET_RECORD_KERNEL_INFO:
+           kernel_info_flag_ = false; 
            break;
 
         case ProfilerMsgType::SET_RECORD_BLOCK_EXEC_TIME:
@@ -47,10 +47,10 @@ void Profiler::handle_cmd_save() {
 }
 
 void Profiler::save(const std::string& path) {
-    FILE* fp = fopen((path + "_kernel_exec_times.txt").c_str(), "w");
+    FILE* fp = fopen((path + "_kernel_info.txt").c_str(), "w");
 
-    for (auto item : kernel_exec_times_) {
-        fprintf(fp, "%lu %lu\n", item.first.time_since_epoch().count(), item.second.time_since_epoch().count());
+    for (auto item : kernel_info_) {
+        fprintf(fp, "%lu %lu %u %u %u %u\n", std::get<0>(item).time_since_epoch().count(), std::get<1>(item).time_since_epoch().count(), std::get<2>(item), std::get<3>(item), std::get<4>(item), std::get<5>(item));
     }
 
     fclose(fp);
@@ -72,9 +72,9 @@ void Profiler::save(const std::string& path) {
     fclose(fp);
 }
 
-void Profiler::record_kernel_exec_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time) {
-    if (kernel_exec_times_flag_) {
-        kernel_exec_times_.emplace_back(start_time, end_time);
+void Profiler::record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread) {
+    if (kernel_info_flag_) {
+        kernel_info_.emplace_back(start_time, end_time, num_blocks, num_threads_per_block, smem_size_per_block, num_registers_per_thread);
     }
 }
 

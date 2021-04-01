@@ -48,7 +48,7 @@ void monitor(llis::client::Client* client, const std::string& profile_path) {
         if (time_elasped > 10000000) { // 10s
             latencies.push_back(latency);
             if (!has_set_record_exec_time) {
-                client->get_profiler_client()->set_record_kernel_exec_time();
+                client->get_profiler_client()->set_record_kernel_info();
                 client->get_profiler_client()->set_record_block_exec_time();
                 client->get_profiler_client()->set_record_kernel_block_mis_alloc();
                 has_set_record_exec_time = true;
@@ -58,7 +58,7 @@ void monitor(llis::client::Client* client, const std::string& profile_path) {
         //printf("time_elasped: %f\n", time_elasped);
 
         if (time_elasped > 30000000) { // 30s
-            client->get_profiler_client()->unset_record_kernel_exec_time();
+            client->get_profiler_client()->unset_record_kernel_info();
             client->get_profiler_client()->unset_record_block_exec_time();
             client->get_profiler_client()->unset_record_kernel_block_mis_alloc();
             client->get_profiler_client()->save(profile_path);

@@ -4,20 +4,20 @@
 namespace llis {
 namespace client {
 
-void ProfilerClient::set_record_kernel_exec_time() {
+void ProfilerClient::set_record_kernel_info() {
     c2s_channel_->acquire_writer_lock();
 
     c2s_channel_->write(MsgType::PROFILER_CMD);
-    c2s_channel_->write(ProfilerMsgType::SET_RECORD_KERNEL_EXEC_TIME);
+    c2s_channel_->write(ProfilerMsgType::SET_RECORD_KERNEL_INFO);
 
     c2s_channel_->release_writer_lock();
 }
 
-void ProfilerClient::unset_record_kernel_exec_time() {
+void ProfilerClient::unset_record_kernel_info() {
     c2s_channel_->acquire_writer_lock();
 
     c2s_channel_->write(MsgType::PROFILER_CMD);
-    c2s_channel_->write(ProfilerMsgType::UNSET_RECORD_KERNEL_EXEC_TIME);
+    c2s_channel_->write(ProfilerMsgType::UNSET_RECORD_KERNEL_INFO);
 
     c2s_channel_->release_writer_lock();
 }
