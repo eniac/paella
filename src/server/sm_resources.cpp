@@ -41,18 +41,22 @@ unsigned SmResources::num_blocks(job::Job* job) const {
         return 0;
     }
 
-    unsigned res = nblocks_;
+    int res = nblocks_;
 
     if (job->get_num_threads_per_block() > 0) {
-        res = std::min(res, nregs_ / (job->get_num_registers_per_thread() * job->get_num_threads_per_block()));
-        res = std::min(res, nthrs_ / job->get_num_threads_per_block());
+        res = std::min(res, nregs_ / (int)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()));
+        res = std::min(res, nthrs_ / (int)job->get_num_threads_per_block());
     }
 
     if (job->get_smem_size_per_block() > 0) {
-        res = std::min(res, smem_ / job->get_smem_size_per_block());
+        res = std::min(res, smem_ / (int)job->get_smem_size_per_block());
     }
 
-    return res;
+    if (res > 0) {
+        return res;
+    } else {
+        return 0;
+    }
 }
 
 float SmResources::normalize_resources(job::Job* job) const {
