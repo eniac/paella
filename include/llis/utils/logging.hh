@@ -25,7 +25,7 @@
 /* General logging function which can be filled in with arguments, color, etc. */
 #define log_at_level(lvl_label, color, fd, fmt, ...)\
         fprintf(fd, "" color "%07.03f:%s:%d:%s(): " lvl_label ": " fmt ANSI_COLOR_RESET "\n", \
-                ((boost::chrono::duration<double>)(hr_clock::now() - system_start_time)).count(), \
+                ((std::chrono::duration<double>)(hr_clock::now() - system_start_time)).count(), \
                 __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
 /* Debug statements are replaced with nothing if LOG_DEBUG is false  */
@@ -66,7 +66,7 @@
 #define LOG(lbl, color, ...)\
     std::cerr << color \
               << std::fixed << std::setw(7) << std::setprecision(3) << std::setfill('0') \
-              << boost::chrono::duration_cast<boost::chrono::nanoseconds>(hr_clock::now() - system_start_time).count() \
+              << std::chrono::duration_cast<std::chrono::nanoseconds>(hr_clock::now() - system_start_time).count() \
               << ":" __FILE__ ":" << __LINE__ << ":" << __func__ << ":" \
               << lbl << ": " << __VA_ARGS__ \
               << ANSI_COLOR_RESET << "\n";

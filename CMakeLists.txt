@@ -8,7 +8,7 @@ find_package(CUDAToolkit)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
-find_package(Boost REQUIRED context chrono)
+find_package(Boost REQUIRED context)
 
 option(MEASURE_BLOCK_TIME "Enable measurement of block time" OFF)
 if(MEASURE_BLOCK_TIME)

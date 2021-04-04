@@ -4,8 +4,8 @@
 #define CPU_FREQ 2.5 // Adjust with your cpu speed
 
 #include <llis/utils/ops.h>
-#include <boost/chrono.hpp>
-using hr_clock = boost::chrono::steady_clock;
+#include <chrono>
+using hr_clock = std::chrono::steady_clock;
 typedef hr_clock::time_point tp;
 
 uint64_t since_epoch(const tp &time);
