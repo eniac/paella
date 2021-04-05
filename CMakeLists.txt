@@ -15,6 +15,11 @@ if(MEASURE_BLOCK_TIME)
     add_definitions(-DLLIS_MEASURE_BLOCK_TIME)
 endif(MEASURE_BLOCK_TIME)
 
+option(SCHED_FIFO "FIFO scheduler" OFF)
+if(SCHED_FIFO)
+    add_definitions(-DLLIS_SCHED_FIFO)
+endif(SCHED_FIFO)
+
 include_directories(include)
 
 add_subdirectory(src)

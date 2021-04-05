@@ -17,7 +17,13 @@
 namespace llis {
 namespace server {
 
-class Scheduler;
+#ifdef LLIS_SCHED_FIFO
+class SchedulerFifo;
+using Scheduler = SchedulerFifo;
+#else
+class SchedulerFull;
+using Scheduler = SchedulerFull;
+#endif
 
 constexpr size_t s2c_channel_size = 1024;
 

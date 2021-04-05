@@ -1,5 +1,4 @@
-#include "llis/ipc/shm_channel.h"
-#include <llis/server/scheduler.h>
+#include <llis/server/scheduler_full.h>
 
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/server/server.h>
@@ -21,7 +20,7 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-Scheduler::Scheduler(float unfairness_threshold, float eta) :
+SchedulerFull::SchedulerFull(float unfairness_threshold, float eta) :
         server_(nullptr),
         gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
 #ifdef LLIS_MEASURE_BLOCK_TIME
@@ -44,12 +43,12 @@ Scheduler::Scheduler(float unfairness_threshold, float eta) :
     }
 }
 
-void Scheduler::set_server(Server* server) {
+void SchedulerFull::set_server(Server* server) {
     server_ = server;
     profiler_ = server_->get_profiler();
 }
 
-void Scheduler::try_handle_block_start_finish() {
+void SchedulerFull::try_handle_block_start_finish() {
     if (gpu2sched_channel_.can_read<job::InstrumentInfo>()) {
         handle_block_start_finish();
     }
@@ -65,7 +64,7 @@ void Scheduler::try_handle_block_start_finish() {
     }
 }
 
-void Scheduler::handle_block_start_finish() {
+void SchedulerFull::handle_block_start_finish() {
     job::InstrumentInfo info = gpu2sched_channel_.read<job::InstrumentInfo>();
 
     if (info.is_start) {
@@ -76,7 +75,7 @@ void Scheduler::handle_block_start_finish() {
 }
 
 #ifdef LLIS_MEASURE_BLOCK_TIME
-void Scheduler::handle_block_start_end_time() {
+void SchedulerFull::handle_block_start_end_time() {
     job::BlockStartEndTime start_end_time = gpu2sched_block_time_channel_.read<job::BlockStartEndTime>();
 
     uint32_t start = (uint32_t)start_end_time.data[0] << 8 | start_end_time.data[1] >> 8;
@@ -85,7 +84,7 @@ void Scheduler::handle_block_start_end_time() {
 }
 #endif
 
-void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
+void SchedulerFull::handle_block_start(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
     if (!job->has_predicted_smid(info.smid)) {
@@ -120,7 +119,7 @@ void Scheduler::handle_block_start(const job::InstrumentInfo& info) {
     }
 }
 
-void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
+void SchedulerFull::handle_block_finish(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
     job->mark_block_finish();
@@ -160,7 +159,7 @@ void Scheduler::handle_block_finish(const job::InstrumentInfo& info) {
     schedule_job();
 }
 
-void Scheduler::handle_mem_finish() {
+void SchedulerFull::handle_mem_finish() {
     job::Job* job;
     mem2sched_channel_.read(&job);
 
@@ -199,7 +198,7 @@ void Scheduler::handle_mem_finish() {
     schedule_job();
 }
 
-void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
+void SchedulerFull::handle_new_job(std::unique_ptr<job::Job> job_) {
     job::Job* job = job_.get();
     if (!job->has_next()) {
         unused_job_id_.push_back(job->get_id());
@@ -231,12 +230,12 @@ void Scheduler::handle_new_job(std::unique_ptr<job::Job> job_) {
     schedule_job();
 }
 
-void Scheduler::schedule_job() {
+void SchedulerFull::schedule_job() {
     schedule_mem_job();
     schedule_comp_job();
 }
 
-void Scheduler::schedule_comp_job() {
+void SchedulerFull::schedule_comp_job() {
     if (cuda_streams_.empty() || job_queue_.empty()) {
         return;
     }
@@ -349,7 +348,7 @@ void Scheduler::schedule_comp_job() {
 #endif
 }
 
-void Scheduler::schedule_mem_job() {
+void SchedulerFull::schedule_mem_job() {
     if (has_mem_job_running_ || cuda_streams_.empty() || mem_job_queue_.empty()) {
         return;
     }
@@ -380,7 +379,7 @@ void Scheduler::schedule_mem_job() {
     has_mem_job_running_ = true;
 }
 
-void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
+void SchedulerFull::update_deficit_counters(job::Job* job_scheduled) {
     job_scheduled->inc_deficit_counter(-1);
     new_job_deficit_ -= 1. / num_jobs_;
 
@@ -393,11 +392,11 @@ void Scheduler::update_deficit_counters(job::Job* job_scheduled) {
     }
 }
 
-double Scheduler::calculate_priority(job::Job* job) const {
+double SchedulerFull::calculate_priority(job::Job* job) const {
     return calculate_packing(job) - eta_ * server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
 }
 
-double Scheduler::calculate_packing(job::Job* job) const {
+double SchedulerFull::calculate_packing(job::Job* job) const {
     return gpu_resources_.dot_normalized(job);
 }
 
