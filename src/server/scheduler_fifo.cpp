@@ -88,9 +88,9 @@ void SchedulerFifo::handle_block_finish(const job::InstrumentInfo& info) {
 
         --num_jobs_;
 
-#ifdef PRINT_NUM_RUNNING_KERNELS
-        --num_running_kernels_;
-        printf("num_running_kernels_: %u\n", num_running_kernels_);
+#ifdef PRINT_NUM_RUNNING_JOBS
+        --num_running_jobs_;
+        printf("num_running_jobs_: %u\n", num_running_jobs_);
 #endif
     }
 }
@@ -109,6 +109,11 @@ void SchedulerFifo::handle_mem_finish() {
         server_->release_job_instance(std::move(job_id_to_job_map_[job->get_id()]));
 
         --num_jobs_;
+
+#ifdef PRINT_NUM_RUNNING_JOBS
+        --num_running_jobs_;
+        printf("num_running_jobs_: %u\n", num_running_jobs_);
+#endif
     }
 
     schedule_job();
@@ -164,9 +169,9 @@ void SchedulerFifo::schedule_job() {
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
 
-#ifdef PRINT_NUM_RUNNING_KERNELS
-        ++num_running_kernels_;
-        printf("num_running_kernels_: %u\n", num_running_kernels_);
+#ifdef PRINT_NUM_RUNNING_JOBS
+        ++num_running_jobs_;
+        printf("num_running_jobs_: %u\n", num_running_jobs_);
 #endif
 
         job::Context::set_current_job(job);
@@ -183,6 +188,7 @@ void SchedulerFifo::schedule_job() {
                 cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
             }
         }
+
         server_->notify_job_starts(job);
 
         if (cuda_streams_.empty()) {

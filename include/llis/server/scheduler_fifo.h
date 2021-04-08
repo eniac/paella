@@ -1,5 +1,7 @@
 #pragma once
 
+#define PRINT_NUM_RUNNING_JOBS
+
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/job.h>
 #include <llis/job/instrument_info.h>
@@ -60,8 +62,8 @@ class SchedulerFifo {
 
     unsigned num_jobs_ = 0;
 
-#ifdef PRINT_NUM_RUNNING_KERNELS
-    unsigned num_running_kernels_ = 0;
+#ifdef PRINT_NUM_RUNNING_JOBS
+    unsigned num_running_jobs_ = 0;
 #endif
 };
 
