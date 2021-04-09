@@ -1,7 +1,5 @@
 #pragma once
 
-#define PRINT_NUM_RUNNING_JOBS
-
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/job.h>
 #include <llis/job/instrument_info.h>
