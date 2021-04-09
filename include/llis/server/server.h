@@ -20,6 +20,9 @@ namespace server {
 #ifdef LLIS_SCHED_FIFO
 class SchedulerFifo;
 using Scheduler = SchedulerFifo;
+#elif defined(LLIS_SCHED_FIFO2)
+class SchedulerFifo2;
+using Scheduler = SchedulerFifo2;
 #else
 class SchedulerFull;
 using Scheduler = SchedulerFull;

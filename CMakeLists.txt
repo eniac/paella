@@ -20,6 +20,11 @@ if(SCHED_FIFO)
     add_definitions(-DLLIS_SCHED_FIFO)
 endif(SCHED_FIFO)
 
+option(SCHED_FIFO2 "FIFO2 scheduler" OFF)
+if(SCHED_FIFO2)
+    add_definitions(-DLLIS_SCHED_FIFO2)
+endif(SCHED_FIFO2)
+
 include_directories(include)
 
 add_subdirectory(src)
