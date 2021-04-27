@@ -93,6 +93,8 @@ void SchedulerFifo::handle_block_finish(const job::InstrumentInfo& info) {
         printf("num_running_jobs_: %u\n", num_running_jobs_);
 #endif
     }
+
+    schedule_job();
 }
 
 void SchedulerFifo::handle_mem_finish() {
