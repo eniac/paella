@@ -20,6 +20,9 @@ class ProfilerClient {
     void set_record_kernel_block_mis_alloc();
     void unset_record_kernel_block_mis_alloc();
 
+    void set_record_run_next_times();
+    void unset_record_run_next_times();
+
     void save(const std::string& path);
 
   private:

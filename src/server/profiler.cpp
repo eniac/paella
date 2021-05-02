@@ -1,3 +1,4 @@
+#include <chrono>
 #include <llis/server/profiler.h>
 #include <llis/ipc/defs.h>
 
@@ -31,6 +32,14 @@ void Profiler::handle_cmd() {
 
         case ProfilerMsgType::UNSET_RECORD_KERNEL_BLOCK_MIS_ALLOC:
            kernel_block_mis_alloc_flag_ = false;
+           break;
+
+        case ProfilerMsgType::SET_RECORD_RUN_NEXT_TIMES:
+           run_next_times_flag_ = true;
+           break;
+
+        case ProfilerMsgType::UNSET_RECORD_RUN_NEXT_TIMES:
+           run_next_times_flag_ = false;
            break;
 
         case ProfilerMsgType::SAVE:
@@ -70,6 +79,14 @@ void Profiler::save(const std::string& path) {
     }
 
     fclose(fp);
+
+    fp = fopen((path + "_run_next_times.txt").c_str(), "w");
+
+    for (auto item : run_next_times_) {
+        fprintf(fp, "%f %u\n", item.first, item.second);
+    }
+
+    fclose(fp);
 }
 
 void Profiler::record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread) {
@@ -88,6 +105,12 @@ void Profiler::record_block_exec_time(unsigned long long start_time, unsigned lo
 void Profiler::recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wrong_prediction, unsigned total_wrong_prediction_sm) {
     if (kernel_block_mis_alloc_flag_) {
         kernel_block_mis_alloc_.emplace_back(total, total_wrong_prediction, total_wrong_prediction_sm);
+    }
+}
+
+void Profiler::record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks) {
+    if (run_next_times_flag_) {
+        run_next_times_.emplace_back(std::chrono::duration<double, std::micro>(end_time - start_time).count(), num_blocks);
     }
 }
 

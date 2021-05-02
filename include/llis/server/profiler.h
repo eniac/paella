@@ -23,6 +23,8 @@ class Profiler {
 
     void recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wrong_prediction, unsigned total_wrong_prediction_sm);
 
+    void record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks);
+
   private:
     ipc::ShmChannel* c2s_channel_;
 
@@ -35,6 +37,9 @@ class Profiler {
 
     bool kernel_block_mis_alloc_flag_ = false; 
     std::vector<std::tuple<unsigned, unsigned, unsigned>> kernel_block_mis_alloc_;
+
+    bool run_next_times_flag_ = false;
+    std::vector<std::pair<double, unsigned>> run_next_times_;
 };
 
 }
