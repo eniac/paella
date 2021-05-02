@@ -7,6 +7,11 @@ SmResources::SmResources(int nregs, int smem, int nthrs, int nblocks) : nregs_(n
     max_resources_dot_prod_ = (double)nregs * (double)nregs;
     max_resources_dot_prod_ += (double)nthrs * (double)nthrs;
     max_resources_dot_prod_ += (double)smem * (double)smem;
+
+    max_nregs_ = nregs;
+    max_smem_ = smem;
+    max_nthrs_ = nthrs;
+    max_nblocks_ = nblocks;
 }
 
 void SmResources::acquire(job::Job* job, int num) {
@@ -61,6 +66,13 @@ unsigned SmResources::num_blocks(job::Job* job) const {
 
 float SmResources::normalize_resources(job::Job* job) const {
     return ((float)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()) / nregs_ + (float)job->get_num_threads_per_block() / nthrs_ + (float)job->get_smem_size_per_block() / smem_) * job->get_num_blocks() + (float)job->get_num_blocks() / nblocks_;
+}
+
+double SmResources::occupancy() const {
+    double a = 1. - (double)nthrs_ / (double)max_nthrs_;
+    double b = 1. - (double)smem_ / (double)max_smem_;
+    double c = 1. - (double)nregs_ / (double)max_nregs_;
+    return std::max(a, std::max(b, c));
 }
 
 }
