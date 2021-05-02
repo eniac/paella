@@ -325,7 +325,11 @@ void SchedulerFull::schedule_comp_job() {
 #endif
 
         job::Context::set_current_job(job);
+
+        auto start_run_next_time = std::chrono::steady_clock::now();
         job->run_next();
+        auto end_run_next_time = std::chrono::steady_clock::now();
+        profiler_->record_run_next_time(start_run_next_time, end_run_next_time, job->get_cur_num_blocks());
 
         if (job->has_next()) {
             server_->set_job_stage_resource(job, job->get_cur_stage() + 1, gpu_resources_.normalize_resources(job));
