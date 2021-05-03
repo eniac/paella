@@ -25,6 +25,11 @@ if(SCHED_FIFO2)
     add_definitions(-DLLIS_SCHED_FIFO2)
 endif(SCHED_FIFO2)
 
+option(SCHED_FULL2 "Full2 scheduler" OFF)
+if(SCHED_FULL2)
+    add_definitions(-DLLIS_SCHED_FULL2)
+endif(SCHED_FULL2)
+
 include_directories(include)
 
 add_subdirectory(src)

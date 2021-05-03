@@ -23,6 +23,9 @@ using Scheduler = SchedulerFifo;
 #elif defined(LLIS_SCHED_FIFO2)
 class SchedulerFifo2;
 using Scheduler = SchedulerFifo2;
+#elif defined(LLIS_SCHED_FULL2)
+class SchedulerFull2;
+using Scheduler = SchedulerFull2;
 #else
 class SchedulerFull;
 using Scheduler = SchedulerFull;
