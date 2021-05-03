@@ -24,6 +24,12 @@ std::mutex mtx;
 
 int max_num_jobs;
 
+unsigned run_time;
+unsigned start_record_time;
+
+unsigned run_time_us;
+unsigned start_record_time_us;
+
 void monitor(llis::client::Client* client, const std::string& profile_path) {
     auto very_start_time = std::chrono::steady_clock::now();
 
@@ -45,23 +51,25 @@ void monitor(llis::client::Client* client, const std::string& profile_path) {
         double latency = std::chrono::duration<double, std::micro>(cur_time.time_since_epoch()).count() - job_instance_ref->get_start_time();
         double time_elasped = std::chrono::duration<double, std::micro>(cur_time - very_start_time).count();
 
-        if (time_elasped > 10000000) { // 10s
+        if (time_elasped > start_record_time_us) {
             latencies.push_back(latency);
             if (!has_set_record_exec_time) {
-                client->get_profiler_client()->set_record_kernel_info();
-                client->get_profiler_client()->set_record_block_exec_time();
-                client->get_profiler_client()->set_record_kernel_block_mis_alloc();
+                //client->get_profiler_client()->set_record_kernel_info();
+                //client->get_profiler_client()->set_record_block_exec_time();
+                //client->get_profiler_client()->set_record_kernel_block_mis_alloc();
+                //client->get_profiler_client()->set_record_run_next_times();
                 has_set_record_exec_time = true;
             }
         }
 
         //printf("time_elasped: %f\n", time_elasped);
 
-        if (time_elasped > 30000000) { // 30s
-            client->get_profiler_client()->unset_record_kernel_info();
-            client->get_profiler_client()->unset_record_block_exec_time();
-            client->get_profiler_client()->unset_record_kernel_block_mis_alloc();
-            client->get_profiler_client()->save(profile_path);
+        if (time_elasped > run_time_us) {
+            //client->get_profiler_client()->unset_record_kernel_info();
+            //client->get_profiler_client()->unset_record_block_exec_time();
+            //client->get_profiler_client()->unset_record_kernel_block_mis_alloc();
+            //client->get_profiler_client()->unset_record_run_next_times();
+            //client->get_profiler_client()->save(profile_path);
             return;
         }
     }
@@ -81,7 +89,7 @@ void submit(llis::client::JobRef* job_ref, double mean_inter_time) {
         auto cur_time = std::chrono::steady_clock::now();
         auto time_elasped = std::chrono::duration<double, std::micro>(cur_time - start_time).count();
 
-        if (time_elasped > 30000000) { // 30s
+        if (time_elasped > run_time_us) {
             return;
         }
 
@@ -113,35 +121,54 @@ int main(int argc, char** argv) {
     const char* job_path = argv[2];
     double mean_inter_time = atof(argv[3]);
     max_num_jobs = atoi(argv[4]);
-    const char* output_path = argv[5];
-    const char* raw_output_path = argv[6];
+    run_time = atoi(argv[5]);
+    run_time_us = run_time * 1000000;
+    start_record_time = atoi(argv[6]);
+    start_record_time_us = start_record_time * 1000000;
+    const char* output_path = argv[7];
+    const char* raw_output_path = argv[8];
     const char* profile_path = nullptr;
-    if (argc >= 8) {
-        profile_path = argv[7];
+    if (argc >= 10) {
+        profile_path = argv[9];
     }
 
+    printf("Before constructing client\n");
     llis::client::Client client(server_name);
+    printf("Finished constructing client\n");
     llis::client::JobRef job_ref = client.register_job(job_path);
+    printf("Finished registering\n");
 
+    auto start_init = std::chrono::steady_clock::now();
     for (int i = 0; i < max_num_jobs; ++i) {
         llis::client::JobInstanceRef* job_instance_ref = job_ref.create_instance();
         job_instance_refs.push_back(job_instance_ref);
         unused_job_instance_refs.push_back(job_instance_ref);
         job_instance_ref->launch();
     }
+    printf("Finished launching\n");
     for (int i = 0; i < max_num_jobs; ++i) {
         llis::client::JobInstanceRef* job_instance_ref = client.wait();
         //client.release_job_instance_ref(job_instance_ref);
     }
+    auto finish_init = std::chrono::steady_clock::now();
     printf("Finished init\n");
+    std::cout << std::chrono::duration<double, std::micro>(finish_init - start_init).count() << std::endl;
 
     std::thread monitor_thr(monitor, &client, profile_path);
     std::thread submit_thr(submit, &job_ref, mean_inter_time);
 
-    //std::this_thread::sleep_for(40s);
-    submit_thr.join();
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(1, &cpuset);
+    pthread_setaffinity_np(monitor_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
 
-    double throughput = latencies.size() / 20.0;
+    CPU_SET(3, &cpuset);
+    pthread_setaffinity_np(submit_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
+
+    std::this_thread::sleep_for(40s);
+    //submit_thr.join();
+
+    double throughput = (double)latencies.size() / (double)(run_time - start_record_time);
 
     std::sort(latencies.begin(), latencies.end());
     
