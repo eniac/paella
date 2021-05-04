@@ -14,7 +14,8 @@ enum class MsgType : uint32_t {
     REGISTER_JOB,
     LAUNCH_JOB,
     GROW_POOL,
-    PROFILER_CMD
+    PROFILER_CMD,
+    EXIT_CMD
 };
 
 enum class ProfilerMsgType : uint32_t {

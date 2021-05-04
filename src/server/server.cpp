@@ -56,6 +56,10 @@ void Server::handle_c2s() {
         case MsgType::PROFILER_CMD:
             profiler_.handle_cmd();
             break;
+
+        case MsgType::EXIT_CMD:
+            exit(0);
+            break;
     }
 }
 

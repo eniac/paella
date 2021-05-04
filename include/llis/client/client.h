@@ -41,6 +41,8 @@ class Client {
         return &profiler_client_;
     }
 
+    void kill_server();
+
   private:
     void generate_client_id();
     void create_s2c_channel();

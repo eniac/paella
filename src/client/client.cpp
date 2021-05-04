@@ -116,6 +116,14 @@ JobInstanceRef* Client::wait() {
     return res;
 }
 
+void Client::kill_server() {
+    c2s_channel_.acquire_writer_lock();
+
+    c2s_channel_.write(MsgType::EXIT_CMD);
+
+    c2s_channel_.release_writer_lock();
+}
+
 }
 }
 
