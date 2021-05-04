@@ -62,8 +62,6 @@ void monitor(llis::client::Client* client, const std::string& profile_path) {
             }
         }
 
-        //printf("time_elasped: %f\n", time_elasped);
-
         if (time_elasped > run_time_us) {
             //client->get_profiler_client()->unset_record_kernel_info();
             //client->get_profiler_client()->unset_record_block_exec_time();
@@ -106,9 +104,6 @@ void submit(llis::client::JobRef* job_ref, double mean_inter_time) {
             job_instance_ref->set_start_time(start_time_us + next_submit_time);
             job_instance_ref->launch();
 
-            //double start_time_us = std::chrono::duration<double, std::micro>(job_instance_ref->get_start_time() - start_time).count();
-
-            //next_submit_time = start_time_us + next_submit_time_incr;
             next_submit_time += d(gen);
 
             ++num_outstanding_jobs;
@@ -145,14 +140,13 @@ int main(int argc, char** argv) {
         unused_job_instance_refs.push_back(job_instance_ref);
         job_instance_ref->launch();
     }
-    printf("Finished launching\n");
+    printf("Finished launching initial jobs\n");
     for (int i = 0; i < max_num_jobs; ++i) {
         llis::client::JobInstanceRef* job_instance_ref = client.wait();
         //client.release_job_instance_ref(job_instance_ref);
     }
     auto finish_init = std::chrono::steady_clock::now();
-    printf("Finished init\n");
-    std::cout << std::chrono::duration<double, std::micro>(finish_init - start_init).count() << std::endl;
+    printf("Finished init. Time taken: %f\n", std::chrono::duration<double, std::micro>(finish_init - start_init).count());
 
     std::thread monitor_thr(monitor, &client, profile_path);
     std::thread submit_thr(submit, &job_ref, mean_inter_time);
@@ -192,5 +186,7 @@ int main(int argc, char** argv) {
         fprintf(fp, "%f\n", latency);
     }
     fclose(fp);
+
+    client.kill_server();
 }
 
