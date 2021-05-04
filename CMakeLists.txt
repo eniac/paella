@@ -30,6 +30,11 @@ if(SCHED_FULL2)
     add_definitions(-DLLIS_SCHED_FULL2)
 endif(SCHED_FULL2)
 
+option(ENABLE_PROFILER "Enable profiler" OFF)
+if(ENABLE_PROFILER)
+    add_definitions(-DLLIS_ENABLE_PROFILER)
+endif(ENABLE_PROFILER)
+
 include_directories(include)
 
 add_subdirectory(src)

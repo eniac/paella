@@ -78,9 +78,11 @@ void SchedulerFull2::handle_block_start_finish() {
 void SchedulerFull2::handle_block_start_end_time() {
     job::BlockStartEndTime start_end_time = gpu2sched_block_time_channel_.read<job::BlockStartEndTime>();
 
+#ifdef LLIS_ENABLE_PROFILER
     uint32_t start = (uint32_t)start_end_time.data[0] << 8 | start_end_time.data[1] >> 8;
     uint32_t end = (uint32_t)(start_end_time.data[1] & 0xFF) << 16 | start_end_time.data[2];
     profiler_->record_block_exec_time(start, end);
+#endif
 }
 #endif
 
@@ -117,7 +119,9 @@ void SchedulerFull2::handle_block_finish(const job::InstrumentInfo& info) {
 
         auto end_time = std::chrono::steady_clock::now();
         auto start_time = job->get_stage_start_time();
+#ifdef LLIS_ENABLE_PROFILER
         profiler_->record_kernel_info(start_time, end_time, job->get_cur_num_blocks(), job->get_cur_num_threads_per_block(), job->get_cur_smem_size_per_block(), job->get_cur_num_registers_per_thread());
+#endif
         double length = std::chrono::duration<double, std::micro>(end_time - start_time).count();
         server_->update_job_stage_length(job, job->get_cur_stage(), length);
 
@@ -306,10 +310,14 @@ void SchedulerFull2::schedule_comp_job() {
 
         job::Context::set_current_job(job);
 
+#ifdef LLIS_ENABLE_PROFILER
         auto start_run_next_time = std::chrono::steady_clock::now();
+#endif
         job->run_next();
+#ifdef LLIS_ENABLE_PROFILER
         auto end_run_next_time = std::chrono::steady_clock::now();
         profiler_->record_run_next_time(start_run_next_time, end_run_next_time, job->get_cur_num_blocks());
+#endif
 
         if (job->has_next()) {
             server_->set_job_stage_resource(job, job->get_cur_stage() + 1, gpu_resources_.normalize_resources(job));
