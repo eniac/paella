@@ -8,7 +8,7 @@ namespace server {
 class SmResources {
   public:
     SmResources(int nregs, int smem, int nthrs, int nblocks);
-    SmResources() = default;
+    SmResources();
 
     void acquire(job::Job* job, int num);
     void release(job::Job* job, int num);
@@ -26,7 +26,7 @@ class SmResources {
     }
 
     bool job_fits(job::Job* job) const {
-        return nregs_ >= job->get_num_registers_per_thread() * job->get_num_threads_per_block() && smem_ >= job->get_smem_size_per_block() && nthrs_ >= job->get_num_threads_per_block() && nblocks_ >= job->get_num_blocks();
+        return nregs_ >= (int)job->get_num_registers_per_thread() * (int)job->get_num_threads_per_block() * (int)job->get_num_blocks() && smem_ >= (int)job->get_smem_size_per_block() * (int)job->get_num_blocks() && nthrs_ >= (int)job->get_num_threads_per_block() * (int)job->get_num_blocks() && nblocks_ >= (int)job->get_num_blocks();
     }
 
   private:

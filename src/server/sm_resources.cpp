@@ -14,6 +14,25 @@ SmResources::SmResources(int nregs, int smem, int nthrs, int nblocks) : nregs_(n
     max_nblocks_ = nblocks;
 }
 
+SmResources::SmResources() {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0); // TODO: handle multiple GPUs
+
+    nregs_ = prop.regsPerMultiprocessor * prop.multiProcessorCount;
+    smem_ = prop.sharedMemPerMultiprocessor * prop.multiProcessorCount;
+    nthrs_ = prop.maxThreadsPerMultiProcessor * prop.multiProcessorCount;
+    nblocks_ = prop.maxBlocksPerMultiProcessor * prop.multiProcessorCount;
+
+    max_resources_dot_prod_ = (double)nregs_ * (double)nregs_;
+    max_resources_dot_prod_ += (double)nthrs_ * (double)nthrs_;
+    max_resources_dot_prod_ += (double)smem_ * (double)smem_;
+
+    max_nregs_ = nregs_;
+    max_smem_ = smem_;
+    max_nthrs_ = nthrs_;
+    max_nblocks_ = nblocks_;
+}
+
 void SmResources::acquire(job::Job* job, int num) {
     // TODO: handle allocation granularity
     nregs_ -= job->get_cur_num_registers_per_thread() * job->get_cur_num_threads_per_block() * num;
