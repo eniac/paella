@@ -39,7 +39,7 @@ class Profiler {
     std::vector<std::tuple<unsigned, unsigned, unsigned>> kernel_block_mis_alloc_;
 
     bool run_next_times_flag_ = false;
-    std::vector<std::pair<double, unsigned>> run_next_times_;
+    std::vector<std::tuple<std::chrono::time_point<std::chrono::steady_clock>, std::chrono::time_point<std::chrono::steady_clock>, unsigned>> run_next_times_;
 };
 
 }

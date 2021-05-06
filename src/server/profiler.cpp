@@ -83,7 +83,11 @@ void Profiler::save(const std::string& path) {
     fp = fopen((path + "_run_next_times.txt").c_str(), "w");
 
     for (auto item : run_next_times_) {
-        fprintf(fp, "%f %u\n", item.first, item.second);
+        auto start_time = std::get<0>(item);
+        auto end_time = std::get<1>(item);
+        auto num_blocks = std::get<2>(item);
+
+        fprintf(fp, "%f %f %f %u\n", std::chrono::duration<double, std::micro>(start_time.time_since_epoch()).count(), std::chrono::duration<double, std::micro>(end_time.time_since_epoch()).count(), std::chrono::duration<double, std::micro>(end_time - start_time).count(), num_blocks);
     }
 
     fclose(fp);
@@ -110,7 +114,7 @@ void Profiler::recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wron
 
 void Profiler::record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks) {
     if (run_next_times_flag_) {
-        run_next_times_.emplace_back(std::chrono::duration<double, std::micro>(end_time - start_time).count(), num_blocks);
+        run_next_times_.emplace_back(start_time, end_time, num_blocks);
     }
 }
 
