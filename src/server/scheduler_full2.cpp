@@ -93,11 +93,10 @@ void SchedulerFull2::handle_block_start(const job::InstrumentInfo& info) {
         if (job->is_unfit()) {
             if (num_outstanding_kernels_ > 0) {
                 --num_outstanding_kernels_;
+                schedule_job();
             }
             job->unset_unfit();
         }
-
-        schedule_job();
     }
 }
 
@@ -166,8 +165,8 @@ void SchedulerFull2::handle_mem_finish() {
     server_->update_job_stage_length(job, job->get_cur_stage(), length);
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
-    --num_running_kernels_;
-    printf("num_running_kernels_: %u\n", num_running_kernels_);
+    --num_running_mems_;
+    printf("num_running_mems_: %u\n", num_running_mems_);
 #endif
 
     cuda_streams_.push_back(job->get_cuda_stream());
@@ -297,7 +296,7 @@ void SchedulerFull2::schedule_comp_job() {
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
 
-        gpu_resources_.acquire(job, job->get_num_blocks());
+        gpu_resources_.acquire(job, job->get_cur_num_blocks());
 
         if (job->is_pre_notify()) {
             server_->notify_job_starts(job);
@@ -359,8 +358,20 @@ void SchedulerFull2::schedule_mem_job() {
         server_->notify_job_starts(job);
     }
 
+#ifdef PRINT_NUM_RUNNING_KERNELS
+    ++num_running_mems_;
+    printf("num_running_mems_: %u\n", num_running_mems_);
+#endif
+
     job::Context::set_current_job(job);
+#ifdef LLIS_ENABLE_PROFILER
+    auto start_run_next_time = std::chrono::steady_clock::now();
+#endif
     job->run_next();
+#ifdef LLIS_ENABLE_PROFILER
+    auto end_run_next_time = std::chrono::steady_clock::now();
+    profiler_->record_run_next_time(start_run_next_time, end_run_next_time, 0);
+#endif
 
     cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
 

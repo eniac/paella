@@ -95,6 +95,7 @@ class SchedulerFull2 {
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
     unsigned num_running_kernels_ = 0;
+    unsigned num_running_mems_ = 0;
 #endif
 
     unsigned num_outstanding_kernels_ = 0;
