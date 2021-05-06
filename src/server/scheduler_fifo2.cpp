@@ -18,8 +18,6 @@
 namespace llis {
 namespace server {
 
-void mem_notification_callback(void* job);
-
 SchedulerFifo2::SchedulerFifo2(float unfairness_threshold, float eta) :
         server_(nullptr),
         gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
@@ -133,8 +131,8 @@ void SchedulerFifo2::handle_mem_finish() {
     job->unset_running();
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
-    --num_running_kernels_;
-    printf("num_running_kernels_: %u\n", num_running_kernels_);
+    --num_running_mems_;
+    printf("num_running_mems_: %u\n", num_running_mems_);
 #endif
 
     cuda_streams_.push_back(job->get_cuda_stream());
@@ -197,15 +195,27 @@ void SchedulerFifo2::schedule_job() {
             server_->notify_job_starts(job);
         }
 
-#ifdef PRINT_NUM_RUNNING_KERNELS
-        ++num_running_kernels_;
-        printf("num_running_kernels_: %u\n", num_running_kernels_);
-#endif
-
         bool is_mem = job->is_mem();
 
+#ifdef PRINT_NUM_RUNNING_KERNELS
+        if (is_mem) {
+            ++num_running_mems_;
+            printf("num_running_mems_: %u\n", num_running_mems_);
+        } else {
+            ++num_running_kernels_;
+            printf("num_running_kernels_: %u\n", num_running_kernels_);
+        }
+#endif
+
         job::Context::set_current_job(job);
+#ifdef LLIS_ENABLE_PROFILER
+        auto start_run_next_time = std::chrono::steady_clock::now();
+#endif
         job->run_next();
+#ifdef LLIS_ENABLE_PROFILER
+        auto end_run_next_time = std::chrono::steady_clock::now();
+        profiler_->record_run_next_time(start_run_next_time, end_run_next_time, is_mem ? 0 : job->get_cur_num_blocks());
+#endif
         if (is_mem) {
             cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
         }
