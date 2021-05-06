@@ -1,7 +1,8 @@
-#include "llis/utils/align.h"
+#include <llis/utils/align.h>
 #include <llis/client/job_ref.h>
 #include <llis/client/client.h>
 
+#include <memory>
 #include <string>
 
 #include <sys/mman.h>
@@ -12,9 +13,9 @@
 namespace llis {
 namespace client {
 
-JobRef::JobRef(job::Job* job, Client* client, std::string model_path) : job_(job), client_(client), model_path_(model_path) {
-    pinned_mem_size_ = job->get_pinned_mem_size();
-    param_size_ = job->get_param_size();
+JobRef::JobRef(std::unique_ptr<job::Job> job, Client* client, std::string model_path) : job_(std::move(job)), client_(client), model_path_(model_path) {
+    pinned_mem_size_ = job_->get_pinned_mem_size();
+    param_size_ = job_->get_param_size();
 
     s2c_channel_ = client_->get_s2c_channel();
     c2s_channel_ = client_->get_c2s_channel();
@@ -29,8 +30,12 @@ JobRef::JobRef(job::Job* job, Client* client, std::string model_path) : job_(job
 }
 
 JobRef::~JobRef() {
-    close(shm_fd_);
-    shm_unlink(shm_name_.c_str());
+    // Temporarily comment the clean-up.
+    // TODO: make clean-up work properly
+    //if (shm_fd_ != -1) {
+    //    close(shm_fd_);
+    //    shm_unlink(shm_name_.c_str());
+    //}
 }
 
 void JobRef::register_job() {

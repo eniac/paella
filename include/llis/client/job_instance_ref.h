@@ -23,6 +23,8 @@ class JobInstanceRef {
     void set_id(JobInstanceRefId id);
     JobInstanceRefId get_id() const;
 
+    JobRefId get_job_ref_id() const;
+
     void set_start_time(double time_point);
     double get_start_time() const;
 

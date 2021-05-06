@@ -1,6 +1,6 @@
 #pragma once
 
-#include "job_instance_ref.h"
+#include <llis/client/job_instance_ref.h>
 #include <llis/job/job.h>
 #include <llis/ipc/shm_channel.h>
 #include <llis/ipc/defs.h>
@@ -15,14 +15,19 @@ class Client;
 
 class JobRef {
   public:
-    JobRef(job::Job* job, Client* client, std::string path);
+    JobRef(std::unique_ptr<job::Job> job, Client* client, std::string path);
     ~JobRef();
+
+    JobRef(const JobRef&) = delete;
+    JobRef(JobRef&&) = default;
+    JobRef& operator=(const JobRef&) = delete;
+    JobRef& operator=(JobRef&&) = default;
 
     JobInstanceRef* create_instance();
     void release_io_shm_entry(IoShmEntry io_shm_entry);
 
     job::Job* get_job() {
-        return job_;
+        return job_.get();
     }
 
     Client* get_client() {
@@ -51,7 +56,7 @@ class JobRef {
     void grow_pool(size_t least_num_new_entries);
     void grow_pool();
 
-    job::Job* job_;
+    std::unique_ptr<job::Job> job_;
     Client* client_;
     std::string model_path_;
 

@@ -70,8 +70,7 @@ JobRef Client::register_job(std::string path) {
     init_job_t init_job = (init_job_t)(dlsym(handle, "init_job"));
     // TODO: error handling
 
-    job::Job* job = init_job();
-    JobRef job_ref(job, this, path);
+    JobRef job_ref(std::unique_ptr<job::Job>(init_job()), this, path);
 
     return job_ref;
 }

@@ -56,6 +56,10 @@ JobInstanceRefId JobInstanceRef::get_id() const {
     return id_;
 }
 
+JobRefId JobInstanceRef::get_job_ref_id() const {
+    return job_ref_->get_job_ref_id();
+}
+
 void JobInstanceRef::set_start_time(double time_point) {
     start_time_ = time_point;
 }
