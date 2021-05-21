@@ -98,9 +98,11 @@ void submit(std::vector<llis::client::JobRef>* job_refs, const std::vector<float
 
             while (num_outstanding_jobs >= max_num_jobs);
 
-            unsigned job_type = std::lower_bound(job_props.begin(), job_props.end(), d_type(gen)) - job_props.begin();
-            //llis::client::JobInstanceRef* job_instance_ref = (*job_refs)[job_type].create_instance();
+            unsigned job_type;
             std::unique_lock<std::mutex> lk(mtx);
+            do {
+                job_type = std::lower_bound(job_props.begin(), job_props.end(), d_type(gen)) - job_props.begin();
+            } while (unused_job_instance_refss[job_type].empty());
             llis::client::JobInstanceRef* job_instance_ref = unused_job_instance_refss[job_type].back();
             unused_job_instance_refss[job_type].pop_back();
             lk.unlock();
@@ -128,13 +130,15 @@ int main(int argc, char** argv) {
 
     std::vector<const char*> job_paths;
     std::vector<float> job_props;
-    for (unsigned i = 9; i < argc; i += 2) {
+    std::vector<unsigned> job_max_nums;
+    for (unsigned i = 9; i < argc; i += 3) {
         job_paths.push_back(argv[i]);
         if (i == 9) {
             job_props.push_back(std::stof(argv[i + 1]));
         } else {
             job_props.push_back(std::stof(argv[i + 1]) + job_props.back());
         }
+        job_max_nums.push_back(std::atoi(argv[i + 2]));
     }
 
     printf("Before constructing client\n");
@@ -156,7 +160,7 @@ int main(int argc, char** argv) {
         auto& job_instance_refs = job_instance_refss[job_type];
         auto& unused_job_instance_refs = unused_job_instance_refss[job_type];
 
-        for (int i = 0; i < max_num_jobs; ++i) {
+        for (int i = 0; i < job_max_nums[job_type]; ++i) {
             llis::client::JobInstanceRef* job_instance_ref = job_ref.create_instance();
             job_instance_refs.push_back(job_instance_ref);
             unused_job_instance_refs.push_back(job_instance_ref);
@@ -165,7 +169,7 @@ int main(int argc, char** argv) {
     }
     printf("Finished launching initial jobs\n");
     for (unsigned job_type = 0; job_type < job_refs.size(); ++job_type) {
-        for (int i = 0; i < max_num_jobs; ++i) {
+        for (int i = 0; i < job_max_nums[job_type]; ++i) {
             llis::client::JobInstanceRef* job_instance_ref = client.wait();
             //client.release_job_instance_ref(job_instance_ref);
         }
