@@ -26,6 +26,9 @@ using Scheduler = SchedulerFifo2;
 #elif defined(LLIS_SCHED_FULL2)
 class SchedulerFull2;
 using Scheduler = SchedulerFull2;
+#elif defined(LLIS_SCHED_FULL3)
+class SchedulerFull3;
+using Scheduler = SchedulerFull3;
 #else
 class SchedulerFull;
 using Scheduler = SchedulerFull;
@@ -46,6 +49,7 @@ class Server {
 
     void update_job_stage_length(job::Job* job, unsigned stage_id, double len);
     void set_job_stage_resource(job::Job* job, unsigned stage_id, float res);
+    bool has_job_stage_resource(job::Job* job, unsigned stage_id);
 
     double get_job_remaining_length(job::Job* job, unsigned from_stage) const;
     double get_job_remaining_rl(job::Job* job, unsigned from_stage) const;

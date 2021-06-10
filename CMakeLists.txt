@@ -30,6 +30,11 @@ if(SCHED_FULL2)
     add_definitions(-DLLIS_SCHED_FULL2)
 endif(SCHED_FULL2)
 
+option(SCHED_FULL3 "Full3 scheduler" OFF)
+if(SCHED_FULL3)
+    add_definitions(-DLLIS_SCHED_FULL3)
+endif(SCHED_FULL3)
+
 option(ENABLE_PROFILER "Enable profiler" OFF)
 if(ENABLE_PROFILER)
     add_definitions(-DLLIS_ENABLE_PROFILER)

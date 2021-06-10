@@ -157,6 +157,10 @@ void Server::set_job_stage_resource(job::Job* job, unsigned stage_id, float res)
     registered_jobs_[job->get_registered_job_id()].set_stage_resource(stage_id, res);
 }
 
+bool Server::has_job_stage_resource(job::Job* job, unsigned stage_id) {
+    return registered_jobs_[job->get_registered_job_id()].has_stage_resource(stage_id);
+}
+
 double Server::get_job_remaining_length(job::Job* job, unsigned from_stage) const {
     return registered_jobs_[job->get_registered_job_id()].get_remaining_length(from_stage);
 }

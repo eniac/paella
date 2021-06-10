@@ -24,6 +24,7 @@ class RegisteredJob {
 
     void update_stage_length(unsigned stage_id, double len);
     void set_stage_resource(unsigned stage_id, float res);
+    bool has_stage_resource(unsigned stage_id);
     double get_stage_length(unsigned stage_id) const;
     float get_stage_resource(unsigned stage_id) const;
     double get_remaining_length(unsigned from_stage) const;

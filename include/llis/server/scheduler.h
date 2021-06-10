@@ -6,6 +6,8 @@
 #include <llis/server/scheduler_fifo2.h>
 #elif defined(LLIS_SCHED_FULL2)
 #include <llis/server/scheduler_full2.h>
+#elif defined(LLIS_SCHED_FULL3)
+#include <llis/server/scheduler_full3.h>
 #else
 #include <llis/server/scheduler_full.h>
 #endif
@@ -19,6 +21,8 @@ using Scheduler = SchedulerFifo;
 using Scheduler = SchedulerFifo2;
 #elif defined(LLIS_SCHED_FULL2)
 using Scheduler = SchedulerFull2;
+#elif defined(LLIS_SCHED_FULL3)
+using Scheduler = SchedulerFull3;
 #else
 using Scheduler = SchedulerFull;
 #endif
