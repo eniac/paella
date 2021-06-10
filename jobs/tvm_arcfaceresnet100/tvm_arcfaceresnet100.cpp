@@ -6,14 +6,14 @@
 
 #include <iostream>
 
-class TVMMobilenetJob : public llis::job::CoroutineJob {
+class TVMArcfaceresnet100 : public llis::job::CoroutineJob {
   public:
     size_t get_input_size() override {
-        return 224*224*3 * sizeof(float);
+        return 112*112*3 * sizeof(float);
     }
 
     size_t get_output_size() override {
-        return 1000 * sizeof(float);
+        return 512 * sizeof(float);
     }
 
     size_t get_param_size() override {
@@ -22,8 +22,7 @@ class TVMMobilenetJob : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
-        //mod_factory_ = tvm::runtime::Module::LoadFromFile("mobilenetv2-7-cuda_llis-pack.so");
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("mobilenet_v2-cuda_llis-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile("arcfaceresnet100-8-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
@@ -58,7 +57,7 @@ class TVMMobilenetJob : public llis::job::CoroutineJob {
 extern "C" {
 
 llis::job::Job* init_job() {
-    return new TVMMobilenetJob();
+    return new TVMArcfaceresnet100();
 }
 
 }

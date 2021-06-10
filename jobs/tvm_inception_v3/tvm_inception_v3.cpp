@@ -1,12 +1,11 @@
 #include <llis/job/coroutine_job.h>
-#include <llis/job/context.h>
 
-#include <tvm/runtime/module.h>
 #include <tvm/runtime/ndarray.h>
+#include <tvm/runtime/module.h>
 
 #include <iostream>
 
-class TVMMobilenetJob : public llis::job::CoroutineJob {
+class TVMInceptionV3Job : public llis::job::CoroutineJob {
   public:
     size_t get_input_size() override {
         return 224*224*3 * sizeof(float);
@@ -22,13 +21,12 @@ class TVMMobilenetJob : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
-        //mod_factory_ = tvm::runtime::Module::LoadFromFile("mobilenetv2-7-cuda_llis-pack.so");
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("mobilenet_v2-cuda_llis-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile("inception_v3-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
         tvm::runtime::PackedFunc get_output = gmod_.GetFunction("get_output");
-        input_dev = get_input(0);
+        input_dev = get_input("input_1");
         output_dev = get_output(0);
     }
 
@@ -58,7 +56,7 @@ class TVMMobilenetJob : public llis::job::CoroutineJob {
 extern "C" {
 
 llis::job::Job* init_job() {
-    return new TVMMobilenetJob();
+    return new TVMInceptionV3Job();
 }
 
 }
