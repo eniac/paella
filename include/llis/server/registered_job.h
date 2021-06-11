@@ -30,6 +30,14 @@ class RegisteredJob {
     double get_remaining_length(unsigned from_stage) const;
     double get_remaining_rl(unsigned from_stage) const;
 
+    const std::vector<double>& get_stage_lengths() const {
+        return stage_lengths_;
+    }
+
+    const std::vector<float>& get_stage_resources() const {
+        return stage_resources_;
+    }
+
   private:
     typedef job::Job* (*init_job_t)();
 

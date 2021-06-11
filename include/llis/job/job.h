@@ -249,6 +249,22 @@ class Job {
         is_unfit_ = false;
     }
 
+    void set_stage_lengths_resources(double total, const std::vector<double>& stage_lengths, const std::vector<float>& stage_resources) {
+        cur_rl_ = total;
+        stage_lengths_ = stage_lengths;
+        stage_resources_ = stage_resources;
+    }
+
+    double get_cur_rl() const {
+        return cur_rl_;
+    }
+
+    void dec_cur_rl() {
+        if (stage_lengths_.size() > 0) {
+            cur_rl_ -= stage_lengths_[cur_stage_ + 1] * stage_resources_[cur_stage_ + 1];
+        }
+    }
+
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
@@ -278,6 +294,10 @@ class Job {
     int cur_stage_ = -1;
 
     bool is_unfit_ = false;
+
+    std::vector<double> stage_lengths_;
+    std::vector<float> stage_resources_;
+    double cur_rl_ = 0;
 
     std::chrono::time_point<std::chrono::steady_clock> stage_start_time_;
 

@@ -205,6 +205,7 @@ void SchedulerFull3::handle_new_job(std::unique_ptr<job::Job> job_) {
     if (!server_->has_job_stage_resource(job, job->get_cur_stage() + 1)) {
         server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
     }
+    job->set_stage_lengths_resources(server_->get_job_remaining_rl(job, 0), server_->get_job_stage_lengths(job), server_->get_job_stage_resources(job));
     job->set_priority(calculate_priority(job));
 
     job_queue_.push(job);
@@ -345,7 +346,9 @@ void SchedulerFull3::rebuild_job_queue() {
 }
 
 double SchedulerFull3::calculate_priority(job::Job* job) const {
-    return -server_->get_job_remaining_rl(job, job->get_cur_stage() + 1);
+    double cur_rl_ = job->get_cur_rl();
+    job->dec_cur_rl();
+    return -cur_rl_;
     //return -server_->get_job_remaining_length(job, job->get_cur_stage() + 1);
 }
 

@@ -169,6 +169,14 @@ double Server::get_job_remaining_rl(job::Job* job, unsigned from_stage) const {
     return registered_jobs_[job->get_registered_job_id()].get_remaining_rl(from_stage);
 }
 
+const std::vector<double>& Server::get_job_stage_lengths(job::Job* job) const {
+    return registered_jobs_[job->get_registered_job_id()].get_stage_lengths();
+}
+
+const std::vector<float>& Server::get_job_stage_resources(job::Job* job) const {
+    return registered_jobs_[job->get_registered_job_id()].get_stage_resources();
+}
+
 }
 }
 

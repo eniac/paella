@@ -54,6 +54,9 @@ class Server {
     double get_job_remaining_length(job::Job* job, unsigned from_stage) const;
     double get_job_remaining_rl(job::Job* job, unsigned from_stage) const;
 
+    const std::vector<double>& get_job_stage_lengths(job::Job* job) const;
+    const std::vector<float>& get_job_stage_resources(job::Job* job) const;
+
     Profiler* get_profiler() {
         return &profiler_;
     }
