@@ -14,7 +14,7 @@ namespace llis {
 namespace ipc {
 
 template <bool for_gpu>
-ShmChannelBase<for_gpu>::ShmChannelBase(std::string name, size_t size) {
+ShmChannelBase<for_gpu>::ShmChannelBase(const std::string& name, size_t size) {
     connect(name, size);
 }
 
@@ -30,16 +30,18 @@ ShmChannelBase<for_gpu>::ShmChannelBase(ShmChannelBase<for_gpu>&& rhs) {
 
 template <bool for_gpu>
 ShmChannelBase<for_gpu>& ShmChannelBase<for_gpu>::operator=(ShmChannelBase<for_gpu>&& rhs) {
-    fd_ = rhs.fd_;
-    shm_ = rhs.shm_;
-    ring_buf_ = rhs.ring_buf_;
-    size_ = rhs.size_;
-    total_size_ = rhs.total_size_;
-    is_create_ = rhs.is_create_;
-    name_with_prefix_ = rhs.name_with_prefix_;
-    read_pos_ = rhs.read_pos_;
-    write_pos_ = rhs.write_pos_;
-    writer_lock_ = rhs.writer_lock_;
+    this->fd_ = rhs.fd_;
+    this->shm_ = rhs.shm_;
+    this->ring_buf_ = rhs.ring_buf_;
+    this->size_ = rhs.size_;
+    this->total_size_ = rhs.total_size_;
+    this->is_create_ = rhs.is_create_;
+    this->name_with_prefix_ = rhs.name_with_prefix_;
+    this->cached_read_pos_ = rhs.cached_read_pos_;
+    this->read_pos_ = rhs.read_pos_;
+    this->cached_write_pos_ = rhs.cached_write_pos_;
+    this->write_pos_ = rhs.write_pos_;
+    this->writer_lock_ = rhs.writer_lock_;
 
     rhs.shm_ = nullptr;
 
@@ -110,8 +112,13 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
     if (is_create_) {
         *reinterpret_cast<size_t*>(shm_) = size;
         read_pos_->store(0);
+        cached_read_pos_ = 0;
         write_pos_->store(0);
+        cached_write_pos_ = 0;
         writer_lock_->init();
+    } else {
+        cached_read_pos_ = read_pos_->load();
+        cached_write_pos_ = write_pos_->load();
     }
 }
 
@@ -124,7 +131,9 @@ void ShmChannelBase<for_gpu>::connect(ShmChannelBase<for_gpu>* channel) {
     total_size_ = channel->total_size_;
     is_create_ = false;
     name_with_prefix_ = channel->name_with_prefix_;
+    cached_read_pos_ = channel->cached_read_pos_;
     read_pos_ = channel->read_pos_;
+    cached_write_pos_ = channel->cached_write_pos_;
     write_pos_ = channel->write_pos_;
     writer_lock_ = channel->writer_lock_;
 }

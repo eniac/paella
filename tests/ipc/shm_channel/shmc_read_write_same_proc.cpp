@@ -2,7 +2,7 @@
 
 #include <thread>
 
-void reader(llis::ipc::ShmChannel* channel) {
+void reader(llis::ipc::ShmChannelCpuReader* channel) {
     for (int i = 0; i < 10000; ++i) {
         int val;
         channel->read(&val, sizeof(val));
@@ -13,17 +13,18 @@ void reader(llis::ipc::ShmChannel* channel) {
     }
 }
 
-void writer(llis::ipc::ShmChannel* channel) {
+void writer(llis::ipc::ShmChannelCpuWriter* channel) {
     for (int i = 0; i < 10000; ++i) {
         channel->write(i);
     }
 }
 
 int main() {
-    llis::ipc::ShmChannel channel(64);
+    llis::ipc::ShmChannelCpuReader channelRead(64);
+    llis::ipc::ShmChannelCpuWriter channelWrite = channelRead.fork();
 
-    std::thread reader_thr(reader, &channel);
-    std::thread writer_thr(writer, &channel);
+    std::thread reader_thr(reader, &channelRead);
+    std::thread writer_thr(writer, &channelWrite);
 
     reader_thr.join();
     writer_thr.join();

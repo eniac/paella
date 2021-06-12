@@ -66,7 +66,7 @@ void Server::handle_c2s() {
 void Server::handle_register_client() {
     ClientId client_id;
     c2s_channel_.read(&client_id);
-    ipc::ShmChannel s2c_channel_tmp(ipc::s2c_channel_name(server_name_, client_id));
+    ipc::ShmChannelCpuWriter s2c_channel_tmp(ipc::s2c_channel_name(server_name_, client_id));
 
     ClientConnection* client_connection;
     if (unused_client_connections_.empty()) {
@@ -79,7 +79,7 @@ void Server::handle_register_client() {
         client_connection = &client_connections_[client_id];
     }
 
-    ipc::ShmChannel s2c_channel(ipc::s2c_channel_name(server_name_, client_id), s2c_channel_size);
+    ipc::ShmChannelCpuWriter s2c_channel(ipc::s2c_channel_name(server_name_, client_id), s2c_channel_size);
     client_connection->use_s2c_channel(std::move(s2c_channel));
 
     client_connection->use_s2c_socket(s2c_socket_.connect(ipc::s2c_socket_name(server_name_, client_id)));
@@ -141,7 +141,7 @@ void Server::notify_job_starts(job::Job* job) {
 }
 
 void Server::notify_job_ends(job::Job* job) {
-    ipc::ShmChannel* s2c_channel = client_connections_[job->get_client_id()].get_s2c_channel();
+    ipc::ShmChannelCpuWriter* s2c_channel = client_connections_[job->get_client_id()].get_s2c_channel();
     s2c_channel->write(job->get_remote_ptr());
 }
 
@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
     float eta = atof(argv[3]);
 
     LLIS_INFO("Registering shared memory channel between server and scheduler");
-    llis::ipc::ShmChannel ser2sched_channel(SER2SCHED_CHAN_SIZE);
+    llis::ipc::ShmChannelCpuWriter ser2sched_channel(SER2SCHED_CHAN_SIZE);
 
     llis::server::Scheduler scheduler(unfairness_threshold, eta);
     llis::server::Server server(server_name, &scheduler);

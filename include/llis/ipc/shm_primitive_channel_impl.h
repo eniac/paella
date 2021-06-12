@@ -22,7 +22,11 @@ CUDA_HOSTDEV U ShmPrimitiveChannelBase<T, for_gpu>::read() {
 
     U* ptr = reinterpret_cast<U*>(ring_buf_ + read_pos_);
 
-    while (!ptr->can_read());
+    if (cached_can_read_) { // this if statement is never false
+        cached_can_read_ = false;
+    } else {
+        while (!ptr->can_read()) {}
+    }
 
     U res;
     *reinterpret_cast<T*>(&res) = reinterpret_cast<AtomicWrapper<T, for_gpu>*>(ptr)->load();
@@ -56,8 +60,9 @@ template <typename T, bool for_gpu>
 template <typename U>
 CUDA_HOSTDEV bool ShmPrimitiveChannelBase<T, for_gpu>::can_read() {
     U* ptr = reinterpret_cast<U*>(ring_buf_ + read_pos_);
+    cached_can_read_ = ptr->can_read();
 
-    return ptr->can_read();
+    return cached_can_read_;
 }
 
 

@@ -16,11 +16,14 @@
 namespace llis {
 namespace server {
 
-RegisteredJob::RegisteredJob(JobRefId registered_job_id, ipc::ShmChannel* c2s_channel, ClientConnection* client_connection) : registered_job_id_(registered_job_id) {
+RegisteredJob::RegisteredJob(JobRefId registered_job_id,
+                             ipc::ShmChannelCpuReader* c2s_channel,
+                             ClientConnection* client_connection) : registered_job_id_(registered_job_id) {
     init(c2s_channel, client_connection);
 }
 
-void RegisteredJob::init(ipc::ShmChannel* c2s_channel, ClientConnection* client_connection) {
+void RegisteredJob::init(ipc::ShmChannelCpuReader* c2s_channel,
+                         ClientConnection* client_connection) {
     c2s_channel_ = c2s_channel;
     client_connection_ = client_connection;
 

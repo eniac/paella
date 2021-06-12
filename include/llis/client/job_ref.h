@@ -42,11 +42,11 @@ class JobRef {
         return job_ref_id_;
     }
 
-    ipc::ShmChannel* get_s2c_channel() {
+    ipc::ShmChannelCpuReader* get_s2c_channel() {
         return s2c_channel_;
     }
 
-    ipc::ShmChannel* get_c2s_channel() {
+    ipc::ShmChannelCpuWriter* get_c2s_channel() {
         return c2s_channel_;
     }
 
@@ -60,8 +60,8 @@ class JobRef {
     Client* client_;
     std::string model_path_;
 
-    ipc::ShmChannel* s2c_channel_;
-    ipc::ShmChannel* c2s_channel_;
+    ipc::ShmChannelCpuReader* s2c_channel_;
+    ipc::ShmChannelCpuWriter* c2s_channel_;
     ClientId client_id_;
 
     size_t pinned_mem_size_;

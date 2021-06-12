@@ -11,7 +11,7 @@ class ClientConnection {
   public:
     ClientConnection(ClientId client_id) : client_id_(client_id) {}
 
-    void use_s2c_channel(ipc::ShmChannel&& s2c_channel) {
+    void use_s2c_channel(ipc::ShmChannelCpuWriter&& s2c_channel) {
         s2c_channel_ = std::move(s2c_channel);
     }
 
@@ -19,7 +19,7 @@ class ClientConnection {
         s2c_socket_ = std::move(sock);
     }
 
-    ipc::ShmChannel* get_s2c_channel() {
+    ipc::ShmChannelCpuWriter* get_s2c_channel() {
         return &s2c_channel_;
     }
 
@@ -34,7 +34,7 @@ class ClientConnection {
   private:
     ClientId client_id_;
     
-    ipc::ShmChannel s2c_channel_;
+    ipc::ShmChannelCpuWriter s2c_channel_;
     ipc::UnixDatagramSocket s2c_socket_;
 };
 

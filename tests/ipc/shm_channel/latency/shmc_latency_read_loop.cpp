@@ -9,14 +9,14 @@
 int main() {
     int val = 0;
 
-    llis::ipc::ShmChannel read_channel("test_read", 64);
-    llis::ipc::ShmChannel write_channel("test_write", 64);
+    llis::ipc::ShmChannelCpuReader read_channel("test_read", 64);
+    llis::ipc::ShmChannelCpuWriter write_channel("test_write", 64);
 
     // Warm up
-    read_channel.read(&val, sizeof(val));
-    read_channel.read(&val, sizeof(val));
     write_channel.write(&val, sizeof(val));
     write_channel.write(&val, sizeof(val));
+    read_channel.read(&val, sizeof(val));
+    read_channel.read(&val, sizeof(val));
 
     auto time1 = std::chrono::system_clock::now().time_since_epoch().count();
 

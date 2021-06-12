@@ -405,7 +405,7 @@ double SchedulerFull::calculate_packing(job::Job* job) const {
 }
 
 void mem_notification_callback(void* job) {
-    ipc::ShmChannel* channel = job::Context::get_mem2sched_channel();
+    ipc::ShmChannelCpuWriter* channel = job::Context::get_mem2sched_channel();
     channel->write(job);
 }
 

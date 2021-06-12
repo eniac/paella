@@ -24,11 +24,11 @@ class Client {
         return client_id_;
     }
 
-    ipc::ShmChannel* get_c2s_channel() {
+    ipc::ShmChannelCpuWriter* get_c2s_channel() {
         return &c2s_channel_;
     }
 
-    ipc::ShmChannel* get_s2c_channel() {
+    ipc::ShmChannelCpuReader* get_s2c_channel() {
         return &s2c_channel_;
     }
 
@@ -56,8 +56,8 @@ class Client {
 
     std::string s2c_socket_prefix_;
 
-    ipc::ShmChannel c2s_channel_;
-    ipc::ShmChannel s2c_channel_;
+    ipc::ShmChannelCpuWriter c2s_channel_;
+    ipc::ShmChannelCpuReader s2c_channel_;
     ipc::UnixDatagramSocket s2c_socket_;
 
     std::vector<std::unique_ptr<JobInstanceRef>> job_instance_refs_;

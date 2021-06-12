@@ -7,7 +7,7 @@ int main() {
     int val = 1234;
     int val2 = 5678;
 
-    llis::ipc::ShmChannel channel("test", sizeof(val) + 1);
+    llis::ipc::ShmChannelCpuWriter channel("test", sizeof(val) + 1);
 
     channel.write(&val2, sizeof(val2));
 

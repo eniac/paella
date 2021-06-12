@@ -75,7 +75,7 @@ class SchedulerFull3 {
 #ifdef LLIS_MEASURE_BLOCK_TIME
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_block_time_channel_;
 #endif
-    ipc::ShmChannel mem2sched_channel_;
+    ipc::ShmChannelCpuReader mem2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;
 

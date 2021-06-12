@@ -9,7 +9,7 @@ namespace client {
 
 class ProfilerClient {
   public:
-    ProfilerClient(ipc::ShmChannel* c2s_channel) : c2s_channel_(c2s_channel) {}
+    ProfilerClient(ipc::ShmChannelCpuWriter* c2s_channel) : c2s_channel_(c2s_channel) {}
 
     void set_record_kernel_info();
     void unset_record_kernel_info();
@@ -26,7 +26,7 @@ class ProfilerClient {
     void save(const std::string& path);
 
   private:
-    ipc::ShmChannel* c2s_channel_;
+    ipc::ShmChannelCpuWriter* c2s_channel_;
 };
 
 }

@@ -9,23 +9,23 @@
 int main() {
     int val = 0;
 
-    llis::ipc::ShmChannel read_channel("test_read", 64);
-    llis::ipc::ShmChannel write_channel("test_write", 64);
+    llis::ipc::ShmChannelCpuWriter write_channel("test_write", 64);
+    llis::ipc::ShmChannelCpuReader read_channel("test_read", 64);
 
     // Warm up
-    read_channel.write(&val, sizeof(val));
-    read_channel.write(&val, sizeof(val));
-    write_channel.read(&val, sizeof(val));
-    write_channel.read(&val, sizeof(val));
+    write_channel.write(&val, sizeof(val));
+    write_channel.write(&val, sizeof(val));
+    read_channel.read(&val, sizeof(val));
+    read_channel.read(&val, sizeof(val));
 
     auto time1 = std::chrono::system_clock::now().time_since_epoch().count();
 
     for (int i = 1; i < NUM_ITERS; ++i) {
-        read_channel.write(&i, sizeof(i));
-        write_channel.read(&val, sizeof(val));
+        write_channel.write(&i, sizeof(i));
+        read_channel.read(&val, sizeof(val));
     }
     val = NUM_ITERS;
-    read_channel.write(&val, sizeof(val));
+    write_channel.write(&val, sizeof(val));
 
     auto time2 = std::chrono::system_clock::now().time_since_epoch().count();
 

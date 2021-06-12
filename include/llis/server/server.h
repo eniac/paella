@@ -74,7 +74,7 @@ class Server {
     Scheduler* scheduler_;
     ipc::UnixDatagramSocket s2c_socket_;
 
-    ipc::ShmChannel c2s_channel_;
+    ipc::ShmChannelCpuReader c2s_channel_;
 
     std::vector<ClientConnection> client_connections_;
     std::vector<ClientId> unused_client_connections_;

@@ -249,7 +249,7 @@ void SchedulerFull3::schedule_job() {
     }
 #endif
 
-    while (!job_queue_.empty()) {
+    do {
         job::Job* job = job_queue_.top();
 
         bool is_mem = job->is_mem();
@@ -312,7 +312,7 @@ void SchedulerFull3::schedule_job() {
         if (cuda_streams_.empty()) {
             break;
         }
-    }
+    } while (!job_queue_.empty());
 
 #ifdef PRINT_SCHEDULE_TIME
     if (has_scheduled) {
@@ -357,7 +357,7 @@ double SchedulerFull3::calculate_packing(job::Job* job) const {
 }
 
 void SchedulerFull3::mem_notification_callback(void* job) {
-    ipc::ShmChannel* channel = job::Context::get_mem2sched_channel();
+    ipc::ShmChannelCpuWriter* channel = job::Context::get_mem2sched_channel();
     channel->write(job);
 }
 

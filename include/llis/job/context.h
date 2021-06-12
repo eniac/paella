@@ -35,11 +35,11 @@ class Context {
     }
 #endif
 
-    static void set_mem2sched_channel(ipc::ShmChannel* mem2sched_channel) {
+    static void set_mem2sched_channel(ipc::ShmChannelCpuReader* mem2sched_channel) {
         mem2sched_channel_ = mem2sched_channel->fork();
     }
 
-    static ipc::ShmChannel* get_mem2sched_channel() {
+    static ipc::ShmChannelCpuWriter* get_mem2sched_channel() {
         return &mem2sched_channel_;
     }
 
@@ -49,7 +49,7 @@ class Context {
 #ifdef LLIS_MEASURE_BLOCK_TIME
     static ipc::Gpu2SchedChannel gpu2sched_block_time_channel_;
 #endif
-    static ipc::ShmChannel mem2sched_channel_;
+    static ipc::ShmChannelCpuWriter mem2sched_channel_;
 };
 
 }

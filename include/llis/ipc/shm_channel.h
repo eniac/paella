@@ -10,11 +10,15 @@
 namespace llis {
 namespace ipc {
 
+template <bool for_gpu> class ShmChannelReader;
+template <bool for_gpu> class ShmChannelWriter;
+
+
 template <bool for_gpu>
 class ShmChannelBase {
   public:
     ShmChannelBase() : shm_(nullptr) {}
-    ShmChannelBase(std::string name, size_t size = 0);
+    ShmChannelBase(const std::string& name, size_t size = 0);
     ShmChannelBase(ShmChannelBase<for_gpu>* channel) {
         connect(channel);
     }
@@ -30,17 +34,40 @@ class ShmChannelBase {
     void connect(std::string name, size_t size = 0);
     void connect(ShmChannelBase<for_gpu>* channel);
 
-    ShmChannelBase<for_gpu> fork() {
-        ShmChannelBase<for_gpu> res;
+    void disconnect();
+    bool is_connected();
+
+  protected:
+    CUDA_HOSTDEV inline static void* my_memcpy(void* dest, const void* src, size_t count);
+
+    int fd_;
+    char* shm_;
+    char* ring_buf_;
+    size_t size_;
+    size_t total_size_;
+    bool is_create_;
+    std::string name_with_prefix_;
+
+    size_t cached_read_pos_;
+    ThreadfenceWrapper<size_t, for_gpu>* read_pos_;
+    size_t cached_write_pos_;
+    ThreadfenceWrapper<size_t, for_gpu>* write_pos_;
+
+    AtomicLock<for_gpu>* writer_lock_;
+};
+
+template <bool for_gpu>
+class ShmChannelReader : public ShmChannelBase<for_gpu> {
+  public:
+    using ShmChannelBase<for_gpu>::ShmChannelBase;
+
+    ShmChannelWriter<for_gpu> fork() {
+        ShmChannelWriter<for_gpu> res;
         res.connect(this);
         return res;
     }
 
-    void disconnect();
-    bool is_connected();
-
     CUDA_HOSTDEV void read(void* buf, size_t size);
-    CUDA_HOSTDEV void write(const void* buf, size_t size);
 
     template <typename T>
     CUDA_HOSTDEV void read(T* buf) {
@@ -61,6 +88,22 @@ class ShmChannelBase {
         ptr->reset(ptr_tmp);
     }
 
+    CUDA_HOSTDEV bool can_read();
+};
+
+template <bool for_gpu>
+class ShmChannelWriter : public ShmChannelBase<for_gpu> {
+  public:
+    using ShmChannelBase<for_gpu>::ShmChannelBase;
+
+    ShmChannelReader<for_gpu> fork() {
+        ShmChannelReader<for_gpu> res;
+        res.connect(this);
+        return res;
+    }
+
+    CUDA_HOSTDEV void write(const void* buf, size_t size);
+
     template <typename T>
     CUDA_HOSTDEV void write(T buf) {
         write(&buf, sizeof(T));
@@ -77,29 +120,14 @@ class ShmChannelBase {
         write(reinterpret_cast<uintptr_t>(ptr_tmp));
     }
 
-    CUDA_HOSTDEV bool can_read();
-
     CUDA_HOSTDEV void acquire_writer_lock();
     CUDA_HOSTDEV void release_writer_lock();
-
-  private:
-    CUDA_HOSTDEV inline static void* my_memcpy(void* dest, const void* src, size_t count);
-
-    int fd_;
-    char* shm_;
-    char* ring_buf_;
-    size_t size_;
-    size_t total_size_;
-    bool is_create_;
-    std::string name_with_prefix_;
-
-    ThreadfenceWrapper<size_t, for_gpu>* read_pos_;
-    ThreadfenceWrapper<size_t, for_gpu>* write_pos_;
-    AtomicLock<for_gpu>* writer_lock_;
 };
 
-using ShmChannel = ShmChannelBase<false>;
-using ShmChannelGpu = ShmChannelBase<true>;
+using ShmChannelCpuReader = ShmChannelReader<false>;
+using ShmChannelCpuWriter = ShmChannelWriter<false>;
+using ShmChannelGpuReader = ShmChannelReader<true>;
+using ShmChannelGpuWriter = ShmChannelWriter<true>;
 
 }
 }

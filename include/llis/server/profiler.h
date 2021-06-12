@@ -10,7 +10,7 @@ namespace server {
 
 class Profiler {
   public:
-    Profiler(ipc::ShmChannel* c2s_channel) : c2s_channel_(c2s_channel) {}
+    Profiler(ipc::ShmChannelCpuReader* c2s_channel) : c2s_channel_(c2s_channel) {}
 
     void handle_cmd();
     void handle_cmd_save();
@@ -26,7 +26,7 @@ class Profiler {
     void record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks);
 
   private:
-    ipc::ShmChannel* c2s_channel_;
+    ipc::ShmChannelCpuReader* c2s_channel_;
 
     bool kernel_info_flag_ = false;
     std::vector<std::tuple<std::chrono::time_point<std::chrono::steady_clock>, std::chrono::time_point<std::chrono::steady_clock>, unsigned, unsigned, unsigned, unsigned>> kernel_info_;

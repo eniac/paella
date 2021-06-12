@@ -12,10 +12,13 @@ namespace server {
 
 class RegisteredJob {
   public:
-    RegisteredJob(JobRefId registered_job_id, ipc::ShmChannel* c2s_channel_, ClientConnection* client_connection);
+    RegisteredJob(JobRefId registered_job_id,
+                  ipc::ShmChannelCpuReader* c2s_channel_,
+                  ClientConnection* client_connection);
     RegisteredJob(RegisteredJob&&) = default;
 
-    void init(ipc::ShmChannel* c2s_channel, ClientConnection* client_connection);
+    void init(ipc::ShmChannelCpuReader* c2s_channel,
+              ClientConnection* client_connection);
 
     std::unique_ptr<job::Job> create_instance();
     void grow_pool();
@@ -42,10 +45,10 @@ class RegisteredJob {
     typedef job::Job* (*init_job_t)();
 
     JobRefId registered_job_id_;
-    ipc::ShmChannel* c2s_channel_;
+    ipc::ShmChannelCpuReader* c2s_channel_;
     ClientConnection* client_connection_;
 
-    ipc::ShmChannel* s2c_channel_;
+    ipc::ShmChannelCpuWriter* s2c_channel_;
     init_job_t init_job_;
     job::Job* job_;
     std::string shm_name_;

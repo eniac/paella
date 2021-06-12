@@ -34,7 +34,7 @@ class JobInstanceRef {
 
     JobInstanceRefId id_;
 
-    ipc::ShmChannel* c2s_channel_;
+    ipc::ShmChannelCpuWriter* c2s_channel_;
 
     double start_time_;
 };
