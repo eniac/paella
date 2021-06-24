@@ -56,7 +56,8 @@ class ShmPrimitiveChannelBase {
 
     unsigned read_pos_;
     AtomicWrapper<unsigned, for_gpu>* write_pos_;
-    bool cached_can_read_;
+
+    T cached_head_;
 };
 
 template <typename T>

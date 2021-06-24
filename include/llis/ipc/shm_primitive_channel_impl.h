@@ -21,17 +21,15 @@ CUDA_HOSTDEV U ShmPrimitiveChannelBase<T, for_gpu>::read() {
     static_assert(sizeof(T) == sizeof(U), "The type being read must be of the same size as the type of the channel");
 
     U* ptr = reinterpret_cast<U*>(ring_buf_ + read_pos_);
+    U* cached_head_u_ptr = reinterpret_cast<U*>(&cached_head_);
+    AtomicWrapper<T, for_gpu>* ptr_atomic = reinterpret_cast<AtomicWrapper<T, for_gpu>*>(ptr);
 
-    if (cached_can_read_) { // this if statement is never false
-        cached_can_read_ = false;
-    } else {
-        while (!ptr->can_read()) {}
+    while (!cached_head_u_ptr->can_read()) {
+        cached_head_ = ptr_atomic->load();
     }
 
-    U res;
-    *reinterpret_cast<T*>(&res) = reinterpret_cast<AtomicWrapper<T, for_gpu>*>(ptr)->load();
-
-    ptr->set_can_write();
+    cached_head_u_ptr->set_can_write();
+    ptr_atomic->store(cached_head_);
 
     if (read_pos_ == count_ - 1) {
         read_pos_ = 0;
@@ -39,7 +37,7 @@ CUDA_HOSTDEV U ShmPrimitiveChannelBase<T, for_gpu>::read() {
         ++read_pos_;
     }
 
-    return res;
+    return *cached_head_u_ptr;
 }
 
 template <typename T, bool for_gpu>
@@ -60,9 +58,9 @@ template <typename T, bool for_gpu>
 template <typename U>
 CUDA_HOSTDEV bool ShmPrimitiveChannelBase<T, for_gpu>::can_read() {
     U* ptr = reinterpret_cast<U*>(ring_buf_ + read_pos_);
-    cached_can_read_ = ptr->can_read();
+    cached_head_ = reinterpret_cast<AtomicWrapper<T, for_gpu>*>(ptr)->load();
 
-    return cached_can_read_;
+    return reinterpret_cast<U*>(&cached_head_)->can_read();
 }
 
 
