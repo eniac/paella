@@ -92,7 +92,8 @@ void submit(llis::client::JobRef* job_ref, double mean_inter_time) {
         }
 
         if (time_elasped >= next_submit_time) {
-            auto start_time = std::chrono::steady_clock::now();
+            //auto req_start_time = std::chrono::steady_clock::now();
+            //double req_start_time_us = std::chrono::duration<double, std::micro>(req_start_time.time_since_epoch()).count();
 
             while (num_outstanding_jobs >= max_num_jobs);
 
@@ -102,6 +103,7 @@ void submit(llis::client::JobRef* job_ref, double mean_inter_time) {
             unused_job_instance_refs.pop_back();
             lk.unlock();
             job_instance_ref->set_start_time(start_time_us + next_submit_time);
+            //job_instance_ref->set_start_time(req_start_time_us);
             job_instance_ref->launch();
 
             next_submit_time += d(gen);
