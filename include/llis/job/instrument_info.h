@@ -10,8 +10,9 @@ class InstrumentInfo {
   public:
     uint8_t is_start;
     uint8_t smid;
+    uint8_t num;
   private:
-    uint16_t status_;
+    uint8_t status_;
   public:
     JobId job_id;
 
@@ -40,7 +41,8 @@ class InstrumentInfo {
 
 class BlockStartEndTime {
   private:
-    uint16_t status_;
+    uint8_t status_;
+    uint8_t dummy_;
   public:
     uint16_t data[3];
 
