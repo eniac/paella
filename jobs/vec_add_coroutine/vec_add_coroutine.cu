@@ -34,7 +34,70 @@ __global__ void vec_add(float* output, float* input, size_t count, unsigned long
 
 class VecAddCoroutineJob : public llis::job::CoroutineJob {
   private:
-    static constexpr unsigned count_ = 128000;
+    //static constexpr unsigned count_ = 128000;
+    static constexpr unsigned count_ = 32000;
+    static constexpr unsigned num_blocks = 200;
+    //static constexpr unsigned num_blocks = 1000;
+    //static constexpr unsigned num_threads_per_block = count_ / num_blocks;
+    static constexpr unsigned num_threads_per_block = 10;
+    //static constexpr unsigned num_iters = 55;
+    static constexpr unsigned num_iters = 10;
+
+    static constexpr unsigned num_blocks_list[] = {196,
+        224,
+        98,
+        392,
+        2688,
+        28,
+        168,
+        504,
+        28,
+        168,
+        2016,
+        4,
+        168,
+        192,
+        7,
+        168,
+        192,
+        7,
+        168,
+        224,
+        4,
+        32,
+        384,
+        7,
+        32,
+        384,
+        7,
+        32,
+        384,
+        7,
+        32,
+        384,
+        7,
+        112,
+        1008,
+        12,
+        112,
+        1008,
+        12,
+        112,
+        168,
+        8,
+        12,
+        48,
+        8,
+        12,
+        48,
+        8,
+        12,
+        48,
+        5,
+        20,
+        160,
+        2,
+        1000};
 
   public:
     size_t get_input_size() override {
@@ -50,8 +113,8 @@ class VecAddCoroutineJob : public llis::job::CoroutineJob {
     }
 
     void one_time_init() override {
-        set_num_threads_per_block(256);
-        set_num_blocks(count_ / 256 / 10);
+        set_num_threads_per_block(num_threads_per_block);
+        set_num_blocks(num_blocks);
         set_smem_size_per_block(0);
 
         cudaFuncAttributes attr;
@@ -73,9 +136,15 @@ class VecAddCoroutineJob : public llis::job::CoroutineJob {
 
         unsigned long long dummy[10];
 
-        for (int i = 0; i < 5; ++i) {
+        //set_pre_notify();
+
+        for (int i = 0; i < num_iters; ++i) {
+            //unsigned num_blocks = num_blocks_list[i];
+            //unsigned num_threads_per_block = 100;
+            //set_num_blocks(num_blocks);
+            //set_num_threads_per_block(num_threads_per_block);
             yield();
-            vec_add<<<count_ / 256 / 10, 256, 0, get_cuda_stream()>>>(output, input, count_, dummy, get_id(), llis::job::Context::get_gpu2sched_channel()->fork()
+            vec_add<<<num_blocks, num_threads_per_block, 0, get_cuda_stream()>>>(output, input, count_, dummy, get_id(), llis::job::Context::get_gpu2sched_channel()->fork()
 #ifdef LLIS_MEASURE_BLOCK_TIME
                 , llis::job::Context::get_gpu2sched_block_time_channel()->fork()
 #endif
