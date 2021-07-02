@@ -166,6 +166,10 @@ class Job {
         return --num_pending_blocks_;
     }
 
+    bool mark_block_start(unsigned num) {
+        return num_pending_blocks_ -= num;
+    }
+
     void mark_block_finish() {
         num_running_blocks_--;
         if (num_running_blocks_ == 0) {

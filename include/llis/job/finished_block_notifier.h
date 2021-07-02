@@ -24,6 +24,24 @@ class FinishedBlockNotifier {
             start_end_time_->data[1] = (clock_val & 0xFF) << 8;
 #endif
 
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
+            unsigned num_blocks = gridDim.x * gridDim.y * gridDim.z;
+            unsigned total_num = atomicInc(&agg_counter_start_, num_blocks - 1) + 1;
+            unsigned batch_num = total_num % 16;
+            if (batch_num == 0) {
+                InstrumentInfo info;
+                info.is_start = 1;
+                info.job_id = job_id;
+                info.num = 16;
+                gpu2sched_channel_.write(info);
+            } else if (total_num == num_blocks) {
+                InstrumentInfo info;
+                info.is_start = 1;
+                info.job_id = job_id;
+                info.num = batch_num;
+                gpu2sched_channel_.write(info);
+            }
+#else
             unsigned smid;
             asm("mov.u32 %0, %smid;" : "=r"(smid));
 
@@ -33,6 +51,7 @@ class FinishedBlockNotifier {
             info.job_id = job_id;
 
             gpu2sched_channel_.write(info);
+#endif
         }
     }
 
@@ -47,6 +66,24 @@ class FinishedBlockNotifier {
             start_end_time_.data[2] = clock_val & 0xFFFF;
 #endif
 
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
+            unsigned num_blocks = gridDim.x * gridDim.y * gridDim.z;
+            unsigned total_num = atomicInc(&agg_counter_end_, num_blocks - 1) + 1;
+            unsigned batch_num = total_num % 16;
+            if (batch_num == 0) {
+                InstrumentInfo info;
+                info.is_start = 0;
+                info.job_id = job_id;
+                info.num = 16;
+                gpu2sched_channel_.write(info);
+            } else if (total_num == num_blocks) {
+                InstrumentInfo info;
+                info.is_start = 0;
+                info.job_id = job_id;
+                info.num = batch_num;
+                gpu2sched_channel_.write(info);
+            }
+#else
             unsigned smid;
             asm("mov.u32 %0, %smid;" : "=r"(smid));
 
@@ -56,6 +93,8 @@ class FinishedBlockNotifier {
             info.job_id = job_id;
 
             gpu2sched_channel_.write(info);
+#endif
+
 #ifdef LLIS_MEASURE_BLOCK_TIME
             gpu2sched_block_time_channel_.write(*start_end_time);
 #endif
@@ -72,11 +111,16 @@ class FinishedBlockNotifier {
     static void free_array(FinishedBlockNotifier* ptr);
 
   private:
-    unsigned counter_ = 0;
     ipc::Gpu2SchedChannel gpu2sched_channel_;
+
 #ifdef LLIS_MEASURE_BLOCK_TIME
     BlockStartEndTime start_end_time_;
     ipc::Gpu2SchedChannel gpu2sched_block_time_channel_;
+#endif
+
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
+    unsigned agg_counter_start_ = 0;
+    unsigned agg_counter_end_ = 0;
 #endif
 };
 

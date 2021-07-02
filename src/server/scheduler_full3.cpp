@@ -95,7 +95,11 @@ void SchedulerFull3::handle_block_start_end_time() {
 void SchedulerFull3::handle_block_start(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
+    if (!job->mark_block_start(info.num)) {
+#else
     if (!job->mark_block_start()) {
+#endif
         if (job->is_unfit()) {
             if (num_outstanding_kernels_ > 0) {
                 --num_outstanding_kernels_;
@@ -109,7 +113,7 @@ void SchedulerFull3::handle_block_start(const job::InstrumentInfo& info) {
 void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
-#ifdef LLIS_FINISHED_BLOCK_COUNTER
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
     job->mark_block_finish(info.num);
 #else
     job->mark_block_finish();
@@ -145,7 +149,7 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
         finished_block_notifiers_.push_back(job->get_finished_block_notifier());
     }
 
-#ifdef LLIS_FINISHED_BLOCK_COUNTER
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
     gpu_resources_.release(job, info.num);
 #else
     gpu_resources_.release(job, 1);
