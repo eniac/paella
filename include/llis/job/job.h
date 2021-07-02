@@ -2,6 +2,7 @@
 
 #include <llis/utils/align.h>
 #include <llis/ipc/defs.h>
+#include <llis/job/finished_block_notifier.h>
 
 #include <cuda_runtime.h>
 
@@ -145,6 +146,14 @@ class Job {
         ++cur_stage_;
     }
 
+    void set_finished_block_notifier(FinishedBlockNotifier* finished_block_notifier) {
+        finished_block_notifier_ = finished_block_notifier;
+    }
+
+    FinishedBlockNotifier* get_finished_block_notifier() {
+        return finished_block_notifier_;
+    }
+
     std::chrono::time_point<std::chrono::steady_clock> get_stage_start_time() const {
         return stage_start_time_;
     }
@@ -160,6 +169,13 @@ class Job {
     void mark_block_finish() {
         num_running_blocks_--;
         if (num_running_blocks_ == 0) {
+            unset_running();
+        }
+    }
+
+    void mark_block_finish(unsigned num) {
+        num_running_blocks_ -= num;
+        if (num_running_blocks_ <= 0) {
             unset_running();
         }
     }
@@ -268,6 +284,7 @@ class Job {
   private:
     bool is_running_ = false;
     cudaStream_t cuda_stream_;
+    FinishedBlockNotifier* finished_block_notifier_;
 
     unsigned num_blocks_;
     unsigned num_threads_per_block_;

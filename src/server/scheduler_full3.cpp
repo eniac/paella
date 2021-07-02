@@ -42,6 +42,11 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta) :
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
+
+    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_);
+    for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
+        finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
+    }
 }
 
 void SchedulerFull3::set_server(Server* server) {
@@ -104,7 +109,11 @@ void SchedulerFull3::handle_block_start(const job::InstrumentInfo& info) {
 void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
+#ifdef LLIS_FINISHED_BLOCK_COUNTER
+    job->mark_block_finish(info.num);
+#else
     job->mark_block_finish();
+#endif
     if (!job->is_running()) {
         auto end_time = std::chrono::steady_clock::now();
         auto start_time = job->get_stage_start_time();
@@ -133,9 +142,14 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
 #endif
 
         cuda_streams_.push_back(job->get_cuda_stream());
+        finished_block_notifiers_.push_back(job->get_finished_block_notifier());
     }
 
+#ifdef LLIS_FINISHED_BLOCK_COUNTER
+    gpu_resources_.release(job, info.num);
+#else
     gpu_resources_.release(job, 1);
+#endif
 
     if (!job->is_running() && !job->has_next()) {
         unused_job_id_.push_back(job->get_id());
@@ -277,6 +291,9 @@ void SchedulerFull3::schedule_job() {
         cuda_streams_.pop_back();
 
         if (!is_mem) {
+            job->set_finished_block_notifier(finished_block_notifiers_.back());
+            finished_block_notifiers_.pop_back();
+
             gpu_resources_.acquire(job, job->get_cur_num_blocks());
         }
 

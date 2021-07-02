@@ -36,6 +36,11 @@ SchedulerFifo2::SchedulerFifo2(float unfairness_threshold, float eta) :
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
+
+    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_);
+    for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
+        finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
+    }
 }
 
 void SchedulerFifo2::set_server(Server* server) {
@@ -106,6 +111,7 @@ void SchedulerFifo2::handle_block_finish(const job::InstrumentInfo& info) {
 #endif
 
         cuda_streams_.push_back(job->get_cuda_stream());
+        finished_block_notifiers_.push_back(job->get_finished_block_notifier());
     }
 
     if (!job->is_running() && !job->has_next()) {
@@ -191,11 +197,16 @@ void SchedulerFifo2::schedule_job() {
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
 
+        bool is_mem = job->is_mem();
+
+        if (!is_mem) {
+            job->set_finished_block_notifier(finished_block_notifiers_.back());
+            finished_block_notifiers_.pop_back();
+        }
+
         if (job->is_pre_notify()) {
             server_->notify_job_starts(job);
         }
-
-        bool is_mem = job->is_mem();
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
         if (is_mem) {

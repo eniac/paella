@@ -5,17 +5,8 @@
 
 #include <cstdio>
 
-__global__ void vec_add(float* output, float* input, size_t count, unsigned long long dummy[10], llis::JobId job_id, llis::ipc::Gpu2SchedChannel gpu2sched_channel
-#ifdef LLIS_MEASURE_BLOCK_TIME
-        , llis::ipc::Gpu2SchedChannel gpu2sched_block_time_channel
-#endif
-) {
-#ifdef LLIS_MEASURE_BLOCK_TIME
-    llis::job::BlockStartEndTime start_end_time;
-    llis::job::kernel_start(job_id, &gpu2sched_channel, &start_end_time);
-#else
-    llis::job::kernel_start(job_id, &gpu2sched_channel);
-#endif
+__global__ void vec_add(float* output, float* input, size_t count, unsigned long long dummy[10], llis::JobId job_id, llis::job::FinishedBlockNotifier* notifier) {
+    notifier->start(job_id);
 
     unsigned id = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned grid_size = blockDim.x * gridDim.x;
@@ -25,11 +16,7 @@ __global__ void vec_add(float* output, float* input, size_t count, unsigned long
         id += grid_size;
     }
 
-#ifdef LLIS_MEASURE_BLOCK_TIME
-    llis::job::kernel_end(job_id, &gpu2sched_channel, &gpu2sched_block_time_channel, &start_end_time);
-#else
-    llis::job::kernel_end(job_id, &gpu2sched_channel);
-#endif
+    notifier->end(job_id);
 }
 
 class VecAddCoroutineJob : public llis::job::CoroutineJob {
@@ -144,11 +131,7 @@ class VecAddCoroutineJob : public llis::job::CoroutineJob {
             //set_num_blocks(num_blocks);
             //set_num_threads_per_block(num_threads_per_block);
             yield();
-            vec_add<<<num_blocks, num_threads_per_block, 0, get_cuda_stream()>>>(output, input, count_, dummy, get_id(), llis::job::Context::get_gpu2sched_channel()->fork()
-#ifdef LLIS_MEASURE_BLOCK_TIME
-                , llis::job::Context::get_gpu2sched_block_time_channel()->fork()
-#endif
-                );
+            vec_add<<<num_blocks, num_threads_per_block, 0, get_cuda_stream()>>>(output, input, count_, dummy, get_id(), llis::job::Context::get_current_job()->get_finished_block_notifier());
         }
 
         set_is_mem();

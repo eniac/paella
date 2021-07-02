@@ -6,6 +6,7 @@
 #include <llis/server/server.h>
 #include <llis/server/gpu_resources.h>
 #include <llis/utils/logging.hh>
+#include <llis/job/finished_block_notifier.h>
 
 #include <cuda_runtime.h>
 
@@ -78,6 +79,8 @@ class SchedulerFull3 {
     ipc::ShmChannelCpuReader mem2sched_channel_;
     
     std::vector<cudaStream_t> cuda_streams_;
+    job::FinishedBlockNotifier* finished_block_notifiers_raw_;
+    std::vector<job::FinishedBlockNotifier*> finished_block_notifiers_;
 
     float unfairness_threshold_;
     float eta_;

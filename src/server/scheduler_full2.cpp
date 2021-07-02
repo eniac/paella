@@ -41,6 +41,11 @@ SchedulerFull2::SchedulerFull2(float unfairness_threshold, float eta) :
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
+
+    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_);
+    for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
+        finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
+    }
 }
 
 void SchedulerFull2::set_server(Server* server) {
@@ -130,6 +135,7 @@ void SchedulerFull2::handle_block_finish(const job::InstrumentInfo& info) {
 #endif
 
         cuda_streams_.push_back(job->get_cuda_stream());
+        finished_block_notifiers_.push_back(job->get_finished_block_notifier());
     }
 
     gpu_resources_.release(job, 1);
@@ -295,6 +301,8 @@ void SchedulerFull2::schedule_comp_job() {
 
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
+        job->set_finished_block_notifier(finished_block_notifiers_.back());
+        finished_block_notifiers_.pop_back();
 
         gpu_resources_.acquire(job, job->get_cur_num_blocks());
 
