@@ -38,6 +38,11 @@ SchedulerFifo::SchedulerFifo(float unfairness_threshold, float eta) :
     for (auto& stream : cuda_streams_) {
         cudaStreamCreate(&stream);
     }
+
+    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_);
+    for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
+        finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
+    }
 }
 
 void SchedulerFifo::set_server(Server* server) {
@@ -77,11 +82,16 @@ void SchedulerFifo::handle_block_start(const job::InstrumentInfo& info) {
 void SchedulerFifo::handle_block_finish(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
+    remaining_num_blocks_[info.job_id] -= info.num;
+#else
     --remaining_num_blocks_[info.job_id];
+#endif
     if (remaining_num_blocks_[info.job_id] == 0) {
         server_->notify_job_ends(job);
 
         cuda_streams_.push_back(job->get_cuda_stream());
+        finished_block_notifiers_.push_back(job->get_finished_block_notifier());
 
         unused_job_id_.push_back(job->get_id());
         server_->release_job_instance(std::move(job_id_to_job_map_[info.job_id]));
@@ -106,6 +116,7 @@ void SchedulerFifo::handle_mem_finish() {
         server_->notify_job_ends(job);
 
         cuda_streams_.push_back(job->get_cuda_stream());
+        finished_block_notifiers_.push_back(job->get_finished_block_notifier());
 
         unused_job_id_.push_back(job->get_id());
         server_->release_job_instance(std::move(job_id_to_job_map_[job->get_id()]));
@@ -170,6 +181,8 @@ void SchedulerFifo::schedule_job() {
 
         job->set_running(cuda_streams_.back());
         cuda_streams_.pop_back();
+        job->set_finished_block_notifier(finished_block_notifiers_.back());
+        finished_block_notifiers_.pop_back();
 
 #ifdef PRINT_NUM_RUNNING_JOBS
         ++num_running_jobs_;

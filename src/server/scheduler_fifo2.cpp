@@ -90,7 +90,11 @@ void SchedulerFifo2::handle_block_start(const job::InstrumentInfo& info) {
 void SchedulerFifo2::handle_block_finish(const job::InstrumentInfo& info) {
     job::Job* job = job_id_to_job_map_[info.job_id].get();
 
+#ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
+    job->mark_block_finish(info.num);
+#else
     job->mark_block_finish();
+#endif
     if (!job->is_running()) {
         if (job->has_next()) {
             job_queue_.push(job);
