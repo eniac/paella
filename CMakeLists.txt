@@ -45,6 +45,11 @@ if(ENABLE_PROFILER)
     add_definitions(-DLLIS_ENABLE_PROFILER)
 endif(ENABLE_PROFILER)
 
+option(PRINT_LAUNCH_JOB_IPC_LATENCY "Print launch job IPC latency" OFF)
+if(PRINT_LAUNCH_JOB_IPC_LATENCY)
+    add_definitions(-DPRINT_LAUNCH_JOB_IPC_LATENCY)
+endif(PRINT_LAUNCH_JOB_IPC_LATENCY)
+
 include_directories(include)
 
 add_subdirectory(src)
