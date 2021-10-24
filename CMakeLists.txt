@@ -4,6 +4,8 @@ project(llis LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 
+cmake_policy(SET CMP0105 NEW)
+
 find_package(CUDAToolkit)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS})

@@ -2,6 +2,8 @@ add_subdirectory(helloworld)
 add_subdirectory(helloworld_coroutine)
 add_subdirectory(vec_add_coroutine)
 add_subdirectory(run_forever)
+add_subdirectory(dummy_long)
+add_subdirectory(dummy_short)
 # Have to fix it before running it
 #add_subdirectory(cnn)
 
