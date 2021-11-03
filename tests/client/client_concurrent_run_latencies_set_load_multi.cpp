@@ -205,9 +205,10 @@ int main(int argc, char** argv) {
     double p90 = latencies[latencies.size() * 0.90];
     double p95 = latencies[latencies.size() * 0.95];
     double p99 = latencies[latencies.size() * 0.99];
+    double max = *std::max_element(latencies.begin(), latencies.end());
 
     FILE* fp = fopen(output_path, "a");
-    fprintf(fp, "%d,%f,%f,%f,%f,%f,%f\n", (int)mean_inter_time, throughput, mean, p50, p90, p95, p99);
+    fprintf(fp, "%d,%f,%f,%f,%f,%f,%f,%f\n", (int)mean_inter_time, throughput, mean, p50, p90, p95, p99, max);
     fclose(fp);
 
     fp = fopen(raw_output_path, "w");
