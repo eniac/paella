@@ -8,20 +8,20 @@
 __global__ void dummy_short(float* mem, unsigned count, unsigned compute_count, llis::JobId job_id, llis::job::FinishedBlockNotifier* notifier) {
     notifier->start(job_id);
 
-    clock_t start_time = clock64();
-    while (clock64() - start_time < 10000000);
+    //clock_t start_time = clock64();
+    //while (clock64() - start_time < 10000000);
 
-    //unsigned id = blockIdx.x * blockDim.x + threadIdx.x;
-    //unsigned grid_size = blockDim.x * gridDim.x;
+    unsigned id = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned grid_size = blockDim.x * gridDim.x;
 
-    //while (id < count) {
-    //    float tmp = 1;
-    //    for (unsigned i = 1; i <= compute_count; ++i) {
-    //        tmp *= i;
-    //    }
-    //    mem[id] = tmp;
-    //    id += grid_size;
-    //}
+    while (id < count) {
+        float tmp = 1;
+        for (unsigned i = 1; i <= compute_count; ++i) {
+            tmp *= i;
+        }
+        mem[id] = tmp;
+        id += grid_size;
+    }
 
     notifier->end(job_id);
 }
@@ -41,10 +41,10 @@ class DummyShortCoroutineJob : public llis::job::CoroutineJob {
     }
 
     void one_time_init() override {
-        set_num_threads_per_block(1);
+        set_num_threads_per_block(256);
         set_smem_size_per_block(0);
         set_num_registers_per_thread(32);
-        set_num_blocks(1);
+        set_num_blocks(5);
         unset_is_mem();
 
         cudaMalloc(&mem_, count_ * sizeof(*mem_));
@@ -64,8 +64,7 @@ class DummyShortCoroutineJob : public llis::job::CoroutineJob {
   private:
     float* mem_;
 
-    //static constexpr unsigned count_ = 5000000;
-    static constexpr unsigned count_ = 1;
+    static constexpr unsigned count_ = 5000000;
     static constexpr unsigned compute_count_ = 10;
 };
 
