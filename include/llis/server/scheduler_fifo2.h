@@ -64,7 +64,7 @@ class SchedulerFifo2 {
     unsigned num_jobs_ = 0;
 
     unsigned num_started_jobs_ = 0;
-    static constexpr unsigned max_num_started_jobs_ = 5;
+    static constexpr unsigned max_num_started_jobs_ = 50;
 
 #ifdef PRINT_NUM_RUNNING_KERNELS
     unsigned num_running_kernels_ = 0;
