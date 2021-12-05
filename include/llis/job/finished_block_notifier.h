@@ -20,8 +20,8 @@ class FinishedBlockNotifier {
 #ifdef LLIS_MEASURE_BLOCK_TIME
             unsigned clock_val = clock64() >> 8;
             clock_val &= 0xFFFFFF;
-            start_end_time_->data[0] = clock_val >> 8;
-            start_end_time_->data[1] = (clock_val & 0xFF) << 8;
+            start_end_time_.data[0] = clock_val >> 8;
+            start_end_time_.data[1] = (clock_val & 0xFF) << 8;
 #endif
 
 #ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
@@ -96,7 +96,7 @@ class FinishedBlockNotifier {
 #endif
 
 #ifdef LLIS_MEASURE_BLOCK_TIME
-            gpu2sched_block_time_channel_.write(*start_end_time);
+            gpu2sched_block_time_channel_.write(start_end_time_);
 #endif
         }
     }
