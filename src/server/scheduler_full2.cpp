@@ -42,7 +42,11 @@ SchedulerFull2::SchedulerFull2(float unfairness_threshold, float eta) :
         cudaStreamCreate(&stream);
     }
 
-    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_);
+    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_
+#ifdef LLIS_MEASURE_BLOCK_TIME
+        , &gpu2sched_block_time_channel_
+#endif
+    );
     for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
         finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
     }
@@ -124,7 +128,7 @@ void SchedulerFull2::handle_block_finish(const job::InstrumentInfo& info) {
         auto end_time = std::chrono::steady_clock::now();
         auto start_time = job->get_stage_start_time();
 #ifdef LLIS_ENABLE_PROFILER
-        profiler_->record_kernel_info(start_time, end_time, job->get_cur_num_blocks(), job->get_cur_num_threads_per_block(), job->get_cur_smem_size_per_block(), job->get_cur_num_registers_per_thread());
+        profiler_->record_kernel_info(start_time, end_time, job->get_cur_num_blocks(), job->get_cur_num_threads_per_block(), job->get_cur_smem_size_per_block(), job->get_cur_num_registers_per_thread(), job->get_priority(), job->get_registered_job_id());
 #endif
         double length = std::chrono::duration<double, std::micro>(end_time - start_time).count();
         server_->update_job_stage_length(job, job->get_cur_stage(), length);

@@ -17,7 +17,7 @@ class Profiler {
 
     void save(const std::string& path);
 
-    void record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread);
+    void record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread, double priority, unsigned job_ref_id);
     void record_block_exec_time(unsigned long long start_time, unsigned long long end_time);
     //void record_kernel_sm_exec_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time);
 
@@ -29,7 +29,7 @@ class Profiler {
     ipc::ShmChannelCpuReader* c2s_channel_;
 
     bool kernel_info_flag_ = false;
-    std::vector<std::tuple<std::chrono::time_point<std::chrono::steady_clock>, std::chrono::time_point<std::chrono::steady_clock>, unsigned, unsigned, unsigned, unsigned>> kernel_info_;
+    std::vector<std::tuple<std::chrono::time_point<std::chrono::steady_clock>, std::chrono::time_point<std::chrono::steady_clock>, unsigned, unsigned, unsigned, unsigned, double, unsigned>> kernel_info_;
 
     bool block_exec_times_flag_ = false;
     std::vector<std::pair<unsigned long long, unsigned long long>> block_exec_times_;

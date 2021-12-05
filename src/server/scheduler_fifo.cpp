@@ -39,7 +39,11 @@ SchedulerFifo::SchedulerFifo(float unfairness_threshold, float eta) :
         cudaStreamCreate(&stream);
     }
 
-    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_);
+    finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_
+#ifdef LLIS_MEASURE_BLOCK_TIME
+        , &gpu2sched_block_time_channel_
+#endif
+    );
     for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
         finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
     }

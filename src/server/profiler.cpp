@@ -59,7 +59,7 @@ void Profiler::save(const std::string& path) {
     FILE* fp = fopen((path + "_kernel_info.txt").c_str(), "w");
 
     for (auto item : kernel_info_) {
-        fprintf(fp, "%lu %lu %u %u %u %u\n", std::get<0>(item).time_since_epoch().count(), std::get<1>(item).time_since_epoch().count(), std::get<2>(item), std::get<3>(item), std::get<4>(item), std::get<5>(item));
+        fprintf(fp, "%lu %lu %u %u %u %u %f %u\n", std::get<0>(item).time_since_epoch().count(), std::get<1>(item).time_since_epoch().count(), std::get<2>(item), std::get<3>(item), std::get<4>(item), std::get<5>(item), std::get<6>(item), std::get<7>(item));
     }
 
     fclose(fp);
@@ -93,9 +93,9 @@ void Profiler::save(const std::string& path) {
     fclose(fp);
 }
 
-void Profiler::record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread) {
+void Profiler::record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread, double priority, JobRefId job_ref_id) {
     if (kernel_info_flag_) {
-        kernel_info_.emplace_back(start_time, end_time, num_blocks, num_threads_per_block, smem_size_per_block, num_registers_per_thread);
+        kernel_info_.emplace_back(start_time, end_time, num_blocks, num_threads_per_block, smem_size_per_block, num_registers_per_thread, priority, job_ref_id);
     }
 }
 
