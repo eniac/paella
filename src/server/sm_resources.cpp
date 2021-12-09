@@ -84,7 +84,7 @@ unsigned SmResources::num_blocks(job::Job* job) const {
 }
 
 float SmResources::normalize_resources(job::Job* job) const {
-    return ((float)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()) / nregs_ + (float)job->get_num_threads_per_block() / nthrs_ + (float)job->get_smem_size_per_block() / smem_) * job->get_num_blocks() + (float)job->get_num_blocks() / nblocks_;
+    return ((float)(job->get_num_registers_per_thread() * job->get_num_threads_per_block()) / max_nregs_ + (float)job->get_num_threads_per_block() / max_nthrs_ + (float)job->get_smem_size_per_block() / max_smem_) * job->get_num_blocks() + (float)job->get_num_blocks() / max_nblocks_;
 }
 
 double SmResources::occupancy() const {
