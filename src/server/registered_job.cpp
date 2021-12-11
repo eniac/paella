@@ -93,7 +93,10 @@ void RegisteredJob::grow_pool() {
     c2s_channel_->read(&num_new_bytes);
 
     void* shm_ptr = mmap(nullptr, num_new_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, pool_size_in_bytes_);
-    cudaHostRegister(shm_ptr, num_new_bytes, cudaHostRegisterDefault);
+    unsigned err = cudaHostRegister(shm_ptr, num_new_bytes, cudaHostRegisterDefault);
+    if (err != cudaSuccess) {
+        printf("Error with cudaHostRegister in RegisteredJob: id: %u num_new_bytes: %lu shm_fd_: %u shm_ptr: %p pool_size_in_bytes_: %lu err: %d\n", registered_job_id_, num_new_bytes, shm_fd_, shm_ptr, pool_size_in_bytes_, err);
+    }
     pool_size_in_bytes_ += num_new_bytes;
     mapped_mem_.push_back(shm_ptr);
 }
