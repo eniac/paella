@@ -90,6 +90,7 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
 
     size_t ring_buf_offset = utils::next_aligned_pos(total_size_, alignof(T));
     total_size_ = ring_buf_offset + size;
+    total_size_ = utils::next_aligned_pos(total_size_, sysconf(_SC_PAGE_SIZE));
 
     if (name_with_prefix_ != "") {
         if (is_create_) {
@@ -97,7 +98,7 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
         }
         shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
     } else {
-        shm_ = new char[total_size_];
+        shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
     }
 
     if constexpr (for_gpu) {
@@ -154,7 +155,7 @@ void ShmPrimitiveChannelBase<T, for_gpu>::disconnect() {
             }
         } else {
             if (is_create_) {
-                delete[] shm_;
+                munmap(shm_, total_size_);
             }
         }
         shm_ = nullptr;
