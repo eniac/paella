@@ -20,13 +20,13 @@ if __name__ == "__main__":
 
     num_inputs = len(args.input_paths)
 
-    data = np.stack([np.genfromtxt(path, delimiter=',') for path in args.input_paths], axis=0)
+    data = [np.genfromtxt(path, delimiter=',') for path in args.input_paths]
 
-    throughputs = 3000. / data[:, :, 1] * 1000000.
+    throughputs = [3000. / x[:, 1] * 1000000. for x in data]
 
     for i in range(num_inputs):
         for line, name in zip(args.lines, args.names):
-            plt.errorbar(throughputs[i], data[i, :, line * 7 + 2], data[i, :, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x', linewidth=0.1, markersize=1, elinewidth=0.1)
+            plt.errorbar(throughputs[i], data[i][:, line * 7 + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x', linewidth=0.1, markersize=1, elinewidth=0.1)
 
     plt.legend()
     if args.xlim is not None:
