@@ -42,12 +42,8 @@ class FinishedBlockNotifier {
                 gpu2sched_channel_.write(info);
             }
 #else
-            unsigned smid;
-            asm("mov.u32 %0, %smid;" : "=r"(smid));
-
             InstrumentInfo info;
             info.is_start = 1;
-            info.smid = smid;
             info.job_id = job_id;
 
             gpu2sched_channel_.write(info);
@@ -84,12 +80,8 @@ class FinishedBlockNotifier {
                 gpu2sched_channel_.write(info);
             }
 #else
-            unsigned smid;
-            asm("mov.u32 %0, %smid;" : "=r"(smid));
-
             InstrumentInfo info;
             info.is_start = 0;
-            info.smid = smid;
             info.job_id = job_id;
 
             gpu2sched_channel_.write(info);
