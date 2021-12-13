@@ -10,16 +10,79 @@
 
 #include <cuda_runtime.h>
 
-#include <deque>
-#include <queue>
 #include <vector>
 #include <memory>
+#include <map>
 
 #define GPU2SCHED_CHAN_SIZE 1024000
 #define GPU2SCHED_CHAN_SIZE_TIME 10240000
 
 namespace llis {
 namespace server {
+
+class JobQueue {
+  public:
+    void push(job::Job* job) {
+        Entry entry;
+        entry.job = job;
+
+        JobMap::iterator it_priority = map_priority_.emplace(job->get_priority(), entry);
+        JobMap::iterator it_fairness = map_fairness_.emplace(job->get_deficit_counter(), entry);
+
+        it_priority->second.other_it = it_fairness;
+        it_fairness->second.other_it = it_priority;
+    }
+
+    job::Job* top(double unfairness_threshold) {
+        if (map_fairness_.begin()->first >= unfairness_threshold) {
+            return map_fairness_.begin()->second.job;
+        } else {
+            return map_priority_.begin()->second.job;
+        }
+    }
+
+    job::Job* pop(double unfairness_threshold) {
+        if (map_fairness_.begin()->first >= unfairness_threshold) {
+            Entry entry = map_fairness_.begin()->second;
+            map_fairness_.erase(map_fairness_.begin());
+            map_priority_.erase(entry.other_it);
+            return entry.job;
+        } else {
+            Entry entry = map_priority_.begin()->second;
+            map_priority_.erase(map_priority_.begin());
+            map_fairness_.erase(entry.other_it);
+            return entry.job;
+        }
+    }
+
+    void clear() {
+        map_priority_.clear();
+        map_fairness_.clear();
+    }
+
+    bool empty() {
+        // Both maps should have the same size
+        return map_priority_.empty();
+    }
+
+    bool size() {
+        // Both maps should have the same size
+        return map_priority_.size();
+    }
+
+  private:
+    struct Entry;
+
+    using JobMap = std::multimap<double, Entry, std::greater<double>>;
+
+    struct Entry {
+        job::Job* job;
+        JobMap::iterator other_it;
+    };
+
+    JobMap map_priority_;
+    JobMap map_fairness_;
+};
 
 class SchedulerFull3 {
   public:
@@ -31,27 +94,6 @@ class SchedulerFull3 {
     void try_handle_block_start_finish();
 
   private:
-    class JobLess {
-      public:
-        JobLess(float unfairness_threshold) : unfairness_threshold_(unfairness_threshold) {}
-
-        bool operator()(const job::Job* left, const job::Job* right) const {
-            int is_left_unfair = left->get_deficit_counter() >= unfairness_threshold_;
-            int is_right_unfair = right->get_deficit_counter() >= unfairness_threshold_;
-
-            if (is_left_unfair < is_right_unfair) {
-                return true;
-            } else if (is_left_unfair == is_right_unfair) {
-                return left->get_priority() < right->get_priority();
-            } else {
-                return false;
-            }
-        }
-
-      private:
-        float unfairness_threshold_;
-    };
-
     void handle_block_start_finish();
 #ifdef LLIS_MEASURE_BLOCK_TIME
     void handle_block_start_end_time();
@@ -62,8 +104,6 @@ class SchedulerFull3 {
 
     void schedule_job();
     void update_deficit_counters(job::Job* job_scheduled);
-    void rebuild_job_queue();
-
     double calculate_priority(job::Job* job) const;
     double calculate_packing(job::Job* job) const;
     static float normalize_resources(job::Job* job);
@@ -84,9 +124,7 @@ class SchedulerFull3 {
 
     float unfairness_threshold_;
     float eta_;
-    JobLess job_less_;
-    std::priority_queue<job::Job*, std::vector<job::Job*>, JobLess> job_queue_;
-    std::queue<job::Job*> mem_job_queue_;
+    JobQueue job_queue_;
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
