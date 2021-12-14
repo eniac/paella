@@ -26,7 +26,7 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta) :
 #ifdef LLIS_MEASURE_BLOCK_TIME
         gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
-        mem2sched_channel_(10240),
+        mem2sched_channel_(409600),
         cuda_streams_(32),
         unfairness_threshold_(unfairness_threshold),
         eta_(eta) { // TODO: size of the channel must be larger than number of total blocks * 2
