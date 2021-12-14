@@ -69,7 +69,9 @@ void JobRef::release_io_shm_entry(IoShmEntry io_shm_entry) {
 
 void JobRef::grow_pool(size_t least_num_new_entries) {
     size_t least_num_new_bytes = least_num_new_entries * pinned_mem_size_;
-    size_t num_new_bytes = utils::next_aligned_pos(least_num_new_bytes, sysconf(_SC_PAGE_SIZE));
+    // FIXME: it sometimes breaks when we allocate different size of pool for different jobs. Now workaround by allocating a large enough constant size pool
+    //size_t num_new_bytes = utils::next_aligned_pos(least_num_new_bytes, sysconf(_SC_PAGE_SIZE));
+    size_t num_new_bytes = 30638080;
     size_t num_new_entries = num_new_bytes / pinned_mem_size_;
 
     size_t old_pool_size_in_bytes = pool_size_in_bytes_;
