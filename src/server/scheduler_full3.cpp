@@ -28,8 +28,8 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta) :
 #endif
         mem2sched_channel_(409600),
         cuda_streams_(32),
-        unfairness_threshold_(unfairness_threshold),
-        eta_(eta) { // TODO: size of the channel must be larger than number of total blocks * 2
+        eta_(eta),
+        job_queue_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
     LLIS_INFO("Setting up LLIS scheduler...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
@@ -219,7 +219,6 @@ void SchedulerFull3::handle_new_job(std::unique_ptr<job::Job> job_) {
         job_id_to_job_map_[job->get_id()] = std::move(job_);
     }
 
-    job->inc_deficit_counter(new_job_deficit_);
     if (!server_->has_job_stage_resource(job, job->get_cur_stage() + 1)) {
         server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
     }
@@ -268,7 +267,7 @@ void SchedulerFull3::schedule_job() {
 #endif
 
     do {
-        job::Job* job = job_queue_.top(unfairness_threshold_);
+        job::Job* job = job_queue_.top();
 
         bool is_mem = job->is_mem();
 
@@ -281,7 +280,7 @@ void SchedulerFull3::schedule_job() {
             }
         }
 
-        job_queue_.pop(unfairness_threshold_);
+        job_queue_.pop();
 
 #ifdef PRINT_SCHEDULE_TIME
         ++num_scheduled_stages;
@@ -330,8 +329,6 @@ void SchedulerFull3::schedule_job() {
             cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
         }
 
-        update_deficit_counters(job);
-
         if (cuda_streams_.empty()) {
             break;
         }
@@ -347,33 +344,6 @@ void SchedulerFull3::schedule_job() {
         }
     }
 #endif
-}
-
-void SchedulerFull3::update_deficit_counters(job::Job* job_scheduled) {
-    job_scheduled->inc_deficit_counter(-1);
-    const double fair_share = 1. / num_jobs_;
-    new_job_deficit_ -= fair_share;
-    unfairness_threshold_ -= fair_share;
-
-    // To avoid overflow
-    if (new_job_deficit_ < 10. - DBL_MAX) {
-        job_queue_.clear();
-
-        for (const auto& job : job_id_to_job_map_) {
-            if (job.get() == nullptr) {
-                continue;
-            }
-
-            job->inc_deficit_counter(-new_job_deficit_);
-
-            if (!job->is_running()) {
-                job_queue_.push(job.get());
-            }
-        }
-
-        unfairness_threshold_ -= new_job_deficit_;
-        new_job_deficit_ = 0;
-    }
 }
 
 double SchedulerFull3::calculate_priority(job::Job* job) const {

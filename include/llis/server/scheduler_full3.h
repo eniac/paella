@@ -13,6 +13,8 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <queue>
+#include <cfloat>
 
 #define GPU2SCHED_CHAN_SIZE 1024000
 #define GPU2SCHED_CHAN_SIZE_TIME 10240000
@@ -22,66 +24,173 @@ namespace server {
 
 class JobQueue {
   public:
+    JobQueue(double unfairness_threshold) : unfairness_threshold_(unfairness_threshold) {}
+
     void push(job::Job* job) {
+        JobRefId type_id = job->get_registered_job_id();
+
         Entry entry;
         entry.job = job;
 
-        JobMap::iterator it_priority = map_priority_.emplace(job->get_priority(), entry);
-        JobMap::iterator it_fairness = map_fairness_.emplace(job->get_deficit_counter(), entry);
+        JobMap::iterator it_all = all_map_.emplace(job->get_priority(), entry);
 
-        it_priority->second.other_it = it_fairness;
-        it_fairness->second.other_it = it_priority;
+        // Handle new job types
+        if (type_id >= per_type_maps_.size()) { // Either create a new entry
+            size_t original_size = per_type_maps_.size();
+            per_type_maps_.resize(type_id + 1);
+
+            for (size_t i = original_size; i < type_id; ++i) {
+                per_type_maps_[i].deficit_counter = DBL_MAX; // DBL_MAX means this is just a placeholder
+            }
+
+            per_type_maps_[type_id].deficit_counter = new_type_deficit_;
+
+            ++num_types_;
+        } else if (per_type_maps_[type_id].deficit_counter == DBL_MAX) { // Or (re)use an existing but unused entry
+            per_type_maps_[type_id].deficit_counter = new_type_deficit_;
+
+            ++num_types_;
+        }
+
+        TypeEntry* type_entry = &per_type_maps_[type_id];
+
+        // Put a type (back) into the type map when there was not jobs of that type but the current job is of that type
+        if (type_entry->job_map->size() == 0) {
+            type_entry->it = type_map_.emplace(type_entry->deficit_counter, type_entry->job_map.get());
+        }
+
+        // Put the job into the corresponding per type map
+
+        JobMap::iterator it_per_type = type_entry->job_map->emplace(job->get_priority(), entry);
+
+        it_all->second.other_it = it_per_type;
+        it_per_type->second.other_it = it_all;
     }
 
-    job::Job* top(double unfairness_threshold) {
-        if (map_fairness_.begin()->first >= unfairness_threshold) {
-            return map_fairness_.begin()->second.job;
+    job::Job* top() {
+        // Can assume that type_map_ is always non-empty
+        // Also, all per type maps in type_map_ are non-empty
+        if (type_map_.begin()->first >= unfairness_threshold_) {
+            //printf("Fairness triggered\n");
+            JobMap* per_type_job_map = type_map_.begin()->second;
+            return per_type_job_map->begin()->second.job;
         } else {
-            return map_priority_.begin()->second.job;
+            return all_map_.begin()->second.job;
         }
     }
 
-    job::Job* pop(double unfairness_threshold) {
-        if (map_fairness_.begin()->first >= unfairness_threshold) {
-            Entry entry = map_fairness_.begin()->second;
-            map_fairness_.erase(map_fairness_.begin());
-            map_priority_.erase(entry.other_it);
-            return entry.job;
+    job::Job* pop() {
+        Entry entry;
+
+        // Can assume that type_map_ is always non-empty
+        // Also, all per type maps in type_map_ are non-empty
+        if (type_map_.begin()->first >= unfairness_threshold_) {
+            JobMap* per_type_job_map = type_map_.begin()->second;
+
+            entry = per_type_job_map->begin()->second;
+            per_type_job_map->erase(per_type_job_map->begin());
+
+            all_map_.erase(entry.other_it);
         } else {
-            Entry entry = map_priority_.begin()->second;
-            map_priority_.erase(map_priority_.begin());
-            map_fairness_.erase(entry.other_it);
-            return entry.job;
+            entry = all_map_.begin()->second;
+            all_map_.erase(all_map_.begin());
+
+            JobMap* per_type_job_map = per_type_maps_[entry.job->get_registered_job_id()].job_map.get();
+            per_type_job_map->erase(entry.other_it);
         }
+
+        JobRefId type_id = entry.job->get_registered_job_id();
+        TypeEntry* type_entry = &per_type_maps_[type_id];
+        TypeMap::iterator type_it = type_entry->it;
+
+        if (type_entry->job_map->empty()) {
+            // Update the deficit counter in per_type_maps. It is never updated until it is removed from type_map_
+            type_entry->deficit_counter = type_it->first - 1.;
+            type_map_.erase(type_it);
+        } else {
+            auto type_node = type_map_.extract(type_it);
+            type_node.key() -= 1.;
+            type_entry->it = type_map_.insert(std::move(type_node));
+        }
+
+        const double fair_share = 1. / (double)num_types_;
+        new_type_deficit_ -= fair_share;
+        unfairness_threshold_ -= fair_share;
+
+        // To avoid overflow
+        if (new_type_deficit_ < 10. - DBL_MAX) {
+            printf("Warning: deficit counter almost overflow\n");
+            rebuild_type_map();
+            unfairness_threshold_ -= new_type_deficit_;
+            new_type_deficit_ = 0;
+        }
+
+        return entry.job;
     }
 
-    void clear() {
-        map_priority_.clear();
-        map_fairness_.clear();
+    bool empty() const {
+        return all_map_.empty();
     }
 
-    bool empty() {
-        // Both maps should have the same size
-        return map_priority_.empty();
-    }
-
-    bool size() {
-        // Both maps should have the same size
-        return map_priority_.size();
+    size_t size() const {
+        return all_map_.size();
     }
 
   private:
+    void rebuild_type_map() {
+        for (auto& p : per_type_maps_) {
+            if (p.deficit_counter == DBL_MAX) {
+                // DBL_MAX means this is only a placeholder
+                continue;
+            }
+
+            if (p.job_map->empty()) {
+                // When empty, the job map is not included in the type map.
+                // So, we update the counter in per_type_maps_
+                // Also, we should not insert it into the type map.
+                p.deficit_counter -= new_type_deficit_;
+            } else {
+                // When non-empty, it is in the type map.
+                // So, we update the counter in the map. The counter in per_type_maps_ is useless until it is removed from type map. When that happens (in pop()), it will be updated
+                auto type_node = type_map_.extract(p.it);
+                // TODO: check this logic. This may cause overflow
+                type_node.key() -= new_type_deficit_;
+                p.it = type_map_.insert(std::move(type_node));
+            }
+        }
+    }
+
     struct Entry;
 
     using JobMap = std::multimap<double, Entry, std::greater<double>>;
+    using TypeMap = std::multimap<double, JobMap*, std::greater<double>>;
 
     struct Entry {
         job::Job* job;
         JobMap::iterator other_it;
     };
 
-    JobMap map_priority_;
-    JobMap map_fairness_;
+    struct TypeEntry {
+        double deficit_counter;
+        std::unique_ptr<JobMap> job_map;
+        TypeMap::iterator it;
+
+        TypeEntry() : job_map(std::make_unique<JobMap>()) {}
+    };
+
+    double unfairness_threshold_;
+    double new_type_deficit_ = 0;
+    unsigned num_types_; // FIXME: handle unregister of a type
+
+    // Contains all jobs, sorted descendingly in priority
+    JobMap all_map_;
+
+    // A list of job maps. The i-th map contains all jobs of type i, sorted descending in priority.
+    // FIXME: handle when unregister when there are still running jobs of that type
+    std::vector<TypeEntry> per_type_maps_;
+
+    // A map of per type JobMap. Sorted descendingly in deficit counter
+    TypeMap type_map_;
 };
 
 class SchedulerFull3 {
@@ -103,7 +212,6 @@ class SchedulerFull3 {
     void handle_mem_finish();
 
     void schedule_job();
-    void update_deficit_counters(job::Job* job_scheduled);
     double calculate_priority(job::Job* job) const;
     double calculate_packing(job::Job* job) const;
     static float normalize_resources(job::Job* job);
@@ -122,7 +230,6 @@ class SchedulerFull3 {
     job::FinishedBlockNotifier* finished_block_notifiers_raw_;
     std::vector<job::FinishedBlockNotifier*> finished_block_notifiers_;
 
-    float unfairness_threshold_;
     float eta_;
     JobQueue job_queue_;
 
@@ -140,8 +247,6 @@ class SchedulerFull3 {
 
     unsigned num_outstanding_kernels_ = 0;
     static constexpr unsigned max_num_outstanding_kernels_ = 2;
-    
-    float new_job_deficit_ = 0;
 };
 
 }
