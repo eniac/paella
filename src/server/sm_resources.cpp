@@ -39,6 +39,10 @@ void SmResources::acquire(job::Job* job, int num) {
     nthrs_ -= job->get_cur_num_threads_per_block() * num;
     smem_ -= job->get_cur_smem_size_per_block() * num;
     nblocks_ -= num;
+
+#ifdef PRINT_RESOURCES
+    printf("Resources: %d %d %d %d\n", nregs_, nthrs_, smem_, nblocks_);
+#endif
 }
 
 void SmResources::release(job::Job* job, int num) {
@@ -47,6 +51,10 @@ void SmResources::release(job::Job* job, int num) {
     nthrs_ += job->get_cur_num_threads_per_block() * num;
     smem_ += job->get_cur_smem_size_per_block() * num;
     nblocks_ += num;
+
+#ifdef PRINT_RESOURCES
+    printf("Resources: %d %d %d %d\n", nregs_, nthrs_, smem_, nblocks_);
+#endif
 }
 
 double SmResources::dot(job::Job* job) const {
