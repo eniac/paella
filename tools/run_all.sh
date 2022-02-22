@@ -4,11 +4,10 @@ res_dir=$1
 ln_sigma=$2
 suffix=$3
 
-cd ..
+cd "$(dirname "$0")"/..
 abs_path="`pwd`"
-cd -
 
-cd ../release/src/server
+cd release/src/server
 
 SERVER_PID=0
 
@@ -17,9 +16,9 @@ trap "kill $SERVER_PID; exit" INT
 echo "**** Running all with ln_sigma=$ln_sigma, suffix=$suffix"
 
 for seed in {1,}; do
-    #for i in {3000,6000,8000,10000,12000,14000,16000}; do
+    for i in {3000,6000,8000,10000,12000,14000,16000}; do
     #for i in {20000,25000,33000,50000,100000}; do
-    for i in {25000,50000,100000}; do
+    #for i in {25000,50000,100000}; do
         taskset -c 4 ./server server 1000000 1 &
         SERVER_PID=$!
         sleep 5
