@@ -102,12 +102,17 @@ void SchedulerFull3::handle_block_start(const job::InstrumentInfo& info) {
 #else
     if (!job->mark_block_start()) {
 #endif
+#ifdef PRINT_NUM_NOTIF
+        ++num_start_notif_received;
+        printf("num_start_notif_received: %u\n", num_start_notif_received);
+#endif
         if (job->is_unfit()) {
-            if (num_outstanding_kernels_ > 0) {
-                --num_outstanding_kernels_;
-                schedule_job();
-            }
             job->unset_unfit();
+            --num_outstanding_kernels_;
+#ifdef PRINT_NUM_OUTSTANDING_KERNELS
+            printf("num_outstanding_kernels_: %u\n", num_outstanding_kernels_);
+#endif
+            schedule_job();
         }
     }
 }
@@ -145,6 +150,19 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
         --num_running_kernels_;
         printf("num_running_kernels_: %u\n", num_running_kernels_);
 #endif
+#ifdef PRINT_NUM_NOTIF
+        ++num_end_notif_received;
+        printf("num_end_notif_received: %u\n", num_end_notif_received);
+#endif
+
+        // This check is a workaround of a bug in CUDA atomic
+        if (job->is_unfit()) {
+            job->unset_unfit();
+            --num_outstanding_kernels_;
+#ifdef PRINT_NUM_OUTSTANDING_KERNELS
+            printf("num_outstanding_kernels_: %u\n", num_outstanding_kernels_);
+#endif
+        }
 
         cuda_streams_.push_back(job->get_cuda_stream());
         finished_block_notifiers_.push_back(job->get_finished_block_notifier());
@@ -276,6 +294,9 @@ void SchedulerFull3::schedule_job() {
                 break;
             } else {
                 ++num_outstanding_kernels_;
+#ifdef PRINT_NUM_OUTSTANDING_KERNELS
+                printf("num_outstanding_kernels_: %u\n", num_outstanding_kernels_);
+#endif
                 job->set_unfit();
             }
         }
@@ -311,6 +332,8 @@ void SchedulerFull3::schedule_job() {
         } else {
             ++num_running_kernels_;
             printf("num_running_kernels_: %u\n", num_running_kernels_);
+            ++num_scheduled_kernels_;
+            printf("num_scheduled_kernels_: %u\n", num_scheduled_kernels_);
         }
 #endif
 

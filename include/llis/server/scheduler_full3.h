@@ -243,9 +243,15 @@ class SchedulerFull3 {
 #ifdef PRINT_NUM_RUNNING_KERNELS
     unsigned num_running_kernels_ = 0;
     unsigned num_running_mems_ = 0;
+    unsigned num_scheduled_kernels_ = 0;
 #endif
 
-    unsigned num_outstanding_kernels_ = 0;
+#ifdef PRINT_NUM_NOTIF
+    unsigned num_start_notif_received = 0;
+    unsigned num_end_notif_received = 0;
+#endif
+
+    int num_outstanding_kernels_ = 0;
     static constexpr unsigned max_num_outstanding_kernels_ = 2;
 };
 
