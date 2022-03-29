@@ -126,6 +126,9 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
     job->mark_block_finish();
 #endif
     if (!job->is_running()) {
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_FINISHED);
+#endif
         auto end_time = std::chrono::steady_clock::now();
         auto start_time = job->get_stage_start_time();
 #ifdef LLIS_ENABLE_PROFILER
@@ -142,6 +145,9 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
 
             job_queue_.push(job);
         } else {
+#ifdef LLIS_ENABLE_PROFILER
+            profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_FINISHED);
+#endif
             server_->notify_job_ends(job);
             --num_jobs_;
         }
@@ -201,6 +207,9 @@ void SchedulerFull3::handle_mem_finish() {
 
         job_queue_.push(job);
     } else {
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_FINISHED);
+#endif
         server_->notify_job_ends(job);
         --num_jobs_;
     }
@@ -236,6 +245,9 @@ void SchedulerFull3::handle_new_job(std::unique_ptr<job::Job> job_) {
         unused_job_id_.pop_back();
         job_id_to_job_map_[job->get_id()] = std::move(job_);
     }
+#ifdef LLIS_ENABLE_PROFILER
+    profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_SUBMITTED);
+#endif
 
     if (!server_->has_job_stage_resource(job, job->get_cur_stage() + 1)) {
         server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
@@ -287,10 +299,17 @@ void SchedulerFull3::schedule_job() {
     do {
         job::Job* job = job_queue_.top();
 
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SCHED_START);
+#endif
+
         bool is_mem = job->is_mem();
 
         if (!is_mem && !gpu_resources_.job_fits(job)) {
             if (num_outstanding_kernels_ >= max_num_outstanding_kernels_) {
+#ifdef LLIS_ENABLE_PROFILER
+                profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SCHED_ABORT);
+#endif
                 break;
             } else {
                 ++num_outstanding_kernels_;
@@ -341,6 +360,7 @@ void SchedulerFull3::schedule_job() {
 
 #ifdef LLIS_ENABLE_PROFILER
         auto start_run_next_time = std::chrono::steady_clock::now();
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SUBMIT_START);
 #endif
         job->run_next();
 #ifdef LLIS_ENABLE_PROFILER
@@ -351,6 +371,10 @@ void SchedulerFull3::schedule_job() {
         if (is_mem) {
             cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
         }
+
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SUBMIT_END);
+#endif
 
         if (cuda_streams_.empty()) {
             break;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llis/ipc/shm_channel.h>
+#include <llis/ipc/defs.h>
 
 #include <chrono>
 #include <vector>
@@ -10,6 +11,16 @@ namespace server {
 
 class Profiler {
   public:
+    enum class JobEvent {
+        JOB_SUBMITTED,
+        KERNEL_SCHED_START,
+        KERNEL_SCHED_ABORT,
+        KERNEL_SUBMIT_START,
+        KERNEL_SUBMIT_END,
+        KERNEL_FINISHED,
+        JOB_FINISHED,
+    };
+
     Profiler(ipc::ShmChannelCpuReader* c2s_channel) : c2s_channel_(c2s_channel) {}
 
     void handle_cmd();
@@ -24,6 +35,8 @@ class Profiler {
     void recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wrong_prediction, unsigned total_wrong_prediction_sm);
 
     void record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks);
+
+    void record_job_event(JobId job_id, JobEvent event);
 
   private:
     ipc::ShmChannelCpuReader* c2s_channel_;
@@ -40,6 +53,10 @@ class Profiler {
 
     bool run_next_times_flag_ = false;
     std::vector<std::tuple<std::chrono::time_point<std::chrono::steady_clock>, std::chrono::time_point<std::chrono::steady_clock>, unsigned>> run_next_times_;
+
+    bool job_events_flag_ = false;
+    std::vector<std::vector<std::pair<JobEvent, std::chrono::time_point<std::chrono::steady_clock>>>> jobs_events_cur_;
+    std::vector<std::vector<std::pair<JobEvent, std::chrono::time_point<std::chrono::steady_clock>>>> jobs_events_all_;
 };
 
 }

@@ -42,6 +42,14 @@ void Profiler::handle_cmd() {
            run_next_times_flag_ = false;
            break;
 
+        case ProfilerMsgType::SET_RECORD_JOB_EVENTS:
+           job_events_flag_ = true;
+           break;
+
+        case ProfilerMsgType::UNSET_RECORD_JOB_EVENTS:
+           job_events_flag_ = false;
+           break;
+
         case ProfilerMsgType::SAVE:
            handle_cmd_save();
            break;
@@ -91,6 +99,17 @@ void Profiler::save(const std::string& path) {
     }
 
     fclose(fp);
+
+    fp = fopen((path + "_job_events.txt").c_str(), "w");
+
+    for (const auto& job_events : jobs_events_all_) {
+        for (const auto& event : job_events) {
+            fprintf(fp, "%u %f ", event.first, std::chrono::duration<double, std::micro>(event.second.time_since_epoch()).count());
+        }
+        fprintf(fp, "\n");
+    }
+
+    fclose(fp);
 }
 
 void Profiler::record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread, double priority, JobRefId job_ref_id) {
@@ -115,6 +134,25 @@ void Profiler::recrod_kernel_block_mis_alloc(unsigned total, unsigned total_wron
 void Profiler::record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks) {
     if (run_next_times_flag_) {
         run_next_times_.emplace_back(start_time, end_time, num_blocks);
+    }
+}
+
+void Profiler::record_job_event(JobId job_id, JobEvent event) {
+    auto cur_time = std::chrono::steady_clock::now();
+
+    if (jobs_events_cur_.size() <= job_id) {
+        jobs_events_cur_.resize(job_id + 1);
+    }
+
+    if (event == JobEvent::JOB_SUBMITTED) {
+        jobs_events_cur_[job_id].clear();
+        jobs_events_cur_[job_id].reserve(100);
+    }
+
+    jobs_events_cur_[job_id].emplace_back(event, cur_time);
+
+    if (event == JobEvent::JOB_FINISHED) {
+        jobs_events_all_.push_back(std::move(jobs_events_cur_[job_id]));
     }
 }
 
