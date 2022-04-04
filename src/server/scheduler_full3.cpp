@@ -54,6 +54,9 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta) :
 void SchedulerFull3::set_server(Server* server) {
     server_ = server;
     profiler_ = server_->get_profiler();
+#ifdef LLIS_ENABLE_PROFILER
+    gpu_resources_.set_profiler(profiler_);
+#endif
 }
 
 void SchedulerFull3::try_handle_block_start_finish() {

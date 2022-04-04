@@ -1,6 +1,8 @@
 #include <chrono>
+#include <typeinfo>
 #include <llis/server/profiler.h>
 #include <llis/ipc/defs.h>
+#include <llis/job/job.h>
 
 namespace llis {
 namespace server {
@@ -48,6 +50,14 @@ void Profiler::handle_cmd() {
 
         case ProfilerMsgType::UNSET_RECORD_JOB_EVENTS:
            job_events_flag_ = false;
+           break;
+
+        case ProfilerMsgType::SET_RECORD_RESOURCE_EVENTS:
+           resource_events_flag_ = true;
+           break;
+
+        case ProfilerMsgType::UNSET_RECORD_RESOURCE_EVENTS:
+           resource_events_flag_ = false;
            break;
 
         case ProfilerMsgType::SAVE:
@@ -110,6 +120,14 @@ void Profiler::save(const std::string& path) {
     }
 
     fclose(fp);
+
+    fp = fopen((path + "_resource_events.txt").c_str(), "w");
+
+    for (auto item : resource_events_) {
+        fprintf(fp, "%u %s %u %f %u %u %u %u\n", std::get<0>(item), std::get<1>(item).c_str(), std::get<2>(item), std::chrono::duration<double, std::micro>(std::get<3>(item).time_since_epoch()).count(), std::get<4>(item), std::get<5>(item), std::get<6>(item), std::get<7>(item));
+    }
+
+    fclose(fp);
 }
 
 void Profiler::record_kernel_info(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks, unsigned num_threads_per_block, unsigned smem_size_per_block, unsigned num_registers_per_thread, double priority, JobRefId job_ref_id) {
@@ -138,6 +156,10 @@ void Profiler::record_run_next_time(const std::chrono::time_point<std::chrono::s
 }
 
 void Profiler::record_job_event(JobId job_id, JobEvent event) {
+    if (!job_events_flag_) {
+        return;
+    }
+
     auto cur_time = std::chrono::steady_clock::now();
 
     if (jobs_events_cur_.size() <= job_id) {
@@ -154,6 +176,16 @@ void Profiler::record_job_event(JobId job_id, JobEvent event) {
     if (event == JobEvent::JOB_FINISHED) {
         jobs_events_all_.push_back(std::move(jobs_events_cur_[job_id]));
     }
+}
+
+void Profiler::record_resource_event(job::Job* job, unsigned num, ResourceEvent event) {
+    if (!resource_events_flag_) {
+        return;
+    }
+
+    auto cur_time = std::chrono::steady_clock::now();
+
+    resource_events_.emplace_back(job->get_unique_id(), typeid(*job).name(), event, cur_time, num, job->get_cur_num_threads_per_block(), job->get_cur_smem_size_per_block(), job->get_cur_num_registers_per_thread());
 }
 
 }

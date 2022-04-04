@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llis/job/job.h>
+#include <llis/server/profiler.h>
 
 namespace llis {
 namespace server {
@@ -29,6 +30,12 @@ class SmResources {
         return nregs_ >= (int)job->get_num_registers_per_thread() * (int)job->get_num_threads_per_block() * (int)job->get_num_blocks() && smem_ >= (int)job->get_smem_size_per_block() * (int)job->get_num_blocks() && nthrs_ >= (int)job->get_num_threads_per_block() * (int)job->get_num_blocks() && nblocks_ >= (int)job->get_num_blocks();
     }
 
+#ifdef LLIS_ENABLE_PROFILER
+    void set_profiler(Profiler* profiler) {
+        profiler_ = profiler;
+    }
+#endif
+
   private:
     int nregs_ = 0;
     int smem_ = 0;
@@ -41,6 +48,8 @@ class SmResources {
     int max_nblocks_ = 0;
 
     double max_resources_dot_prod_;
+
+    Profiler* profiler_;
 };
 
 }

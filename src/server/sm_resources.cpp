@@ -43,6 +43,10 @@ void SmResources::acquire(job::Job* job, int num) {
 #ifdef PRINT_RESOURCES
     printf("Resources: %d %d %d %d\n", nregs_, nthrs_, smem_, nblocks_);
 #endif
+
+#ifdef LLIS_ENABLE_PROFILER
+    profiler_->record_resource_event(job, num, Profiler::ResourceEvent::ACQUIRE);
+#endif
 }
 
 void SmResources::release(job::Job* job, int num) {
@@ -54,6 +58,10 @@ void SmResources::release(job::Job* job, int num) {
 
 #ifdef PRINT_RESOURCES
     printf("Resources: %d %d %d %d\n", nregs_, nthrs_, smem_, nblocks_);
+#endif
+
+#ifdef LLIS_ENABLE_PROFILER
+    profiler_->record_resource_event(job, num, Profiler::ResourceEvent::RELEASE);
 #endif
 }
 

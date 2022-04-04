@@ -26,6 +26,9 @@ class ProfilerClient {
     void set_record_job_events();
     void unset_record_job_events();
 
+    void set_record_resource_events();
+    void unset_record_resource_events();
+
     void save(const std::string& path);
 
   private:

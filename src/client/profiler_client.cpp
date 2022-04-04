@@ -94,6 +94,24 @@ void ProfilerClient::unset_record_job_events() {
     c2s_channel_->release_writer_lock();
 }
 
+void ProfilerClient::set_record_resource_events() {
+    c2s_channel_->acquire_writer_lock();
+
+    c2s_channel_->write(MsgType::PROFILER_CMD);
+    c2s_channel_->write(ProfilerMsgType::SET_RECORD_RESOURCE_EVENTS);
+
+    c2s_channel_->release_writer_lock();
+}
+
+void ProfilerClient::unset_record_resource_events() {
+    c2s_channel_->acquire_writer_lock();
+
+    c2s_channel_->write(MsgType::PROFILER_CMD);
+    c2s_channel_->write(ProfilerMsgType::UNSET_RECORD_RESOURCE_EVENTS);
+
+    c2s_channel_->release_writer_lock();
+}
+
 void ProfilerClient::save(const std::string& path) {
     c2s_channel_->acquire_writer_lock();
 

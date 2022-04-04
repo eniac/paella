@@ -1,7 +1,8 @@
 #pragma once
 
-#include "llis/job/job.h"
+#include <llis/job/job.h>
 #include <llis/server/sm_resources.h>
+#include <llis/server/profiler.h>
 
 namespace llis {
 namespace server {
@@ -28,6 +29,14 @@ class GpuResources {
     double dot(job::Job* job) const;
     double dot_normalized(job::Job* job) const;
     float normalize_resources(job::Job* job) const;
+
+#ifdef LLIS_ENABLE_PROFILER
+    void set_profiler(Profiler* profiler) {
+        for (auto& sm_resources : sms_resources_) {
+            sm_resources.set_profiler(profiler);
+        }
+    }
+#endif
 
   private:
     std::vector<SmResources> sms_resources_;

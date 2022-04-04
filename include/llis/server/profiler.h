@@ -2,6 +2,7 @@
 
 #include <llis/ipc/shm_channel.h>
 #include <llis/ipc/defs.h>
+#include <llis/job/job.h>
 
 #include <chrono>
 #include <vector>
@@ -21,6 +22,11 @@ class Profiler {
         JOB_FINISHED,
     };
 
+    enum class ResourceEvent {
+        ACQUIRE,
+        RELEASE
+    };
+
     Profiler(ipc::ShmChannelCpuReader* c2s_channel) : c2s_channel_(c2s_channel) {}
 
     void handle_cmd();
@@ -37,6 +43,8 @@ class Profiler {
     void record_run_next_time(const std::chrono::time_point<std::chrono::steady_clock>& start_time, const std::chrono::time_point<std::chrono::steady_clock>& end_time, unsigned num_blocks);
 
     void record_job_event(JobId job_id, JobEvent event);
+
+    void record_resource_event(job::Job* job, unsigned num, ResourceEvent event);
 
   private:
     ipc::ShmChannelCpuReader* c2s_channel_;
@@ -57,6 +65,9 @@ class Profiler {
     bool job_events_flag_ = false;
     std::vector<std::vector<std::pair<JobEvent, std::chrono::time_point<std::chrono::steady_clock>>>> jobs_events_cur_;
     std::vector<std::vector<std::pair<JobEvent, std::chrono::time_point<std::chrono::steady_clock>>>> jobs_events_all_;
+
+    bool resource_events_flag_ = false;
+    std::vector<std::tuple<JobId, std::string, ResourceEvent, std::chrono::time_point<std::chrono::steady_clock>, unsigned, unsigned, unsigned, unsigned>> resource_events_;
 };
 
 }

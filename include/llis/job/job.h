@@ -35,10 +35,16 @@ class Job {
 
     void set_id(JobId id) {
         id_ = id;
+        static unsigned unique_id_counter = 0;
+        unique_id_ = (unique_id_counter++);
     }
 
     JobId get_id() const {
         return id_;
+    }
+
+    JobId get_unique_id() const {
+        return unique_id_;
     }
 
     int get_cur_stage() const {
@@ -326,6 +332,7 @@ class Job {
     JobRefId registered_job_id_;
     void* remote_ptr_;
     JobId id_;
+    JobId unique_id_; // useful only for debugging purpose
 };
 
 }
