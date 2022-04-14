@@ -24,7 +24,13 @@ if __name__ == "__main__":
 
     for i in range(num_inputs):
         for line, name in zip(args.lines, args.names):
-            plt.errorbar(data[i][:, 0], data[i][:, line * 7 + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x-', linewidth=0.1, markersize=1, elinewidth=0.1)
+            #plt.errorbar(data[i][:, 0], data[i][:, line * 7 + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x-', linewidth=0.1, markersize=1, elinewidth=0.1)
+            plt.plot(data[i][:, 0], data[i][:, line * 7 + 2], 'x-', label=args.algo_names[i] + ' ' + name + ' Mean', linewidth=0.1, markersize=1)
+            plt.plot(data[i][:, 0], data[i][:, line * 7 + 1 + 2], 'x-', label=args.algo_names[i] + ' ' + name + ' Median', linewidth=0.1, markersize=1)
+            plt.plot(data[i][:, 0], data[i][:, line * 7 + 4 + 2], 'x--', label=args.algo_names[i] + ' ' + name + ' 99%', linewidth=0.1, markersize=1)
+
+    plt.xlabel('Fairness Threshold (Smaller means more fair)')
+    plt.ylabel('Latency (us)')
 
     plt.legend()
     if args.xlim is not None:

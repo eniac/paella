@@ -14,6 +14,7 @@ if __name__ == "__main__":
 
     for i in range(num_inputs):
         exec_times = data[i][:, 1] - data[i][:, 0]
+        print('Mean:', np.mean(exec_times))
         exec_times = np.sort(exec_times)
         plt.plot(exec_times, np.arange(len(exec_times)) / len(exec_times), '-', label=labels[i])
 

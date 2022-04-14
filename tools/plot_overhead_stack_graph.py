@@ -30,11 +30,13 @@ if __name__ == "__main__":
 
     prev_e = None
     prev_t = None
+    prev_kernel_finish_time = -1
 
     queueing_delay = -1
     scheduling_overhead = 0
     kernel_launch_overhead = 0
     kernel_runtime = 0
+    kernel_interval = 0
 
     for i, (e, t) in enumerate(data):
         e = int(e)
@@ -50,6 +52,12 @@ if __name__ == "__main__":
         if prev_e == JobEvent.KERNEL_SUBMIT_END and e == JobEvent.KERNEL_FINISHED:
             kernel_runtime += (t - prev_t)
 
+        if e == JobEvent.KERNEL_FINISHED:
+            prev_kernel_finish_time = t
+
+        if e == JobEvent.KERNEL_SUBMIT_START and prev_kernel_finish_time != -1:
+            kernel_interval += (t - prev_kernel_finish_time)
+
         prev_e = e
         prev_t = t
 
@@ -57,6 +65,7 @@ if __name__ == "__main__":
     print('Scheduling Overhead:', scheduling_overhead)
     print('Kernel Launch Overhead:', kernel_launch_overhead)
     print('Kernel Runtime:', kernel_runtime)
+    print('Kernel Interval:', kernel_interval)
 
     width = 0.35
 
@@ -65,6 +74,7 @@ if __name__ == "__main__":
     ax.bar(['Overheads'], [scheduling_overhead], width, label='Scheduling Overhead')
     ax.bar(['Overheads'], [kernel_launch_overhead], width, label='Kernel Launch Overhead')
     ax.bar(['Overheads'], [kernel_runtime], width, label='Kernel Runtime')
+    ax.bar(['Overheads'], [kernel_interval], width, label='Kernel Interval')
 
     plt.legend()
 
