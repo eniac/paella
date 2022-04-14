@@ -186,19 +186,26 @@ const std::vector<float>& Server::get_job_stage_resources(job::Job* job) const {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 4) {
-        LLIS_ERROR("usage: ./server [server name] [unfairness threshold] [ETA]");
+    if (argc < 3) {
+        LLIS_ERROR("usage: ./server [server name] [unfairness threshold] [ETA] [sched_sleep]");
         exit(1);
     }
 
     std::string server_name = argv[1];
     float unfairness_threshold = atof(argv[2]);
-    float eta = atof(argv[3]);
+    float eta = 1;
+    if (argc >= 4) {
+        eta = atof(argv[3]);
+    }
+    unsigned sched_sleep = 0;
+    if (argc >= 5) {
+        sched_sleep = atoi(argv[4]);
+    }
 
     LLIS_INFO("Registering shared memory channel between server and scheduler");
     llis::ipc::ShmChannelCpuWriter ser2sched_channel(SER2SCHED_CHAN_SIZE);
 
-    llis::server::Scheduler scheduler(unfairness_threshold, eta);
+    llis::server::Scheduler scheduler(unfairness_threshold, eta, sched_sleep);
     llis::server::Server server(server_name, &scheduler);
 
     server.serve();

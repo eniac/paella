@@ -20,7 +20,7 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta) :
+SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta, unsigned sched_sleep) :
         server_(nullptr),
         gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
 #ifdef LLIS_MEASURE_BLOCK_TIME
@@ -29,6 +29,7 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta) :
         mem2sched_channel_(409600),
         cuda_streams_(32),
         eta_(eta),
+        sched_sleep_(sched_sleep),
         job_queue_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
     LLIS_INFO("Setting up LLIS scheduler...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
@@ -146,6 +147,12 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
             }
             job->set_priority(calculate_priority(job));
 
+#ifdef LLIS_ENABLE_PROFILER
+            if (!job->is_mem()) {
+                profiler_->record_queued_resource_event(job);
+            }
+#endif
+
             job_queue_.push(job);
         } else {
 #ifdef LLIS_ENABLE_PROFILER
@@ -208,6 +215,12 @@ void SchedulerFull3::handle_mem_finish() {
         }
         job->set_priority(calculate_priority(job));
 
+#ifdef LLIS_ENABLE_PROFILER
+        if (!job->is_mem()) {
+            profiler_->record_queued_resource_event(job);
+        }
+#endif
+
         job_queue_.push(job);
     } else {
 #ifdef LLIS_ENABLE_PROFILER
@@ -258,6 +271,12 @@ void SchedulerFull3::handle_new_job(std::unique_ptr<job::Job> job_) {
     job->set_stage_lengths_resources(server_->get_job_remaining_rl(job, 0), server_->get_job_stage_lengths(job), server_->get_job_stage_resources(job));
     job->set_priority(calculate_priority(job));
 
+#ifdef LLIS_ENABLE_PROFILER
+    if (!job->is_mem()) {
+        profiler_->record_queued_resource_event(job);
+    }
+#endif
+
     job_queue_.push(job);
 
     ++num_jobs_;
@@ -305,6 +324,14 @@ void SchedulerFull3::schedule_job() {
 #ifdef LLIS_ENABLE_PROFILER
         profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SCHED_START);
 #endif
+
+        if (sched_sleep_ > 0) {
+            //auto start_sleep_time = std::chrono::steady_clock::now();
+            for (volatile unsigned i = 0; i < sched_sleep_; ++i);
+            //auto end_sleep_time = std::chrono::steady_clock::now();
+            //auto time_elasped = std::chrono::duration<double, std::micro>(end_sleep_time - start_sleep_time).count();
+            //printf("Sleeped for %f us\n", time_elasped);
+        }
 
         bool is_mem = job->is_mem();
 
