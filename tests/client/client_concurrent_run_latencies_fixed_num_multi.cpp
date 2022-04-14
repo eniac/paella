@@ -1,3 +1,4 @@
+#include <sstream>
 #define DIS_LN
 
 #include "llis/client/job_ref.h"
@@ -14,6 +15,7 @@
 #include <thread>
 #include <algorithm>
 #include <random>
+#include <getopt.h>
 
 using namespace std::chrono_literals;
 
@@ -183,25 +185,188 @@ void print_latency_stats(FILE* fp, std::vector<double>* latencies) {
 }
 
 int main(int argc, char** argv) {
-    int argv_counter = 0;
-    const char* server_name = argv[++argv_counter];
-    double mean_inter_time = atof(argv[++argv_counter]);
+    const char* server_name = nullptr;
+    double mean_inter_time = -1;
 #ifdef DIS_LN
-    double log_normal_sigma = atof(argv[++argv_counter]);
+    double log_normal_sigma = -1;
 #endif
-    max_num_outstanding_jobs = atoi(argv[++argv_counter]);
-    unsigned num_jobs = atoi(argv[++argv_counter]);
-    start_record_num = atoi(argv[++argv_counter]);
-    const char* output_path = argv[++argv_counter];
-    const char* raw_output_path = argv[++argv_counter];
-    const char* profile_path = argv[++argv_counter];
-    const char* timeline_path = argv[++argv_counter];
-    unsigned seed = atoi(argv[++argv_counter]);
+    max_num_outstanding_jobs = -1;
+    unsigned num_jobs = -1;
+    start_record_num = 0;
+    unsigned seed = -1;
+    const char* output_path_prefix;
+    double fairness_threshold = -1;
+    unsigned sched_sleep = 0;
+
+    int mean_inter_time_n = 0;
+    int log_normal_sigma_n = 0;
+    int max_num_outstanding_jobs_n = 0;
+    int num_jobs_n = 0;
+    int start_record_num_n = 0;
+    int seed_n = 0;
+    int fairness_n = 0;
+    int sched_sleep_n = 0;
+
+    int mean_inter_time_g = 0;
+    int log_normal_sigma_g = 0;
+    int max_num_outstanding_jobs_g = 0;
+    int num_jobs_g = 0;
+    int start_record_num_g = 0;
+    int seed_g = 0;
+    int fairness_g = 0;
+    int sched_sleep_g = 0;
+
+    while (true) {
+        static struct option long_options[] = {
+            {"server_name",        required_argument, 0, 'm'},
+            {"iat",                required_argument, 0, 'i'},
+#ifdef DIS_LN
+            {"ln_sigma",           required_argument, 0, 'l'},
+#endif
+            {"concurrency",        required_argument, 0, 'c'},
+            {"num_jobs",           required_argument, 0, 'n'},
+            {"start_record_num",   required_argument, 0, 'r'},
+            {"seed",               required_argument, 0, 's'},
+            {"prefix",             required_argument, 0, 'p'},
+            {"fairness",           required_argument, 0, 'f'},
+            {"sched_sleep",        required_argument, 0, 'h'},
+            
+            {"iat_n",              no_argument,       &mean_inter_time_n, 1},
+#ifdef DIS_LN
+            {"ln_sigma_n",         no_argument,       &log_normal_sigma_n, 1},
+#endif
+            {"concurrency_n",      no_argument,       &max_num_outstanding_jobs_n, 1},
+            {"num_jobs_n",         no_argument,       &num_jobs_n, 1},
+            {"start_record_num_n", no_argument,       &start_record_num_n, 1},
+            {"seed_n",             no_argument,       &seed_n, 1},
+            {"fairness_n",         no_argument,       &fairness_n, 1},
+            {"sched_sleep_n",      no_argument,       &sched_sleep_n, 1},
+            
+            {"iat_g",              no_argument,       &mean_inter_time_g, 1},
+#ifdef DIS_LN                                                                         
+            {"ln_sigma_g",         no_argument,       &log_normal_sigma_g, 1},
+#endif                                                                                
+            {"concurrency_g",      no_argument,       &max_num_outstanding_jobs_g, 1},
+            {"num_jobs_g",         no_argument,       &num_jobs_g, 1},
+            {"start_record_num_g", no_argument,       &start_record_num_g, 1},
+            {"seed_g",             no_argument,       &seed_g, 1},
+            {"fairness_g",         no_argument,       &fairness_g, 1},
+            {"sched_sleep_g",      no_argument,       &sched_sleep_g, 1},
+ 
+            {0,                    0,                 0,  0 }
+        };
+
+        int opt_idx = 0;
+        int opt_val = getopt_long(argc, argv, "m:i:l:c:n:r:s:p:f:", long_options, &opt_idx);
+
+        if (opt_val == -1) {
+            break;
+        }
+
+        switch (opt_val) {
+            case 0:
+                break;
+
+            case 'm':
+                server_name = optarg;
+                break;
+            case 'i':
+                mean_inter_time = atof(optarg);
+                break;
+#ifdef DIS_LN
+            case 'l':
+                log_normal_sigma = atof(optarg);
+                break;
+#endif
+            case 'c':
+                max_num_outstanding_jobs = atoi(optarg);
+                break;
+            case 'n':
+                num_jobs = atoi(optarg);
+                break;
+            case 'r':
+                start_record_num = atoi(optarg);
+                break;
+            case 's':
+                seed = atoi(optarg);
+                break;
+            case 'p':
+                output_path_prefix = optarg;
+                break;
+            case 'f':
+                fairness_threshold = atof(optarg);
+                break;
+            case 'h':
+                sched_sleep = atoi(optarg);
+                break;
+        }
+    }
+
+    std::stringstream output_path_stats_prefix;
+    output_path_stats_prefix << output_path_prefix;
+
+    // Create a output path prefix with all requested parameters except the one that is grouped
+    if (mean_inter_time_n && !mean_inter_time_g) {
+        output_path_stats_prefix << "_iat" << mean_inter_time;
+    }
+    if (log_normal_sigma_n && !log_normal_sigma_g) {
+        output_path_stats_prefix << "_lns" << log_normal_sigma;
+    }
+    if (max_num_outstanding_jobs_n && !max_num_outstanding_jobs_g) {
+        output_path_stats_prefix << "_con" << max_num_outstanding_jobs;
+    }
+    if (num_jobs_n && !num_jobs_g) {
+        output_path_stats_prefix << "_n" << num_jobs;
+    }
+    if (start_record_num_n && !start_record_num_g) {
+        output_path_stats_prefix << "_srn" << start_record_num;
+    }
+    if (seed_n && !seed_g) {
+        output_path_stats_prefix << "_seed" << seed;
+    }
+    if (fairness_n && !fairness_g) {
+        output_path_stats_prefix << "_fair" << fairness_threshold;
+    }
+    if (sched_sleep_n && !sched_sleep_g) {
+        output_path_stats_prefix << "_scheds" << sched_sleep;
+    }
+
+    std::stringstream output_path_long_prefix;
+    output_path_long_prefix << output_path_stats_prefix.str();
+
+    // Add also the one that is grouped in the output path prefix
+    if (mean_inter_time_n && mean_inter_time_g) {
+        output_path_long_prefix << "_iat" << mean_inter_time;
+    }
+    if (log_normal_sigma_n && log_normal_sigma_g) {
+        output_path_long_prefix << "_lns" << log_normal_sigma;
+    }
+    if (max_num_outstanding_jobs_n && max_num_outstanding_jobs_g) {
+        output_path_long_prefix << "_con" << max_num_outstanding_jobs;
+    }
+    if (num_jobs_n && num_jobs_g) {
+        output_path_long_prefix << "_n" << num_jobs;
+    }
+    if (start_record_num_n && start_record_num_g) {
+        output_path_long_prefix << "_srn" << start_record_num;
+    }
+    if (seed_n && seed_g) {
+        output_path_long_prefix << "_seed" << seed;
+    }
+    if (fairness_n && fairness_g) {
+        output_path_long_prefix << "_fair" << fairness_threshold;
+    }
+    if (sched_sleep_n && sched_sleep_g) {
+        output_path_long_prefix << "_scheds" << sched_sleep;
+    }
+
+    std::stringstream profile_output_path;
+    profile_output_path << output_path_long_prefix.str() << "_profile";
 
     std::vector<const char*> job_paths;
     std::vector<float> job_props_cum;
     std::vector<unsigned> job_max_outstanding_nums;
-    int job_list_start = ++argv_counter;
+    int job_list_start = optind;
     for (unsigned i = job_list_start; i < argc; i += 3) {
         job_paths.push_back(argv[i]);
         if (i == job_list_start) {
@@ -258,7 +423,7 @@ int main(int argc, char** argv) {
     client.get_profiler_client()->set_record_job_events();
     client.get_profiler_client()->set_record_resource_events();
 
-    std::thread monitor_thr(monitor, &client, profile_path, num_jobs);
+    std::thread monitor_thr(monitor, &client, profile_output_path.str(), num_jobs);
     std::thread submit_thr(submit, &job_refs, job_props_cum, mean_inter_time,
 #ifdef DIS_LN
             log_normal_sigma,
@@ -277,8 +442,17 @@ int main(int argc, char** argv) {
 
     double time_elasped = std::chrono::duration<double, std::micro>(end_time - start_time).count();
 
-    FILE* fp = fopen(output_path, "a");
-    fprintf(fp, "%d,%f", (int)mean_inter_time, time_elasped);
+    std::stringstream stats_output_path;
+    stats_output_path << output_path_stats_prefix.str() << ".txt";
+    FILE* fp = fopen(stats_output_path.str().c_str(), "a");
+    if (fairness_g) {
+        fprintf(fp, "%f", fairness_threshold);
+    } else if (sched_sleep_g) {
+        fprintf(fp, "%u", sched_sleep);
+    } else { // if (mean_inter_time_g) or default
+        fprintf(fp, "%d", (int)mean_inter_time);
+    }
+    fprintf(fp, ",%f", time_elasped);
     print_latency_stats(fp, &latencies);
     for (auto& latencies : latencies_per_type) {
         print_latency_stats(fp, &latencies);
@@ -286,13 +460,17 @@ int main(int argc, char** argv) {
     fprintf(fp, "\n");
     fclose(fp);
 
-    fp = fopen(raw_output_path, "w");
+    std::stringstream raw_output_path;
+    raw_output_path << output_path_long_prefix.str() << "_raw.txt";
+    fp = fopen(raw_output_path.str().c_str(), "w");
     for (double latency : latencies) {
         fprintf(fp, "%f\n", latency);
     }
     fclose(fp);
 
-    fp = fopen(timeline_path, "w");
+    std::stringstream timeline_output_path;
+    timeline_output_path << output_path_long_prefix.str() << "_timeline.txt";
+    fp = fopen(timeline_output_path.str().c_str(), "w");
     fprintf(fp, "%u ", num_outstanding_jobs_timeline_[0]);
     for (unsigned i = 1; i < num_outstanding_jobs_timeline_.size(); ++i) {
         if (i % (job_props_cum.size() + 1) == 0) {
