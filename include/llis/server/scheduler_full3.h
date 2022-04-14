@@ -87,6 +87,10 @@ class JobQueue {
         if (type_map_.begin()->first >= unfairness_threshold_) {
             JobMap* per_type_job_map = type_map_.begin()->second;
 
+            //unsigned with_fairness = per_type_job_map->begin()->second.job->get_registered_job_id();
+            //unsigned without_fairness = all_map_.begin()->second.job->get_registered_job_id();
+            //printf("With fairness: %u Without fairness: %u\n", with_fairness, without_fairness);
+
             entry = per_type_job_map->begin()->second;
             per_type_job_map->erase(per_type_job_map->begin());
 
@@ -99,13 +103,20 @@ class JobQueue {
             per_type_job_map->erase(entry.other_it);
         }
 
+        const double fair_share = 1. / (double)num_types_;
+        new_type_deficit_ -= fair_share;
+        unfairness_threshold_ -= fair_share;
+
         JobRefId type_id = entry.job->get_registered_job_id();
         TypeEntry* type_entry = &per_type_maps_[type_id];
         TypeMap::iterator type_it = type_entry->it;
 
         if (type_entry->job_map->empty()) {
             // Update the deficit counter in per_type_maps. It is never updated until it is removed from type_map_
-            type_entry->deficit_counter = type_it->first - 1.;
+            //type_entry->deficit_counter = type_it->first - 1.; // This one means I keep the status even if no instance of that job type exists
+            type_entry->deficit_counter = DBL_MAX; // This one means I reset if no instance of that job type exists
+            --num_types_;
+
             type_map_.erase(type_it);
         } else {
             auto type_node = type_map_.extract(type_it);
@@ -113,9 +124,11 @@ class JobQueue {
             type_entry->it = type_map_.insert(std::move(type_node));
         }
 
-        const double fair_share = 1. / (double)num_types_;
-        new_type_deficit_ -= fair_share;
-        unfairness_threshold_ -= fair_share;
+        //printf("Fairness list: ");
+        //for (auto x : type_map_) {
+        //    printf("%f %u -> ", x.first, x.second->begin()->second.job->get_registered_job_id());
+        //}
+        //printf("Threshold: %f\n", unfairness_threshold_);
 
         // To avoid overflow
         if (new_type_deficit_ < 10. - DBL_MAX) {
@@ -180,7 +193,7 @@ class JobQueue {
 
     double unfairness_threshold_;
     double new_type_deficit_ = 0;
-    unsigned num_types_; // FIXME: handle unregister of a type
+    unsigned num_types_ = 0; // FIXME: handle unregister of a type
 
     // Contains all jobs, sorted descendingly in priority
     JobMap all_map_;
@@ -195,7 +208,7 @@ class JobQueue {
 
 class SchedulerFull3 {
   public:
-    SchedulerFull3(float unfairness_threshold, float eta);
+    SchedulerFull3(float unfairness_threshold, float eta, unsigned sched_sleep);
 
     void set_server(Server* server);
 
@@ -231,6 +244,8 @@ class SchedulerFull3 {
     std::vector<job::FinishedBlockNotifier*> finished_block_notifiers_;
 
     float eta_;
+    unsigned sched_sleep_;
+
     JobQueue job_queue_;
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
