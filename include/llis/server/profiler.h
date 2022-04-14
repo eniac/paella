@@ -24,7 +24,8 @@ class Profiler {
 
     enum class ResourceEvent {
         ACQUIRE,
-        RELEASE
+        RELEASE,
+        QUEUED
     };
 
     Profiler(ipc::ShmChannelCpuReader* c2s_channel) : c2s_channel_(c2s_channel) {}
@@ -45,6 +46,7 @@ class Profiler {
     void record_job_event(JobId job_id, JobEvent event);
 
     void record_resource_event(job::Job* job, unsigned num, ResourceEvent event);
+    void record_queued_resource_event(job::Job* job);
 
   private:
     ipc::ShmChannelCpuReader* c2s_channel_;

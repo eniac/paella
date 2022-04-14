@@ -188,5 +188,15 @@ void Profiler::record_resource_event(job::Job* job, unsigned num, ResourceEvent 
     resource_events_.emplace_back(job->get_unique_id(), typeid(*job).name(), event, cur_time, num, job->get_cur_num_threads_per_block(), job->get_cur_smem_size_per_block(), job->get_cur_num_registers_per_thread());
 }
 
+void Profiler::record_queued_resource_event(job::Job* job) {
+    if (!resource_events_flag_) {
+        return;
+    }
+
+    auto cur_time = std::chrono::steady_clock::now();
+
+    resource_events_.emplace_back(job->get_unique_id(), typeid(*job).name(), ResourceEvent::QUEUED, cur_time, job->get_num_blocks(), job->get_num_threads_per_block(), job->get_smem_size_per_block(), job->get_num_registers_per_thread());
+}
+
 }
 }
