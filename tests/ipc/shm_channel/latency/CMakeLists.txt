@@ -14,3 +14,5 @@ add_executable(shmc_latency_read_loop shmc_latency_read_loop.cpp $<TARGET_OBJECT
 target_link_libraries(shmc_latency_read_loop rt)
 add_executable(shmc_latency_write_loop shmc_latency_write_loop.cpp $<TARGET_OBJECTS:ipc>)
 target_link_libraries(shmc_latency_write_loop rt)
+add_executable(shmpc_latency_gpu shmpc_latency_gpu.cu)
+target_link_libraries(shmpc_latency_gpu llis_job rt)
