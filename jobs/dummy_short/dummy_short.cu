@@ -65,7 +65,7 @@ class DummyShortCoroutineJob : public llis::job::CoroutineJob {
     float* mem_;
 
     static constexpr unsigned count_ = 5000000;
-    static constexpr unsigned compute_count_ = 10;
+    static constexpr unsigned compute_count_ = 100;
 };
 
 extern "C" {
