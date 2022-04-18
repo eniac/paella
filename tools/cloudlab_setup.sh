@@ -2,6 +2,9 @@
 
 PREFIX=/bigdisk
 
+CMAKE_VERSION=3.19.0
+GCC_VERSION=10.2.0
+
 sudo chown kelvinng $PREFIX
 mkdir -p $PREFIX/src
 mkdir -p $PREFIX/opt
@@ -28,14 +31,15 @@ rm -r cuda
 
 # Install CMake
 
-wget 'https://github.com/Kitware/CMake/releases/download/v3.18.3/cmake-3.18.3.tar.gz'
-tar -xf cmake-3.18.3.tar.gz
-cd cmake-3.18.3
-./bootstrap --prefix=$PREFIX/opt/cmake-3.18.3
-make -j40
+wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz"
+tar -xf cmake-${CMAKE_VERSION}.tar.gz
+cd cmake-${CMAKE_VERSION}
+./bootstrap --prefix=$PREFIX/opt/cmake-${CMAKE_VERSION}
+make -j8
 make install
-echo "export PATH=$PREFIX/opt/cmake-3.18.3/bin:\$PATH" | sudo tee /etc/profile.d/cmake.sh
-rm cmake-3.18.3.tar.gz
+echo "export PATH=$PREFIX/opt/cmake-${CMAKE_VERSION}/bin:\$PATH" | tee -a ~/.bash_profile
+cd $PREFIX/src
+rm cmake-${CMAKE_VERSION}.tar.gz
 
 # Install Miniconda
 
