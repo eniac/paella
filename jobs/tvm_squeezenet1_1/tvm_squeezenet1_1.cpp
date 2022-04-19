@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-class TVMResnet18Job : public llis::job::CoroutineJob {
+class TVMSqueezeNet11Job : public llis::job::CoroutineJob {
   public:
     size_t get_input_size() override {
         return 224*224*3 * sizeof(float);
@@ -21,7 +21,7 @@ class TVMResnet18Job : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("resnet18-cuda_llis-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile("squeezenet1_1-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
@@ -56,7 +56,7 @@ class TVMResnet18Job : public llis::job::CoroutineJob {
 extern "C" {
 
 llis::job::Job* init_job() {
-    return new TVMResnet18Job();
+    return new TVMSqueezeNet11Job();
 }
 
 }

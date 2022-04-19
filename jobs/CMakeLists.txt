@@ -17,5 +17,7 @@ if(TVM_PATH)
     add_subdirectory(tvm_densenet121)
     add_subdirectory(tvm_arcfaceresnet100)
     add_subdirectory(tvm_resnet50)
+    add_subdirectory(tvm_resnet34)
+    add_subdirectory(tvm_squeezenet1_1)
 endif(TVM_PATH)
 
