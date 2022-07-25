@@ -21,12 +21,13 @@ class TVMSqueezeNet11Job : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("squeezenet1_1-cuda_llis-pack.so");
+        //mod_factory_ = tvm::runtime::Module::LoadFromFile("squeezenet1_1-cuda_llis-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile("squeezenet1.1-7-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
         tvm::runtime::PackedFunc get_output = gmod_.GetFunction("get_output");
-        input_dev = get_input("input_1");
+        input_dev = get_input(0);
         output_dev = get_output(0);
     }
 

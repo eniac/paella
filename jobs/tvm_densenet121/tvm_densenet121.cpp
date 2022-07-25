@@ -22,7 +22,8 @@ class TVMDensenet121Job : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLContext{kDLGPU, 0};
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("densenet121-cuda_llis-pack.so");
+        //mod_factory_ = tvm::runtime::Module::LoadFromFile("densenet121-cuda_llis-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile("densenet-9-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
