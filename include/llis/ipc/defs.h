@@ -14,6 +14,8 @@ enum class MsgType : uint32_t {
     REGISTER_JOB,
     LAUNCH_JOB,
     GROW_POOL,
+    CUDA_PROFILER_START,
+    CUDA_PROFILER_STOP,
     PROFILER_CMD,
     EXIT_CMD
 };

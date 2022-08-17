@@ -75,6 +75,18 @@ JobRef Client::register_job(std::string path) {
     return job_ref;
 }
 
+void Client::cuda_profiler_start() {
+    c2s_channel_.acquire_writer_lock();
+    c2s_channel_.write(MsgType::CUDA_PROFILER_START);
+    c2s_channel_.release_writer_lock();
+}
+
+void Client::cuda_profiler_stop() {
+    c2s_channel_.acquire_writer_lock();
+    c2s_channel_.write(MsgType::CUDA_PROFILER_STOP);
+    c2s_channel_.release_writer_lock();
+}
+
 JobInstanceRef* Client::add_job_instance_ref(JobInstanceRef job_instance_ref) {
     std::unique_lock<std::mutex> lk(mtx_);
 

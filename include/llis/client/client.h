@@ -32,6 +32,9 @@ class Client {
         return &s2c_channel_;
     }
 
+    void cuda_profiler_start();
+    void cuda_profiler_stop();
+
     JobInstanceRef* add_job_instance_ref(JobInstanceRef job_instance_ref);
     void release_job_instance_ref(JobInstanceRef* job_instance_ref);
 

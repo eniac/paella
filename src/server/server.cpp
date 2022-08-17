@@ -5,6 +5,8 @@
 #include <llis/ipc/defs.h>
 #include <llis/ipc/name_format.h>
 
+#include <cuda_profiler_api.h>
+
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -51,6 +53,14 @@ void Server::handle_c2s() {
 
         case MsgType::GROW_POOL:
             handle_grow_pool();
+            break;
+
+        case MsgType::CUDA_PROFILER_START:
+            cudaProfilerStart();
+            break;
+
+        case MsgType::CUDA_PROFILER_STOP:
+            cudaProfilerStop();
             break;
 
         case MsgType::PROFILER_CMD:
