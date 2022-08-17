@@ -61,9 +61,30 @@ void SchedulerFull3::set_server(Server* server) {
 }
 
 void SchedulerFull3::try_handle_block_start_finish() {
+#ifdef PRINT_GPU_CHANNEL_READ_COUNTER
+    static unsigned long long can_read_counter = 0;
+    static unsigned long long cant_read_counter = 0;
+    static unsigned long long consecutive_can_read_counter = 0;
+    static bool last_can_read = false;
+#endif
     if (gpu2sched_channel_.can_read<job::InstrumentInfo>()) {
         handle_block_start_finish();
+#ifdef PRINT_GPU_CHANNEL_READ_COUNTER
+        ++can_read_counter;
+        if (last_can_read) {
+            ++consecutive_can_read_counter;
+        }
+        last_can_read = true;
+    } else {
+        ++cant_read_counter;
+        last_can_read = false;
+#endif
     }
+#ifdef PRINT_GPU_CHANNEL_READ_COUNTER
+    if ((can_read_counter + cant_read_counter) % 1000000llu == 0) {
+        printf("can_read_counter: %llu cant_read_counter: %llu consecutive_can_read_counter: %llu\n", can_read_counter, cant_read_counter, consecutive_can_read_counter);
+    }
+#endif
 
 #ifdef LLIS_MEASURE_BLOCK_TIME
     if (gpu2sched_block_time_channel_.can_read<job::BlockStartEndTime>()) {
