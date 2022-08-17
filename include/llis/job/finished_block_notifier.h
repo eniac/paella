@@ -27,12 +27,12 @@ class FinishedBlockNotifier {
 #ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
             unsigned num_blocks = gridDim.x * gridDim.y * gridDim.z;
             unsigned total_num = atomicInc(&agg_counter_start_, num_blocks - 1) + 1;
-            unsigned batch_num = total_num % 16;
+            unsigned batch_num = total_num % noti_batch_size_;
             if (batch_num == 0) {
                 InstrumentInfo info;
                 info.is_start = 1;
                 info.job_id = job_id;
-                info.num = 16;
+                info.num = noti_batch_size_;
                 gpu2sched_channel_.write(info);
             } else if (total_num == num_blocks) {
                 InstrumentInfo info;
@@ -65,12 +65,12 @@ class FinishedBlockNotifier {
 #ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
             unsigned num_blocks = gridDim.x * gridDim.y * gridDim.z;
             unsigned total_num = atomicInc(&agg_counter_end_, num_blocks - 1) + 1;
-            unsigned batch_num = total_num % 16;
+            unsigned batch_num = total_num % noti_batch_size_;
             if (batch_num == 0) {
                 InstrumentInfo info;
                 info.is_start = 0;
                 info.job_id = job_id;
-                info.num = 16;
+                info.num = noti_batch_size_;
                 gpu2sched_channel_.write(info);
             } else if (total_num == num_blocks) {
                 InstrumentInfo info;
@@ -113,6 +113,8 @@ class FinishedBlockNotifier {
 #ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
     unsigned agg_counter_start_ = 0;
     unsigned agg_counter_end_ = 0;
+
+    static constexpr unsigned noti_batch_size_ = 16;
 #endif
 };
 
