@@ -88,8 +88,8 @@ void monitor(llis::client::Client* client, const std::string& profile_path, unsi
     //client->get_profiler_client()->unset_record_block_exec_time();
     //client->get_profiler_client()->unset_record_kernel_block_mis_alloc();
     //client->get_profiler_client()->unset_record_run_next_times();
-    client->get_profiler_client()->unset_record_job_events();
-    client->get_profiler_client()->unset_record_resource_events();
+    //client->get_profiler_client()->unset_record_job_events();
+    //client->get_profiler_client()->unset_record_resource_events();
     client->get_profiler_client()->save(profile_path);
 }
 
@@ -420,8 +420,9 @@ int main(int argc, char** argv) {
 
     //client.get_profiler_client()->set_record_kernel_info();
     //client.get_profiler_client()->set_record_block_exec_time();
-    client.get_profiler_client()->set_record_job_events();
-    client.get_profiler_client()->set_record_resource_events();
+    //client.get_profiler_client()->set_record_job_events();
+    //client.get_profiler_client()->set_record_resource_events();
+    //client.cuda_profiler_start();
 
     std::thread monitor_thr(monitor, &client, profile_output_path.str(), num_jobs);
     std::thread submit_thr(submit, &job_refs, job_props_cum, mean_inter_time,
