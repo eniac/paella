@@ -20,14 +20,15 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-SchedulerFifo::SchedulerFifo(float unfairness_threshold, float eta) :
+SchedulerFifo::SchedulerFifo(float unfairness_threshold, float eta, unsigned sched_sleep) :
         server_(nullptr),
         gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
 #ifdef LLIS_MEASURE_BLOCK_TIME
         gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
         mem2sched_channel_(10240),
-        cuda_streams_(500) { // TODO: size of the channel must be larger than number of total blocks * 2
+        //cuda_streams_(500) { // TODO: size of the channel must be larger than number of total blocks * 2
+        cuda_streams_(15) { // TODO: size of the channel must be larger than number of total blocks * 2
     LLIS_INFO("Setting up LLIS FIFO scheduler...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME

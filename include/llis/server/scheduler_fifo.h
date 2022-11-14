@@ -22,7 +22,7 @@ namespace server {
 
 class SchedulerFifo {
   public:
-    SchedulerFifo(float unfairness_threshold, float eta);
+    SchedulerFifo(float unfairness_threshold, float eta, unsigned sched_sleep);
 
     void set_server(Server* server);
 

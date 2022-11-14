@@ -18,7 +18,7 @@
 namespace llis {
 namespace server {
 
-SchedulerFifo2::SchedulerFifo2(float unfairness_threshold, float eta) :
+SchedulerFifo2::SchedulerFifo2(float unfairness_threshold, float eta, unsigned sched_sleep) :
         server_(nullptr),
         gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
 #ifdef LLIS_MEASURE_BLOCK_TIME
@@ -100,9 +100,15 @@ void SchedulerFifo2::handle_block_finish(const job::InstrumentInfo& info) {
     job->mark_block_finish();
 #endif
     if (!job->is_running()) {
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_FINISHED);
+#endif
         if (job->has_next()) {
             job_queue_.push(job);
         } else {
+#ifdef LLIS_ENABLE_PROFILER
+            profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_FINISHED);
+#endif
             server_->notify_job_ends(job);
             --num_jobs_;
             --num_started_jobs_;
@@ -139,6 +145,9 @@ void SchedulerFifo2::handle_mem_finish() {
     if (job->has_next()) {
         job_queue_.push(job);
     } else {
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_FINISHED);
+#endif
         server_->notify_job_ends(job);
         --num_jobs_;
         --num_started_jobs_;
@@ -177,6 +186,9 @@ void SchedulerFifo2::handle_new_job(std::unique_ptr<job::Job> job_) {
         unused_job_id_.pop_back();
         job_id_to_job_map_[job->get_id()] = std::move(job_);
     }
+#ifdef LLIS_ENABLE_PROFILER
+    profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_SUBMITTED);
+#endif
 
     job_queue_all_.push(job);
 
@@ -199,6 +211,10 @@ void SchedulerFifo2::schedule_job() {
     while (!job_queue_.empty()) {
         job::Job* job = job_queue_.front();
         job_queue_.pop();
+
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SCHED_START);
+#endif
 
         if (!job->has_started()) {
             job->set_started();
@@ -231,6 +247,7 @@ void SchedulerFifo2::schedule_job() {
         job::Context::set_current_job(job);
 #ifdef LLIS_ENABLE_PROFILER
         auto start_run_next_time = std::chrono::steady_clock::now();
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SUBMIT_START);
 #endif
         job->run_next();
 #ifdef LLIS_ENABLE_PROFILER
@@ -240,6 +257,10 @@ void SchedulerFifo2::schedule_job() {
         if (is_mem) {
             cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
         }
+
+#ifdef LLIS_ENABLE_PROFILER
+        profiler_->record_job_event(job->get_id(), Profiler::JobEvent::KERNEL_SUBMIT_END);
+#endif
 
         if (cuda_streams_.empty()) {
             break;
