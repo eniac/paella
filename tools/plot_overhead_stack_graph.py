@@ -61,11 +61,15 @@ if __name__ == "__main__":
         prev_e = e
         prev_t = t
 
-    print('Queueing Delay:', queueing_delay)
-    print('Scheduling Overhead:', scheduling_overhead)
-    print('Kernel Launch Overhead:', kernel_launch_overhead)
-    print('Kernel Runtime:', kernel_runtime)
-    print('Kernel Interval:', kernel_interval)
+    #print('Queueing Delay:', queueing_delay)
+    #print('Scheduling Overhead:', scheduling_overhead)
+    #print('Kernel Launch Overhead:', kernel_launch_overhead)
+    #print('Kernel Runtime:', kernel_runtime)
+    #print('Kernel Interval:', kernel_interval)
+
+    with open(args.output_path + '.csv', 'w') as f:
+        f.write('Queueing Delay,Scheduling Overhead,Kernel Launch Overhead,Kernel Runtime,Kernel Interval\n')
+        f.write('{},{},{},{},{}'.format(queueing_delay, scheduling_overhead, kernel_launch_overhead, kernel_runtime, kernel_interval))
 
     width = 0.35
 
@@ -78,5 +82,5 @@ if __name__ == "__main__":
 
     plt.legend()
 
-    plt.savefig(args.output_path)
+    plt.savefig(args.output_path + '.pdf')
 

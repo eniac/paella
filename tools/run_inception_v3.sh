@@ -15,8 +15,10 @@ trap "kill $SERVER_PID; exit" INT
 
 for seed in {1,}; do
     #for i in {2000,2200,2400,2600,2800,3000,3200,3400,3600,3800,4000}; do
-    for i in {30000,}; do
+    #for i in {30000,}; do
     #for i in {0,}; do
+    #for i in {30000,40000,50000,60000,80000,100000}; do
+    for i in {120000,140000}; do
         taskset -c 4 ./server server 1000000 1 &
         SERVER_PID=$!
         sleep 5
@@ -53,7 +55,7 @@ for seed in {1,}; do
             --iat_g \
             --ln_sigma_n \
             --concurrency_n \
-            "${abs_path}/release/jobs/tvm_inception_v3/libjob_tvm_inception_v3.so" 1 50
+            "${abs_path}/release/jobs/tvm_inception_v3/libjob_tvm_inception_v3.so" 1 1
         wait
     done
 done

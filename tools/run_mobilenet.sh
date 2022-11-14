@@ -16,7 +16,9 @@ trap "kill $SERVER_PID; exit" INT
 for seed in {1,}; do
     #for i in {2000,2200,2400,2600,2800,3000,3200,3400,3600,3800,4000}; do
     for i in {0,}; do
-        taskset -c 4 ./server server 1000000 1 &
+        #taskset -c 4 \
+        #    ncu -f --set full --profile-from-start off -o "${res_dir}/mobilenet${suffix}_lns${ln_sigma}_con1.ncu" \
+                ./server server 1000000 1 &
         SERVER_PID=$!
         sleep 5
 
@@ -35,7 +37,7 @@ for seed in {1,}; do
             --iat_g \
             --ln_sigma_n \
             --concurrency_n \
-            "${abs_path}/release/jobs/tvm_mobilenet/libjob_tvm_mobilenet.so" 1 50
+            "${abs_path}/release/jobs/tvm_mobilenet/libjob_tvm_mobilenet.so" 1 1
         wait
     done
 done

@@ -17,10 +17,7 @@ echo "**** Running all with ln_sigma=$ln_sigma, suffix=$suffix"
 
 for seed in {1,}; do
     #for i in {3000,6000,8000,10000,12000,14000,16000,18000,20000,22000,50000,100000,200000,500000}; do
-    #for i in {25000,50000,100000,200000,500000}; do
-    #for i in {3000,}; do
-    for i in {0,}; do
-        nsys profile -o "${res_dir}/all_equal${suffix}.nsys" \
+    for i in {40000,50000,100000,250000,500000}; do
         taskset -c 4 ./server server 1000000 1 &
         SERVER_PID=$!
         sleep 5
@@ -31,24 +28,17 @@ for seed in {1,}; do
             --server_name server \
             --iat $i \
             --ln_sigma $ln_sigma \
-            --concurrency 15 \
-            --num_jobs 3000 \
+            --concurrency 1 \
+            --num_jobs 1000 \
             --start_record_num 0 \
             --seed $seed \
-            --prefix "${res_dir}/all_equal${suffix}" \
+            --prefix "${res_dir}/mnist_googlenet_0.7_0.3${suffix}" \
             --fairness 1000000 \
             --iat_n \
             --iat_g \
             --ln_sigma_n \
-            "${abs_path}/release/jobs/tvm_mnist/libjob_tvm_mnist.so" 0.112 15 \
-            "${abs_path}/release/jobs/tvm_mobilenet/libjob_tvm_mobilenet.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_densenet121/libjob_tvm_densenet121.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_googlenet/libjob_tvm_googlenet.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_inception_v3/libjob_tvm_inception_v3.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_resnet18/libjob_tvm_resnet18.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_resnet34/libjob_tvm_resnet34.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_resnet50/libjob_tvm_resnet50.so" 0.111 15 \
-            "${abs_path}/release/jobs/tvm_squeezenet1_1/libjob_tvm_squeezenet1_1.so" 0.111 15
+            "${abs_path}/release/jobs/tvm_mnist/libjob_tvm_mnist.so" 0.7 1 \
+            "${abs_path}/release/jobs/tvm_googlenet/libjob_tvm_googlenet.so" 0.3 1
         wait
     done
 done
