@@ -21,25 +21,29 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output_path', dest='output_path');
     parser.add_argument('-g', '--output_graph_path', dest='output_graph_path');
     parser.add_argument('-i', '--input_path', dest='input_path');
+    parser.add_argument('-j', '--send_times_input_path', dest='send_times_input_path');
     parser.add_argument('-l', '--line', dest='line', type=int);
 
     args = parser.parse_args()
 
-    data = np.genfromtxt(args.input_path, delimiter=' ', dtype=float) # Events of a particular job
+    data = np.genfromtxt(args.input_path, delimiter=' ', dtype=float)
+    send_times = np.genfromtxt(args.send_times_input_path, dtype=float)
 
+    ipc_latency_sum = 0
     queueing_delay_sum = 0
     scheduling_overhead_sum = 0
     kernel_launch_overhead_sum = 0
     kernel_runtime_sum = 0
     kernel_interval_sum = 0
 
-    for line in data:
+    for line, send_time in zip(data, send_times):
         line = line.reshape((-1, 2)) # Each row is an event of a particular job
 
         prev_e = None
         prev_t = None
         prev_kernel_finish_time = -1
 
+        ipc_latency = -1
         queueing_delay = -1
         scheduling_overhead = 0
         kernel_launch_overhead = 0
@@ -48,6 +52,10 @@ if __name__ == "__main__":
 
         for i, (e, t) in enumerate(line):
             e = int(e)
+
+            if prev_e is None and e == JobEvent.JOB_SUBMITTED:
+                ipc_latency = (t - send_time)
+
             if prev_e == JobEvent.JOB_SUBMITTED and e == JobEvent.KERNEL_SCHED_START:
                 queueing_delay = (t - prev_t)
 
@@ -69,6 +77,7 @@ if __name__ == "__main__":
             prev_e = e
             prev_t = t
 
+        ipc_latency_sum += ipc_latency
         queueing_delay_sum += queueing_delay
         scheduling_overhead_sum += scheduling_overhead
         kernel_launch_overhead_sum += kernel_launch_overhead
@@ -76,6 +85,7 @@ if __name__ == "__main__":
         kernel_interval_sum += kernel_interval
 
     num_jobs = np.shape(data)[0]
+    ipc_latency_mean = ipc_latency_sum / num_jobs
     queueing_delay_mean = queueing_delay_sum / num_jobs
     scheduling_overhead_mean = scheduling_overhead_sum / num_jobs
     kernel_launch_overhead_mean = kernel_launch_overhead_sum / num_jobs
@@ -83,17 +93,18 @@ if __name__ == "__main__":
     kernel_interval_mean = kernel_interval_sum / num_jobs
 
     with open(args.output_path, 'w') as f:
-        f.write('Queueing Delay,Scheduling Overhead,Kernel Launch Overhead,Kernel Runtime,Kernel Interval\n')
-        f.write('{},{},{},{},{}\n'.format(queueing_delay_mean, scheduling_overhead_mean, kernel_launch_overhead_mean, kernel_runtime_mean, kernel_interval_mean))
+        f.write('IPC Latency,Queueing Delay,Scheduling Overhead,Kernel Launch Overhead,Kernel Runtime,Kernel Interval\n')
+        f.write('{},{},{},{},{},{}\n'.format(ipc_latency_mean, queueing_delay_mean, scheduling_overhead_mean, kernel_launch_overhead_mean, kernel_runtime_mean, kernel_interval_mean))
 
     width = 0.35
 
     fig, ax = plt.subplots()
-    ax.bar(['Overheads'], [queueing_delay], width, label='Queueing Delay')
-    ax.bar(['Overheads'], [scheduling_overhead], width, label='Scheduling Overhead')
-    ax.bar(['Overheads'], [kernel_launch_overhead], width, label='Kernel Launch Overhead')
-    ax.bar(['Overheads'], [kernel_runtime], width, label='Kernel Runtime')
-    ax.bar(['Overheads'], [kernel_interval], width, label='Kernel Interval')
+    ax.bar(['Overheads'], [ipc_latency_mean], width, label='IPC Latency')
+    ax.bar(['Overheads'], [queueing_delay_mean], width, label='Queueing Delay')
+    ax.bar(['Overheads'], [scheduling_overhead_mean], width, label='Scheduling Overhead')
+    ax.bar(['Overheads'], [kernel_launch_overhead_mean], width, label='Kernel Launch Overhead')
+    ax.bar(['Overheads'], [kernel_runtime_mean], width, label='Kernel Runtime')
+    ax.bar(['Overheads'], [kernel_interval_mean], width, label='Kernel Interval')
 
     plt.legend()
 
