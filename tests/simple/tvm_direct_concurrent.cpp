@@ -39,13 +39,13 @@ class MyModule {
     }
 
     void run() {
-        //input_dev_.CopyFrom(input_);
+        input_dev_.CopyFrom(input_);
 
         set_input_(0, input_dev_);
         run_();
         get_output_(0, output_dev_);
 
-        //output_.CopyFrom(output_dev_);
+        output_.CopyFrom(output_dev_);
     }
 
   private:
@@ -82,7 +82,7 @@ void worker(std::vector<MyModule>* models, unsigned thr_id) {
 
             if (time_elasped >= next_run.second) {
                 (*models)[next_run.first].run();
-                TVMSynchronize(kDLGPU, 0, stream);
+                //TVMSynchronize(kDLGPU, 0, stream);
                 auto after_time = std::chrono::steady_clock::now();
 
                 auto latency = std::chrono::duration<double, std::micro>(after_time - start_time).count() - next_run.second;
@@ -240,6 +240,11 @@ int main(int argc, char** argv) {
     std::vector<std::thread> thrs;
     for (unsigned i = 0; i < num_thrs; ++i) {
         thrs.emplace_back(worker, &(models[i]), i);
+
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(i * 2 + 1, &cpuset);
+        pthread_setaffinity_np(thrs.back().native_handle(), sizeof(cpu_set_t), &cpuset);
     }
     for (auto& thr : thrs) {
         thr.join();
