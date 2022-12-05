@@ -20,7 +20,7 @@ for seed in {1,}; do
     #for i in {25000,50000,100000,200000,500000}; do
     #for i in {3000,}; do
     for i in {0,}; do
-        nsys profile -o "${res_dir}/all_equal${suffix}.nsys" \
+        #nsys profile -o "${res_dir}/all_equal${suffix}.nsys" \
         taskset -c 4 ./server server 1000000 1 &
         SERVER_PID=$!
         sleep 5

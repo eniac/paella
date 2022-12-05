@@ -18,7 +18,7 @@ for seed in {1,}; do
     #for i in {25000,50000,100000,200000,500000}; do
     for i in {0,}; do
         #ncu -f --set full --profile-from-start on -o "${res_dir}/all_equal_direct${suffix}.ncu" \
-        nsys profile -o "${res_dir}/all_equal_direct${suffix}.nsys" \
+        #nsys profile -o "${res_dir}/all_equal_direct${suffix}.nsys" \
         ./test_tvm_direct_concurrent \
             --iat $i \
             --ln_sigma $ln_sigma \
