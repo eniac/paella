@@ -77,6 +77,10 @@ void jct_gatherer(int *signal, uint64_t *jct, uint64_t *starts) {
     std::this_thread::sleep_for(2000ms);
 }
 
+/*
+   On this T4:
+    - 5500: median 315us
+*/
 #define NLOOPS 5500
 __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *signal) {
     volatile int i = 0;
@@ -153,14 +157,15 @@ int main(int argc, char** argv) {
     }
 
     // measure kernel runtimes
-    measure_kernel_runtime(signal);
+    // measure_kernel_runtime(signal);
 
     uint64_t *jct = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     uint64_t *starts = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     std::thread gatherer(jct_gatherer, signal, jct, starts);
 
-    std::cout << "Sending kernels in dummy mode" << std::endl;
+    /*
     // Dummy mode (all kernels at once)
+    std::cout << "Sending kernels in dummy mode" << std::endl;
     for (int i = 0; i < NJOBS; ++i) {
         starts[i] = rdtscp(NULL);
         for (int j = 0; j < KERNEL_PER_JOB; ++j) {
@@ -168,27 +173,29 @@ int main(int argc, char** argv) {
         }
         nanosleep(&sleeptime, NULL);
     }
-    std::cout << "Done sending kernels" << std::endl;
+     */
 
-    /*
     // Better mode (one kernel at a time, across max theoretical concurrency)
+    std::cout << "Sending kernels in better mode" << std::endl;
     int sent = 0;
     int low = 0;
     int high = low + 40*KERNEL_PER_JOB;
     while (sent < NJOBS) {
         for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-            for (int i = low; i < high; ++i) {
+            for (int i = low; i < high; ++i) {
                 if (j == 0) {
                     starts[i] = rdtscp(NULL);
                 }
                 saxpy<<<1, 128, 0, streams[i % streams.size()]>>>(i, j, signal);
             }
-            low = high;
-            high = low + 40*KERNEL_PER_JOB;
         }
+        low = high;
+        high = low + 40*KERNEL_PER_JOB;
         sent += high - low;
+        nanosleep(&sleeptime, NULL);
     }
-     */
+
+    std::cout << "Done sending kernels" << std::endl;
 
     gatherer.join();
 
