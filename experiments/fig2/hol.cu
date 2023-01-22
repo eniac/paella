@@ -53,8 +53,9 @@ inline int time_calibrate_tsc(void) {
     return -1;
 }
 
+#define NSMS 40
 #define NQUEUES_TO_USE 32
-#define NJOBS 10
+#define NJOBS 10000
 #define KERNEL_PER_JOB 8
 #define THREADS_PER_KERNEL 128
 
@@ -68,6 +69,7 @@ void jct_gatherer(int *signal, uint64_t *jct, uint64_t *starts) {
     while (completed < NJOBS) {
         for (int i = 0; i < NJOBS; ++i) {
             if (signal[i] && !done[i]) {
+                // std::cout << "job " << i << " completed" << std::endl;
                 done[i] = 1;
                 jct[i] = rdtscp(NULL) - starts[i];
                 completed++;
@@ -122,7 +124,6 @@ void measure_kernel_runtime(int *signal) {
     std::sort(runtimes.begin(), runtimes.end());
     float median = runtimes[NSAMPLES * .5];
     float p99 = runtimes[NSAMPLES * .99];
-
     std::cout << "synthetic kernel runtimes in us (over " << NSAMPLES << " samples)" << std::endl;
     std::cout << "p50: " << median * 1e3 << std::endl;
     std::cout << "p99: " << p99 * 1e3 << std::endl;
@@ -131,20 +132,22 @@ void measure_kernel_runtime(int *signal) {
 int main(int argc, char** argv) {
     time_calibrate_tsc();
 
-    int sleep_time_ns = atoi(argv[1]);
-    std::cout << "sleep time: " << sleep_time_ns << " ns" << std::endl;
+    /*
+        0: MEASURE KERNEL RUNTIME
+        1: DUMMY
+        2: BETTER
+    */
+    int mode = atoi(argv[1]);
 
-    float sending_rate = 1e9 / sleep_time_ns;
+    int interval_ns = atoi(argv[3]);
+    std::cout << "sending interval: " << interval_ns << " ns" << std::endl;
+
+    float sending_rate = 1e9 / interval_ns;
     std::cout << "sending rate: " << sending_rate << " jobs per seconds " << std::endl;
 
-    // Control sending rate
-    struct timespec sleeptime;
-    sleeptime.tv_sec = 0;
-    sleeptime.tv_nsec = sleep_time_ns;
-
-    // How many streams to use
+    // Use one stream per job
     std::vector<cudaStream_t> streams;
-    streams.resize(NQUEUES_TO_USE);
+    streams.resize(NJOBS);
     for (int i = 0; i < streams.size(); ++i) {
         cudaStreamCreate(&streams[i]);
     }
@@ -156,50 +159,80 @@ int main(int argc, char** argv) {
         fprintf(stderr, "cudaMallocHost error: %d\n", ret);
     }
 
-    // measure kernel runtimes
-    // measure_kernel_runtime(signal);
+
+    if (mode == 0) {
+        std::cout << "Measuring kernel runtime & dispatch time" << std::endl;
+        measure_kernel_runtime(signal);
+        exit(1);
+    }
 
     uint64_t *jct = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     uint64_t *starts = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     std::thread gatherer(jct_gatherer, signal, jct, starts);
 
-    /*
-    // Dummy mode (all kernels at once)
-    std::cout << "Sending kernels in dummy mode" << std::endl;
-    for (int i = 0; i < NJOBS; ++i) {
-        starts[i] = rdtscp(NULL);
-        for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-            saxpy<<<1, 128, 0, streams[i % streams.size()]>>>(i, j, signal);
-        }
-        nanosleep(&sleeptime, NULL);
-    }
-     */
+    uint32_t *jobs_remaining_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
 
-    // Better mode (one kernel at a time, across max theoretical concurrency)
-    std::cout << "Sending kernels in better mode" << std::endl;
-    int sent = 0;
-    int low = 0;
-    int high = low + 40*KERNEL_PER_JOB;
-    while (sent < NJOBS) {
-        for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-            for (int i = low; i < high; ++i) {
-                if (j == 0) {
-                    starts[i] = rdtscp(NULL);
-                }
-                saxpy<<<1, 128, 0, streams[i % streams.size()]>>>(i, j, signal);
+    uint64_t t0 = rdtscp(NULL);
+
+    if (mode == 1) {
+        // Dummy mode (all kernels at once)
+        std::cout << "Sending kernels in dummy mode" << std::endl;
+
+        struct timespec sleeptime;
+        sleeptime.tv_sec = 0;
+        sleeptime.tv_nsec = interval_ns;
+
+        for (int i = 0; i < NJOBS; ++i) {
+            // XXX Assumes the time to execute the next 4 lines < sleeptime
+            starts[i] = rdtscp(NULL);
+            for (int j = 0; j < KERNEL_PER_JOB; ++j) {
+                saxpy<<<1, 128, 0, streams[i]>>>(i, j, signal);
             }
+            nanosleep(&sleeptime, NULL);
         }
-        low = high;
-        high = low + 40*KERNEL_PER_JOB;
-        sent += high - low;
-        nanosleep(&sleeptime, NULL);
+    } else if (mode == 2) {
+        // Better mode (one kernel at a time, across max theoretical concurrency)
+        std::cout << "Sending kernels in better mode" << std::endl;
+        uint64_t interval = static_cast<uint64_t>(interval_ns * cycles_per_ns);
+        int job_low = 0;
+        int job_high = 0;
+        uint64_t now = rdtscp(NULL);
+        uint64_t next_arrival = now + interval;
+        while (job_low < NJOBS) {
+            now = rdtscp(NULL);
+            if (now >= next_arrival && job_high < NJOBS) {
+                job_high += 1;
+                starts[job_high] = now;
+                next_arrival = now + interval;
+            }
+
+            if (job_low == job_high) {
+                continue;
+            }
+
+            for (int i = job_low; i < job_high; ++i) {
+                uint32_t kernel = jobs_remaining_kernels[i];
+                if (++jobs_remaining_kernels[i] == KERNEL_PER_JOB) {
+                    job_low += 1;
+                }
+                saxpy<<<1, 128, 0, streams[i]>>>(i, kernel, signal);
+            }
+            /*
+            std::cout << "Total jobs dispatched so far: " << job_low << std::endl;
+            std::cout << "Jobs in flight: " << job_high - job_low << std::endl;
+            */
+        }
     }
 
-    std::cout << "Done sending kernels" << std::endl;
+    uint64_t t1 = rdtscp(NULL);
+    uint64_t runtime = ((t1 - t0) / cycles_per_us);
+    std::cout << "Done sending kernels in " << runtime << " us" << std::endl;
 
+    cudaDeviceSynchronize();
     gatherer.join();
 
-    std::string fname = std::to_string(int(sending_rate)) + "-results.csv";
+    std::string experiment_label(argv[2]);
+    std::string fname = experiment_label + "-" + std::to_string(int(sending_rate)) + "-results.csv";
     std::ofstream results(fname);
     std::cout << "Formatting results in " << fname << std::endl;
     results << "JOB_ID\tJCT\tRATE" << std::endl;
