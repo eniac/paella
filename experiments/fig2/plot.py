@@ -30,7 +30,7 @@ for exp_label in args.exp_labels:
 
     df = pd.concat(dfs).sort_values('rate').reset_index(drop=True)
     print(df)
-    plt.plot(df.rate, df.p99, marker='x', legend=exp_label)
+    plt.plot(df.rate, df.p99, marker='x', label=exp_label)
     '''
     for index in range(df.shape[0]):
         x = df.loc[index].rate
