@@ -1,10 +1,16 @@
 #!/usr/bin/python3
 
 import subprocess
+import argparse
 
-for i in range(5000, 35000, 1000):
-    args = ['./fig2', str(1e9/i)] # interval in ns
-    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+parser = argparse.ArgumentParser()
+parser.add_argument('exp_label', type=str)
+parser.add_argument('mode', type=str)
+args = parser.parse_args()
+
+for i in range(1000, 10000, 1000):
+    cmd_args = ['./fig2', args.mode, args.exp_label, str(1e9/i)] # interval in ns
+    p = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     while(1):
         line = p.stdout.readline()
         print(line.decode('ascii'))
