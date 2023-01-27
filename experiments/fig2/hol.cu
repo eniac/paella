@@ -4,11 +4,26 @@
 #include <chrono>
 #include <cmath>
 #include <thread>
+#include <pthread.h>
 #include <vector>
 #include <unordered_map>
 #include <iomanip>
+#include <cassert>
+#include <cerrno>
+#include <cstring>
 
 using namespace std::chrono_literals;
+
+static inline void pin_thread(pthread_t thread, u_int16_t cpu) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu, &cpuset);
+
+    if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) != 0) {
+        std::cerr << "could not pin thread: " << std::strerror(errno) << std::endl;
+        exit(1);
+    }
+}
 
 static inline uint64_t rdtscp(uint32_t *auxp) {
     uint32_t a, d, c;
@@ -55,7 +70,7 @@ inline int time_calibrate_tsc(void) {
 
 #define NSMS 40
 #define NQUEUES_TO_USE 32
-#define NJOBS 10000
+#define NJOBS 100000
 #define KERNEL_PER_JOB 8
 #define THREADS_PER_KERNEL 128
 
@@ -132,6 +147,9 @@ void measure_kernel_runtime(int *signal) {
 int main(int argc, char** argv) {
     time_calibrate_tsc();
 
+    pthread_t current_thread = pthread_self();
+    pin_thread(current_thread, 2);
+
     /*
         0: MEASURE KERNEL RUNTIME
         1: DUMMY
@@ -169,6 +187,7 @@ int main(int argc, char** argv) {
     uint64_t *jct = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     uint64_t *starts = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     std::thread gatherer(jct_gatherer, signal, jct, starts);
+    pin_thread(gatherer.native_handle(), 4);
 
     uint32_t *jobs_remaining_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
 
@@ -221,6 +240,10 @@ int main(int argc, char** argv) {
             std::cout << "Total jobs dispatched so far: " << job_low << std::endl;
             std::cout << "Jobs in flight: " << job_high - job_low << std::endl;
             */
+        }
+
+        for (int i = 0; i < NJOBS; ++i) {
+            assert(jobs_remaining_kernels[i] == KERNEL_PER_JOB);
         }
     }
 

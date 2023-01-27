@@ -22,6 +22,8 @@ for exp_label in args.exp_labels:
     dfs = []
     for f in result_files:
         df = pd.read_csv(f, delimiter='\t')
+        n = df.shape[0] * .1
+        df.drop(index=df.index[:n], axis=0, inplace=True)
         p99 = df.JCT.quantile(q=.99, interpolation='nearest')
         median = df.JCT.quantile(q=.50, interpolation='nearest')
         rate = df.RATE.values[0]
@@ -43,7 +45,7 @@ plt.plot([r for r in df.rate.values], [expected_jct for i in range(df.shape[0])]
 
 plt.legend()
 plt.xlabel('Sending rate')
-plt.ylabel('p99 (ns)')
+plt.ylabel('p99 (us)')
 fname = f"{'-'.join(args.exp_labels)}.pdf"
 print(f'Storing plot in {fname}')
 plt.savefig(fname)
