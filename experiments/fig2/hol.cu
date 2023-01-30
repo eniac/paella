@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstring>
+#include <cstdlib>
 
 using namespace std::chrono_literals;
 
@@ -69,8 +70,9 @@ inline int time_calibrate_tsc(void) {
 }
 
 #define NSMS 40
-#define NQUEUES_TO_USE 32
+#define N_HW_QUEUES 32
 #define NJOBS 100000
+#define NSTREAMS NJOBS
 #define KERNEL_PER_JOB 8
 #define THREADS_PER_KERNEL 128
 
@@ -95,10 +97,14 @@ void jct_gatherer(int *signal, uint64_t *jct, uint64_t *starts) {
 }
 
 /*
-   On this T4:
+   On dedos09/ T4:
     - 5500: median 315us
+    - 11000: median 627us
+    - 15000: median 853us
+    - 17500: median 995us
+    - 70000: median 3967us
 */
-#define NLOOPS 5500
+#define NLOOPS 17500
 __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *signal) {
     volatile int i = 0;
     for (i = 0; i++ < NLOOPS; ++i) {
@@ -109,7 +115,7 @@ __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int 
     }
 }
 
-#define NSAMPLES 100000
+#define NSAMPLES 10000
 void measure_kernel_runtime(int *signal) {
     uint64_t measure_start = rdtscp(NULL);
 
@@ -150,6 +156,12 @@ int main(int argc, char** argv) {
     pthread_t current_thread = pthread_self();
     pin_thread(current_thread, 2);
 
+    if (const char* max_cuda_conns = std::getenv("CUDA_DEVICE_MAX_CONNECTIONS")) {
+        std::cout << "CUDA_DEVICE_MAX_CONNECTIONS is: " << max_cuda_conns << std::endl;
+    } else {
+        std::cout << "WARNING: CUDA_DEVICE_MAX_CONNECTIONS is not set!!" << std::endl;
+    }
+
     /*
         0: MEASURE KERNEL RUNTIME
         1: DUMMY
@@ -164,8 +176,9 @@ int main(int argc, char** argv) {
     std::cout << "sending rate: " << sending_rate << " jobs per seconds " << std::endl;
 
     // Use one stream per job
+    std::cout << "Creating " << NSTREAMS << " streams" << std::endl;
     std::vector<cudaStream_t> streams;
-    streams.resize(NJOBS);
+    streams.resize(NSTREAMS);
     for (int i = 0; i < streams.size(); ++i) {
         cudaStreamCreate(&streams[i]);
     }
@@ -176,7 +189,6 @@ int main(int argc, char** argv) {
     if (ret != 0) {
         fprintf(stderr, "cudaMallocHost error: %d\n", ret);
     }
-
 
     if (mode == 0) {
         std::cout << "Measuring kernel runtime & dispatch time" << std::endl;
@@ -189,7 +201,7 @@ int main(int argc, char** argv) {
     std::thread gatherer(jct_gatherer, signal, jct, starts);
     pin_thread(gatherer.native_handle(), 4);
 
-    uint32_t *jobs_remaining_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
+    uint32_t *jobs_sent_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
 
     uint64_t t0 = rdtscp(NULL);
 
@@ -205,7 +217,11 @@ int main(int argc, char** argv) {
             // XXX Assumes the time to execute the next 4 lines < sleeptime
             starts[i] = rdtscp(NULL);
             for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-                saxpy<<<1, 128, 0, streams[i]>>>(i, j, signal);
+                 saxpy<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, j, signal);
+                 cudaError_t err = cudaGetLastError();
+                 if (err != 0) {
+                     std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
+                 }
             }
             nanosleep(&sleeptime, NULL);
         }
@@ -220,8 +236,7 @@ int main(int argc, char** argv) {
         while (job_low < NJOBS) {
             now = rdtscp(NULL);
             if (now >= next_arrival && job_high < NJOBS) {
-                job_high += 1;
-                starts[job_high] = now;
+                starts[job_high++] = now;
                 next_arrival = now + interval;
             }
 
@@ -230,11 +245,15 @@ int main(int argc, char** argv) {
             }
 
             for (int i = job_low; i < job_high; ++i) {
-                uint32_t kernel = jobs_remaining_kernels[i];
-                if (++jobs_remaining_kernels[i] == KERNEL_PER_JOB) {
+                uint32_t kernel = jobs_sent_kernels[i];
+                if (++jobs_sent_kernels[i] == KERNEL_PER_JOB) {
                     job_low += 1;
                 }
-                saxpy<<<1, 128, 0, streams[i]>>>(i, kernel, signal);
+                saxpy<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, kernel, signal);
+                cudaError_t err = cudaGetLastError();
+                if (err != 0) {
+                    std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
+                }
             }
             /*
             std::cout << "Total jobs dispatched so far: " << job_low << std::endl;
@@ -243,7 +262,7 @@ int main(int argc, char** argv) {
         }
 
         for (int i = 0; i < NJOBS; ++i) {
-            assert(jobs_remaining_kernels[i] == KERNEL_PER_JOB);
+            assert(jobs_sent_kernels[i] == KERNEL_PER_JOB);
         }
     }
 
