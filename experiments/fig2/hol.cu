@@ -12,6 +12,7 @@
 #include <cerrno>
 #include <cstring>
 #include <cstdlib>
+#include <map>
 
 using namespace std::chrono_literals;
 
@@ -71,7 +72,7 @@ inline int time_calibrate_tsc(void) {
 
 #define NSMS 40
 #define N_HW_QUEUES 32
-#define NJOBS 100000
+#define NJOBS 10000
 #define NSTREAMS NJOBS
 #define KERNEL_PER_JOB 8
 #define THREADS_PER_KERNEL 128
@@ -196,12 +197,16 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
+    // Allocate arrays to store timing information, track kernels sent
+    uint32_t *jobs_sent_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
     uint64_t *jct = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     uint64_t *starts = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     std::thread gatherer(jct_gatherer, signal, jct, starts);
     pin_thread(gatherer.native_handle(), 4);
 
-    uint32_t *jobs_sent_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
+    // Allocate an array to track queue length at the server. We will record qlen every time a new request arrive.
+    // This is only used for "FIFO-kernel-RR"
+    int *qlens = (int *) malloc(NJOBS * sizeof(int));
 
     uint64_t t0 = rdtscp(NULL);
 
@@ -215,6 +220,7 @@ int main(int argc, char** argv) {
 
         for (int i = 0; i < NJOBS; ++i) {
             // XXX Assumes the time to execute the next 4 lines < sleeptime
+            // It takes about 22us to do this dispatch
             starts[i] = rdtscp(NULL);
             for (int j = 0; j < KERNEL_PER_JOB; ++j) {
                  saxpy<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, j, signal);
@@ -236,8 +242,14 @@ int main(int argc, char** argv) {
         while (job_low < NJOBS) {
             now = rdtscp(NULL);
             if (now >= next_arrival && job_high < NJOBS) {
-                starts[job_high++] = now;
+                // Record start time
+                starts[job_high] = now;
+                // Set next arrival time
                 next_arrival = now + interval;
+                // Record queue length
+                qlens[job_high] = job_high - job_low;
+
+                job_high++;
             }
 
             if (job_low == job_high) {
@@ -274,15 +286,35 @@ int main(int argc, char** argv) {
     gatherer.join();
 
     std::string experiment_label(argv[2]);
+
+    // Job latencies results
     std::string fname = experiment_label + "-" + std::to_string(int(sending_rate)) + "-results.csv";
     std::ofstream results(fname);
     std::cout << "Formatting results in " << fname << std::endl;
-    results << "JOB_ID\tJCT\tRATE" << std::endl;
+    results << "JOB_ID\tJCT\tRATE\tKERNEL_PER_JOB\tKERNEL_LOOPS\tNJOBS\tNSTREAMS" << std::endl;
+
+    // Qlen results
+    std::string qlen_fname = experiment_label + "-" + std::to_string(int(sending_rate)) + "-qlen-results.csv";
+    std::ofstream qlen_results(qlen_fname);
+    std::cout << "Formatting qlen results in " << fname << std::endl;
+    qlen_results << "TIME\tQLEN\tRATE" << std::endl;
+
     for (int i = 0; i < NJOBS; ++i) {
+        // JCT
         results << std::fixed << std::setprecision(0)
                 << i << "\t"
                 << jct[i] / cycles_per_us << "\t"
-                << sending_rate << std::endl;
+                << sending_rate << "\t"
+                << KERNEL_PER_JOB << "\t"
+                << NLOOPS << "\t"
+                << NJOBS << "\t"
+                << NSTREAMS << std::endl;
+
+        // QLEN
+        // Offset each timestamp with the smallest start time, and record time in seconds
+        qlen_results << (starts[i] - starts[0]) / (cycles_per_us * 1e6) << "\t"
+                     << qlens[i] << "\t"
+                     << sending_rate << std::endl;
     }
 
     return 0;
