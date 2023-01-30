@@ -11,6 +11,7 @@ expected_jct = 316 * 8 # in ns
 
 parser = argparse.ArgumentParser()
 parser.add_argument('exp_labels', nargs='+', type=str)
+parser.add_argument('-i', '--ideal-jct', type=int, help='Ideal JCT in us', default=expected_jct)
 args = parser.parse_args()
 
 for exp_label in args.exp_labels:
@@ -41,11 +42,16 @@ for exp_label in args.exp_labels:
         plt.text(x, y, x, size=12)
     '''
 
-plt.plot([r for r in df.rate.values], [expected_jct for i in range(df.shape[0])], label='job latency')
+if args.ideal_jct > 0:
+    plt.plot([r for r in df.rate.values], [args.ideal_jct for i in range(df.shape[0])], label=f'ideal job latency ({args.ideal_jct} us)')
 
 plt.legend()
 plt.xlabel('Sending rate')
 plt.ylabel('p99 (us)')
+##plt.ticklabel_format(style='plain', rotation='vertical')
+
+plt.xticks(df.rate.values, df.rate.values, rotation=45)
+
 fname = f"{'-'.join(args.exp_labels)}.pdf"
 print(f'Storing plot in {fname}')
 plt.savefig(fname)
