@@ -13,6 +13,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <map>
+#include <queue>
 
 using namespace std::chrono_literals;
 
@@ -77,7 +78,7 @@ inline int time_calibrate_tsc(void) {
 #define KERNEL_PER_JOB 8
 #define THREADS_PER_KERNEL 128
 
-void jct_gatherer(int *signal, uint64_t *jct, uint64_t *starts) {
+void jct_gatherer(int *kernels_completed, uint64_t *jct, uint64_t *starts) {
     std::unordered_map<int, int> done;
     done.reserve(NJOBS);
     for (int i = 0; i < NJOBS; ++i) {
@@ -86,7 +87,7 @@ void jct_gatherer(int *signal, uint64_t *jct, uint64_t *starts) {
     uint64_t completed = 0;
     while (completed < NJOBS) {
         for (int i = 0; i < NJOBS; ++i) {
-            if (signal[i] && !done[i]) {
+            if (kernels_completed[i] == KERNEL_PER_JOB && !done[i]) {
                 // std::cout << "job " << i << " completed" << std::endl;
                 done[i] = 1;
                 jct[i] = rdtscp(NULL) - starts[i];
@@ -98,26 +99,45 @@ void jct_gatherer(int *signal, uint64_t *jct, uint64_t *starts) {
 }
 
 /*
-   On dedos09/ T4:
+   On dedos09/ T4
+   ---
+   with -Xptxas -O0, saxpy:
     - 5500: median 315us
     - 11000: median 627us
     - 15000: median 853us
     - 17500: median 995us
     - 70000: median 3967us
+
+   with -03, factorial:
+   - 120000: 1ms
 */
-#define NLOOPS 17500
-__global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *signal) {
+#define NLOOPS 120000
+__global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *kernels_completed) {
     volatile int i = 0;
     for (i = 0; i++ < NLOOPS; ++i) {
         i += blockIdx.x * blockDim.x + threadIdx.x; // thread index
     }
     if (threadIdx.x == 0 && kernel_id == KERNEL_PER_JOB - 1) {
-        signal[job_id] = 1;
+        kernels_completed[job_id] = 1;
+    }
+}
+
+__global__ void factorial(int job_id, int kernel_id,
+                          unsigned num_loops,
+                          uint32_t *scratchpad, int *kernels_completed) {
+    unsigned id = blockIdx.x * blockDim.x + threadIdx.x;
+    float tmp = 1;
+    for (unsigned i = 1; i <= num_loops; ++i) {
+        tmp *= i;
+    }
+    if (threadIdx.x == 0) { // && kernel_id == KERNEL_PER_JOB - 1) {
+        scratchpad[id] = tmp;
+        kernels_completed[job_id] = kernel_id + 1;
     }
 }
 
 #define NSAMPLES 10000
-void measure_kernel_runtime(int *signal) {
+void measure_kernel_runtime(int *kernels_completed, uint32_t *kernels_scratchpad) {
     uint64_t measure_start = rdtscp(NULL);
 
     cudaEvent_t start, stop;
@@ -126,12 +146,25 @@ void measure_kernel_runtime(int *signal) {
 
     std::vector<float> runtimes;
 
-    for (int i = 0; i < NSAMPLES; ++i) {
-        cudaEventRecord(start);
-        saxpy<<<1, 128>>>(0, 0, signal);
-        cudaEventRecord(stop);
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
 
-        cudaEventSynchronize(stop);
+    for (int i = 0; i < NSAMPLES; ++i) {
+        cudaError_t ret = cudaEventRecord(start, stream);
+        if (ret != cudaSuccess) {
+            std::cerr << "Error during cudaEventRecord: " << cudaGetErrorString(ret) << std::endl;
+        }
+
+        factorial<<<1, 128, 0, stream>>>(i, i % KERNEL_PER_JOB, NLOOPS, kernels_scratchpad, kernels_completed);
+        ret = cudaEventRecord(stop, stream);
+        if (ret != cudaSuccess) {
+            std::cerr << "Error during cudaEventRecord: " << cudaGetErrorString(ret) << std::endl;
+        }
+
+        ret = cudaEventSynchronize(stop);
+        if (ret != cudaSuccess) {
+            std::cerr << "Error during cudaEventSynchronize: " << cudaGetErrorString(ret) << std::endl;
+        }
         float kernel_runtime_in_ms = 0;
         cudaEventElapsedTime(&kernel_runtime_in_ms, start, stop);
         runtimes.push_back(kernel_runtime_in_ms);
@@ -184,24 +217,29 @@ int main(int argc, char** argv) {
         cudaStreamCreate(&streams[i]);
     }
 
-    // allocate array of kernel completion signals on pinned memory
-    int *signal;
-    cudaError_t ret = cudaMallocHost(&signal, NJOBS * sizeof(int));
+    // allocate array of kernel completion kernels_completeds on pinned memory
+    int *kernels_completed;
+    cudaError_t ret = cudaMallocHost(&kernels_completed, NJOBS * sizeof(int));
     if (ret != 0) {
         fprintf(stderr, "cudaMallocHost error: %d\n", ret);
     }
 
+    uint32_t *kernels_scratchpad;
+    ret = cudaMalloc(&kernels_scratchpad, NJOBS * sizeof(uint32_t));
+    if (ret != 0) {
+        fprintf(stderr, "cudaMalloc error: %d\n", ret);
+    }
+
     if (mode == 0) {
         std::cout << "Measuring kernel runtime & dispatch time" << std::endl;
-        measure_kernel_runtime(signal);
+        measure_kernel_runtime(kernels_completed, kernels_scratchpad);
         exit(1);
     }
 
     // Allocate arrays to store timing information, track kernels sent
-    uint32_t *jobs_sent_kernels = (uint32_t *) calloc(NJOBS, sizeof(uint32_t));
     uint64_t *jct = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
     uint64_t *starts = (uint64_t *) malloc(NJOBS * sizeof(uint64_t));
-    std::thread gatherer(jct_gatherer, signal, jct, starts);
+    std::thread gatherer(jct_gatherer, kernels_completed, jct, starts);
     pin_thread(gatherer.native_handle(), 4);
 
     // Allocate an array to track queue length at the server. We will record qlen every time a new request arrive.
@@ -223,7 +261,7 @@ int main(int argc, char** argv) {
             // It takes about 22us to do this dispatch
             starts[i] = rdtscp(NULL);
             for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-                 saxpy<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, j, signal);
+                 factorial<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, j, NLOOPS, kernels_scratchpad, kernels_completed);
                  cudaError_t err = cudaGetLastError();
                  if (err != 0) {
                      std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
@@ -235,46 +273,55 @@ int main(int argc, char** argv) {
         // Better mode (one kernel at a time, across max theoretical concurrency)
         std::cout << "Sending kernels in better mode" << std::endl;
         uint64_t interval = static_cast<uint64_t>(interval_ns * cycles_per_ns);
-        int job_low = 0;
-        int job_high = 0;
+        std::queue<std::pair<int,int>> inflight_jobs;
         uint64_t now = rdtscp(NULL);
         uint64_t next_arrival = now + interval;
-        while (job_low < NJOBS) {
+        int dispatching = 0;
+        int sent = 0;
+        while (sent < NJOBS) {
             now = rdtscp(NULL);
-            if (now >= next_arrival && job_high < NJOBS) {
+            if (now >= next_arrival && dispatching < NJOBS) {
                 // Record start time
-                starts[job_high] = now;
+                starts[dispatching] = now;
+                // Enqueue new job
+                inflight_jobs.push(std::pair<int,int>(dispatching, 0));
                 // Set next arrival time
                 next_arrival = now + interval;
                 // Record queue length
-                qlens[job_high] = job_high - job_low;
+                qlens[sent] = inflight_jobs.size();
 
-                job_high++;
+                dispatching++;
             }
 
-            if (job_low == job_high) {
-                continue;
-            }
+            size_t n = inflight_jobs.size();
+            for (size_t i = 0; i < n; ++i) {
+                // Get a job to check
+                auto job = inflight_jobs.front();
+                int job_id = job.first;
+                int kernel_sent = job.second;
+                inflight_jobs.pop();
 
-            for (int i = job_low; i < job_high; ++i) {
-                uint32_t kernel = jobs_sent_kernels[i];
-                if (++jobs_sent_kernels[i] == KERNEL_PER_JOB) {
-                    job_low += 1;
+                // If the job has completed the last kernel it launched, launch the next one
+                if ((kernel_sent == 0) || (kernels_completed[job_id] == kernel_sent)) {
+                    // Launch a kernel
+                    // std::cout << "dispatching kernel " << kernel_sent << " for job :" << job_id << std::endl;
+                    factorial<<<1, 128, 0, streams[job_id % NSTREAMS]>>>(job_id, kernel_sent, NLOOPS, kernels_scratchpad, kernels_completed);
+                    cudaError_t err = cudaGetLastError();
+                    if (err != 0) {
+                        std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
+                    }
+
+                    // If the job still has kernels to send, enqueue it back
+                    if (kernel_sent + 1 < KERNEL_PER_JOB) {
+                        inflight_jobs.push(std::pair<int,int>(job_id, kernel_sent + 1));
+                    } else {
+                        sent++;
+                    }
+                } else {
+                    // If not, re-enqueue and move to next job
+                    inflight_jobs.push(std::pair<int,int>(job_id, kernel_sent));
                 }
-                saxpy<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, kernel, signal);
-                cudaError_t err = cudaGetLastError();
-                if (err != 0) {
-                    std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
-                }
             }
-            /*
-            std::cout << "Total jobs dispatched so far: " << job_low << std::endl;
-            std::cout << "Jobs in flight: " << job_high - job_low << std::endl;
-            */
-        }
-
-        for (int i = 0; i < NJOBS; ++i) {
-            assert(jobs_sent_kernels[i] == KERNEL_PER_JOB);
         }
     }
 
@@ -284,6 +331,13 @@ int main(int argc, char** argv) {
 
     cudaDeviceSynchronize();
     gatherer.join();
+
+    for (int i = 0; i < NJOBS; ++i) {
+        if (kernels_completed[i] < KERNEL_PER_JOB) {
+            std::cerr << "job " << i << " sent only " << kernels_completed[i] << std::endl;
+        }
+        assert(kernels_completed[i] == KERNEL_PER_JOB);
+    }
 
     std::string experiment_label(argv[2]);
 
