@@ -8,9 +8,56 @@ This means that, theoretically, it is possible for the heads of all the HW queue
 
 Hardware
 ---
-Tesla T4 turing (see https://docs.nvidia.com/cuda/turing-tuning-guide/index.html):
-- 40 SMs
-- 32 warps per SM = 32*32=1024 threads per SM
+Tesla T4 Turing (see https://docs.nvidia.com/cuda/turing-tuning-guide/index.html):
+
+```
+./deviceQuery Starting...
+
+ CUDA Device Query (Runtime API) version (CUDART static linking)
+
+Detected 1 CUDA Capable device(s)
+
+Device 0: "Tesla T4"
+  CUDA Driver Version / Runtime Version          11.7 / 11.6
+  CUDA Capability Major/Minor version number:    7.5
+  Total amount of global memory:                 14972 MBytes (15699148800 bytes)
+  (040) Multiprocessors, (064) CUDA Cores/MP:    2560 CUDA Cores
+  GPU Max Clock rate:                            1590 MHz (1.59 GHz)
+  Memory Clock rate:                             5001 Mhz
+  Memory Bus Width:                              256-bit
+  L2 Cache Size:                                 4194304 bytes
+  Maximum Texture Dimension Size (x,y,z)         1D=(131072), 2D=(131072, 65536), 3D=(16384, 16384, 16384)
+  Maximum Layered 1D Texture Size, (num) layers  1D=(32768), 2048 layers
+  Maximum Layered 2D Texture Size, (num) layers  2D=(32768, 32768), 2048 layers
+  Total amount of constant memory:               65536 bytes
+  Total amount of shared memory per block:       49152 bytes
+  Total shared memory per multiprocessor:        65536 bytes
+  Total number of registers available per block: 65536
+  Warp size:                                     32
+  Maximum number of threads per multiprocessor:  1024
+  Maximum number of threads per block:           1024
+  Max dimension size of a thread block (x,y,z): (1024, 1024, 64)
+  Max dimension size of a grid size    (x,y,z): (2147483647, 65535, 65535)
+  Maximum memory pitch:                          2147483647 bytes
+  Texture alignment:                             512 bytes
+  Concurrent copy and kernel execution:          Yes with 3 copy engine(s)
+  Run time limit on kernels:                     No
+  Integrated GPU sharing Host Memory:            No
+  Support host page-locked memory mapping:       Yes
+  Alignment requirement for Surfaces:            Yes
+  Device has ECC support:                        Enabled
+  Device supports Unified Addressing (UVA):      Yes
+  Device supports Managed Memory:                Yes
+  Device supports Compute Preemption:            Yes
+  Supports Cooperative Kernel Launch:            Yes
+  Supports MultiDevice Co-op Kernel Launch:      Yes
+  Device PCI Domain ID / Bus ID / location ID:   0 / 59 / 0
+  Compute Mode:
+     < Default (multiple host threads can use ::cudaSetDevice() with device simultaneously) >
+
+deviceQuery, CUDA Driver = CUDART, CUDA Driver Version = 11.7, CUDA Runtime Version = 11.6, NumDevs = 1
+Result = PASS
+```
 
 Synthetic load: job anatomy
 ---
@@ -37,7 +84,6 @@ Synthetic load: theoretical concurrency
 - kernel runtime: 3967us. expected JCT 3967 * 8 = 31736us
     * sustainable job/s for 1 job: 1e6 / 31736 = 31 jobs/s
     * sustainable job/s for the entire GPU: 31*320 = 9920 jobs/s
-
 
 # Methodology
 
