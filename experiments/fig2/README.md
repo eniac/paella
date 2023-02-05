@@ -67,6 +67,19 @@ We implement a job as a sequence of kernels scheduled on the same CUDA stream. W
 - Theoretical max concurrency per SM = 1024 / 128 = 8 kernels
 - Theoretical max concurrency on the GPU = 8 * 40 = 320 jobs
 
+ Compiling with ptxas=-v
+```
+nvcc hol.cu -o fig2 -O3 -arch=sm_75 -Xptxas=-v
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z9factorialiijPjPi' for 'sm_75'
+ptxas info    : Function properties for _Z9factorialiijPjPi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 11 registers, 384 bytes cmem[0]
+```
+Which would mean each kernel requires 128 * 11 = 1408 registers. Assuming 65536 registers per SM and 8 kernels per SM, we cap at 1408 * 8 = 11264 registers.
+Regarding constant memory 1) this memory is "a read-only cache which content can be broadcasted to multiple threads in a block." 2) 384 * 128 * 8 = 392192 = 383KB...
+
+
 Synthetic load: theoretical concurrency
 ---
 - kernel runtime: 316us. expected JCT 316us * 8 = 2528us
@@ -162,9 +175,40 @@ Increasing kernel runtimes
 -> both these tend to indicate that the issue is not with kernel size, but rather dispatching method.
 
 
-# Vrac
-- Could we take advantage from parallelizing the kernels of a given job? We don't consider kernels //ism afaik
+Changing CUDA_DEVICE_MAX_CONNECTIONS
+---
+- Mode1 experience backpressure most of the time. Gradually gets better
+- Mode2 was better than mode1 intially, then gradually got bad. This got fixed by ensuring a kernel does not get dispatched if it has a dependent kernel running already. Eventually mode2 is better from 1 to 16 HWQs, then about the same at 32HWQs
 
+# Vrac
 - Try building distribution of inter-kernel scheduling times. Should show the overheads introduced by FIFO-kernel-RR
-- use nvprof
-- delay introduce between kernels by FIFO-kernel-raw
+- delay introduced between kernels by FIFO-kernel-raw
+- plot cross hwq numbers p99 for a given load point?
+    * or even better: across load points. Not that much data.
+- Try to use *less* streams: will mode1 work as it does with 32 streams on 32 hwqs?
+    * It should if its really fifo?
+- Plot goodput
+- Record the SM where a block ran
+    * Are all of a kernel's block running on the same SM?
+    * Are all the SMs in use?
+- Backpressure?
+    * Indeed dispatching with 1HWQ, 10k jobs at (1000jobs/s to 10kjps) takes 47771073 for mode1 vs about 10s for mode2.
+    * For 2 HWQ: 23 seconds from 1k jps to 10k jps
+    * For 4 HWQ: 11 seconds from 1k jps to 10k jps <<<---- goodput starts matching throughput
+    * For 8 HWQ: 1k jps ~ 10s, 2k - 10kjps jps ~ 5.4s <<<---- This means past 2krps is triggering backpressure
+    * For 16 HWQ: 1k jps ~ 10s, 2k ~5.7s, 3k ~4s, 4k ~3.2s, 5k to 10k jps ~2.9s  <<<---- This means past 3krps is triggering backpressure?
+    * For 32 HWQ: 1k jps ~ 10s, 2k ~5.7s, 3k ~4s, 4k ~3.2s, 5kjps ~2.7s, 6kjps ~2.4s, 7kjps ~2.2, 8kjps ~2s, 9k 10kjps ~1.8sto 10k jps ~2.9s <<<---- throughput doesn't scale with HWQs
+
+    * I also note that with nvprof, the kernel runtime increases when the system seems to be overwhelmed
+
+Add to paper
+---
+References:
+- https://www.cs.unc.edu/~anderson/papers/rtss17c.pdf
+    * "a variant of hierarchical FIFO scheduling where work may sometimes be subject to blocking delays"
+    * "he usage of separate address spaces results in higher overheads and less predictable execution times for GPU operations"
+- https://dl.acm.org/doi/pdf/10.1145/3453417.3453432
+    * Other constructors decide to virtualize the stream scheduling out of the GPU
+    * AMD GPU described here does a first round of scheduling between stream queues and ring buffers.
+    * Ring buffers are then handled by a hardware layer that maps ring buffers to hardware queues (?) then dispatch from HWQ to compute units (block to SM step for NVIDIA)
+    * In their example, there are 4 HWQ that can host 8 ring buffers each: This is also 32 total software queues (ring buffers).
