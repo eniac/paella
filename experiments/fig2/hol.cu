@@ -15,6 +15,8 @@
 #include <map>
 #include <queue>
 
+#define cudaStreamNonBlocking 0x01
+
 using namespace std::chrono_literals;
 
 static inline void pin_thread(pthread_t thread, u_int16_t cpu) {
@@ -110,6 +112,10 @@ void jct_gatherer(int *kernels_completed, uint64_t *jct, uint64_t *starts) {
 
    with -03, factorial:
    - 120000: 1ms
+
+   with -03 -arch=sm_75, factorial:
+   - 120000: 691us
+   - 157080: 1307us
 */
 #define NLOOPS 120000
 __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *kernels_completed) {
@@ -138,6 +144,8 @@ __global__ void factorial(int job_id, int kernel_id,
 
 #define NSAMPLES 10000
 void measure_kernel_runtime(int *kernels_completed, uint32_t *kernels_scratchpad) {
+    std::cout << "Measuring kernel runtime & dispatch time" << std::endl;
+    std::cout << "number of loops in kernel: " << NLOOPS << std::endl;
     uint64_t measure_start = rdtscp(NULL);
 
     cudaEvent_t start, stop;
@@ -155,7 +163,7 @@ void measure_kernel_runtime(int *kernels_completed, uint32_t *kernels_scratchpad
             std::cerr << "Error during cudaEventRecord: " << cudaGetErrorString(ret) << std::endl;
         }
 
-        factorial<<<1, 128, 0, stream>>>(i, i % KERNEL_PER_JOB, NLOOPS, kernels_scratchpad, kernels_completed);
+        factorial<<<1, THREADS_PER_KERNEL, 0, stream>>>(i, i % KERNEL_PER_JOB, NLOOPS, kernels_scratchpad, kernels_completed);
         ret = cudaEventRecord(stop, stream);
         if (ret != cudaSuccess) {
             std::cerr << "Error during cudaEventRecord: " << cudaGetErrorString(ret) << std::endl;
@@ -190,8 +198,10 @@ int main(int argc, char** argv) {
     pthread_t current_thread = pthread_self();
     pin_thread(current_thread, 2);
 
+    int n_hwqs = 0;
     if (const char* max_cuda_conns = std::getenv("CUDA_DEVICE_MAX_CONNECTIONS")) {
         std::cout << "CUDA_DEVICE_MAX_CONNECTIONS is: " << max_cuda_conns << std::endl;
+        n_hwqs = std::atoi(max_cuda_conns);
     } else {
         std::cout << "WARNING: CUDA_DEVICE_MAX_CONNECTIONS is not set!!" << std::endl;
     }
@@ -214,7 +224,10 @@ int main(int argc, char** argv) {
     std::vector<cudaStream_t> streams;
     streams.resize(NSTREAMS);
     for (int i = 0; i < streams.size(); ++i) {
-        cudaStreamCreate(&streams[i]);
+        cudaError_t ret = cudaStreamCreateWithFlags(&streams[i], cudaStreamNonBlocking);
+        if (ret != cudaSuccess) {
+            std::cerr << "Error during cudaEventSynchronize: " << cudaGetErrorString(ret) << std::endl;
+        }
     }
 
     // allocate array of kernel completion kernels_completeds on pinned memory
@@ -231,7 +244,6 @@ int main(int argc, char** argv) {
     }
 
     if (mode == 0) {
-        std::cout << "Measuring kernel runtime & dispatch time" << std::endl;
         measure_kernel_runtime(kernels_completed, kernels_scratchpad);
         exit(1);
     }
@@ -261,7 +273,7 @@ int main(int argc, char** argv) {
             // It takes about 22us to do this dispatch
             starts[i] = rdtscp(NULL);
             for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-                 factorial<<<1, 128, 0, streams[i % NSTREAMS]>>>(i, j, NLOOPS, kernels_scratchpad, kernels_completed);
+                 factorial<<<1, THREADS_PER_KERNEL, 0, streams[i % NSTREAMS]>>>(i, j, NLOOPS, kernels_scratchpad, kernels_completed);
                  cudaError_t err = cudaGetLastError();
                  if (err != 0) {
                      std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
@@ -305,7 +317,7 @@ int main(int argc, char** argv) {
                 if ((kernel_sent == 0) || (kernels_completed[job_id] == kernel_sent)) {
                     // Launch a kernel
                     // std::cout << "dispatching kernel " << kernel_sent << " for job :" << job_id << std::endl;
-                    factorial<<<1, 128, 0, streams[job_id % NSTREAMS]>>>(job_id, kernel_sent, NLOOPS, kernels_scratchpad, kernels_completed);
+                    factorial<<<1, THREADS_PER_KERNEL, 0, streams[job_id % NSTREAMS]>>>(job_id, kernel_sent, NLOOPS, kernels_scratchpad, kernels_completed);
                     cudaError_t err = cudaGetLastError();
                     if (err != 0) {
                         std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
@@ -345,7 +357,7 @@ int main(int argc, char** argv) {
     std::string fname = experiment_label + "-" + std::to_string(int(sending_rate)) + "-results.csv";
     std::ofstream results(fname);
     std::cout << "Formatting results in " << fname << std::endl;
-    results << "JOB_ID\tJCT\tRATE\tKERNEL_PER_JOB\tKERNEL_LOOPS\tNJOBS\tNSTREAMS" << std::endl;
+    results << "JOB_ID\tJCT\tRATE\tDURATION\tKERNEL_PER_JOB\tKERNEL_LOOPS\tNJOBS\tNSTREAMS\tNHWQS" << std::endl;
 
     // Qlen results
     std::string qlen_fname = experiment_label + "-" + std::to_string(int(sending_rate)) + "-qlen-results.csv";
@@ -359,10 +371,12 @@ int main(int argc, char** argv) {
                 << i << "\t"
                 << jct[i] / cycles_per_us << "\t"
                 << sending_rate << "\t"
+                << runtime << "\t" // us
                 << KERNEL_PER_JOB << "\t"
                 << NLOOPS << "\t"
                 << NJOBS << "\t"
-                << NSTREAMS << std::endl;
+                << NSTREAMS << "\t"
+                << n_hwqs << std::endl;
 
         // QLEN
         // Offset each timestamp with the smallest start time, and record time in seconds
