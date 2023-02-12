@@ -1,10 +1,10 @@
-# Goal
+#Goal
 
 We aim to demonstrate head of line blocking due to poor utilization of GPU hardware queues.
 Specifically, the GPU block-to-SM dispatcher will not dequeue a kernel at the head of a queue if a dependent kernel is already executing (in any SM).
 This means that, theoretically, it is possible for the heads of all the HW queues of the GPU to host a non-schedulable kernel. If there are schedulable kernels later in the queue, they will be head-of-line blocked. Further, if there was more real estate in the GPU to process kernels, this means we are under-utilizing the device.
 
-# Experiment setup
+#Experiment setup
 
 Hardware
 ---
@@ -82,6 +82,9 @@ Regarding constant memory 1) this memory is "a read-only cache which content can
 
 Synthetic load: theoretical concurrency
 ---
+
+8 kernels, 128 threads per kernel
+---
 - kernel runtime: 316us. expected JCT 316us * 8 = 2528us
     * sustainable job/s for 1 job: 1e6 / 2528 = 395 jobs/s
     * sustainable job/s for the entire GPU: 395*320 = 126400 jobs/s
@@ -98,7 +101,13 @@ Synthetic load: theoretical concurrency
     * sustainable job/s for 1 job: 1e6 / 31736 = 31 jobs/s
     * sustainable job/s for the entire GPU: 31*320 = 9920 jobs/s
 
-# Methodology
+1 kernel, 128 threads per kernel
+---
+- kernel runtime: 995us. expected JCT 995us
+    * sustainable job/s for 1 job: 1e6 / 995 = 1005 jobs/s
+    * sustainable job/s for the entire GPU: 1005*320 = 321608 jobs/s
+
+#Methodology
 
 We compare two scheduling policy: one where we schedule at once all kernels for new jobs ("FIFO-full") and one where we schedule kernels one at a time, moving through available jobs in a round robin fashion ("FIFO-kernel-RR"). Given our GPU has 32 HW queues and the entire GPU can theoretically host 320 jobs, if there are more than 32 jobs' kernels in the HW queues the FIFO policy will allow kernels to be blocked in queue. In both cases we use uniform arrival distributions.
 
@@ -140,14 +149,14 @@ Note that:
 - When (high - low) > 32, it means we are processing more jobs then there are HQ queues. In this situation we should be able to process more jobs at once than FIFO-full.
 - Conversely, when (high - low) lt 32, we should do no better than FIFO-full and maybe sligthly worse, as we now introce delay between each kernel's dispatching
 
-# Implementation details
+#Implementation details
 
 - 1 sending thread
 - 1 gathering thread
 - threads are pinned
 - CUDA_DEVICE_MAX_CONNECTIONS=32
 
-# Current observations
+#Current observations
 
 I am observing two issues:
 - The expected "better" dispatching mode (round robin across kernels) performs worse than FIFO (submit all kernels at once)
@@ -180,9 +189,11 @@ Changing CUDA_DEVICE_MAX_CONNECTIONS
 - Mode1 experience backpressure most of the time. Gradually gets better
 - Mode2 was better than mode1 intially, then gradually got bad. This got fixed by ensuring a kernel does not get dispatched if it has a dependent kernel running already. Eventually mode2 is better from 1 to 16 HWQs, then about the same at 32HWQs
 
-# Vrac
+#Vrac
+- revisit qlen plots
 - Try building distribution of inter-kernel scheduling times. Should show the overheads introduced by FIFO-kernel-RR
 - delay introduced between kernels by FIFO-kernel-raw
+- Try to plot kernel perceived runtime?
 - plot cross hwq numbers p99 for a given load point?
     * or even better: across load points. Not that much data.
 - Try to use *less* streams: will mode1 work as it does with 32 streams on 32 hwqs?
