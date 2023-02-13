@@ -75,7 +75,7 @@ inline int time_calibrate_tsc(void) {
 
 #define NSMS 40
 #define N_HW_QUEUES 32
-#define NJOBS 10000
+#define NJOBS 4000
 #define NSTREAMS NJOBS
 #define KERNEL_PER_JOB 8
 #define THREADS_PER_KERNEL 128
@@ -114,10 +114,12 @@ void jct_gatherer(int *kernels_completed, uint64_t *jct, uint64_t *starts) {
    - 120000: 1ms
 
    with -03 -arch=sm_75, factorial:
-   - 120000: 691us
+   - 120000: 995us
    - 157080: 1307us
+   - 1200000: 9989us
 */
-#define NLOOPS 120000
+#define NLOOPS 1200000
+/*
 __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *kernels_completed) {
     volatile int i = 0;
     for (i = 0; i++ < NLOOPS; ++i) {
@@ -127,6 +129,7 @@ __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int 
         kernels_completed[job_id] = 1;
     }
 }
+*/
 
 __global__ void factorial(int job_id, int kernel_id,
                           unsigned num_loops,
@@ -226,7 +229,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < streams.size(); ++i) {
         cudaError_t ret = cudaStreamCreateWithFlags(&streams[i], cudaStreamNonBlocking);
         if (ret != cudaSuccess) {
-            std::cerr << "Error during cudaEventSynchronize: " << cudaGetErrorString(ret) << std::endl;
+            std::cerr << "Error during cudaStreamCreateWithFlags: " << cudaGetErrorString(ret) << std::endl;
         }
     }
 
@@ -341,7 +344,7 @@ int main(int argc, char** argv) {
     uint64_t runtime = ((t1 - t0) / cycles_per_us);
     std::cout << "Done sending kernels in " << runtime << " us" << std::endl;
 
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize(); // We don't really need to synchronize, and synchronize generate poll syscalls.
     gatherer.join();
 
     for (int i = 0; i < NJOBS; ++i) {
