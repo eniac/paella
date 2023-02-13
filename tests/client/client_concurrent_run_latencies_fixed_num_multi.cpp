@@ -136,9 +136,11 @@ void submit(std::vector<llis::client::JobRef>* job_refs, const std::vector<float
             unsigned job_type;
             std::unique_lock<std::mutex> lk(mtx);
 
-            do {
-                job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
-            } while (unused_job_instance_refss[job_type].empty());
+            //do {
+            //    job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
+            //} while (unused_job_instance_refss[job_type].empty());
+            job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
+            while (unused_job_instance_refss[job_type].empty());
             llis::client::JobInstanceRef* job_instance_ref = unused_job_instance_refss[job_type].back();
             unused_job_instance_refss[job_type].pop_back();
 

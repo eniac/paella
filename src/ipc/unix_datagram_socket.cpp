@@ -1,5 +1,7 @@
 #include <llis/ipc/unix_datagram_socket.h>
 
+#include <llis/utils/error.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -9,11 +11,13 @@ namespace ipc {
 
 UnixDatagramSocket::UnixDatagramSocket() {
     socket_ = socket(AF_UNIX, SOCK_DGRAM, 0);
+    utils::error_throw_posix(socket_);
     is_owner_ = true;
 }
 
 UnixDatagramSocket::UnixDatagramSocket(const std::string& name) {
     socket_ = socket(AF_UNIX, SOCK_DGRAM, 0);
+    utils::error_throw_posix(socket_);
     is_owner_ = true;
 
     bind(name);
@@ -38,7 +42,7 @@ UnixDatagramSocket& UnixDatagramSocket::operator=(UnixDatagramSocket&& rhs) {
 
 UnixDatagramSocket::~UnixDatagramSocket() {
     if (is_owner_) {
-        close(socket_);
+        utils::warn_log_posix(close(socket_));
 
         is_owner_ = false;
     }
@@ -53,8 +57,7 @@ void UnixDatagramSocket::bind(const std::string& name) {
     // TODO: check length. It should be < 108 bytes
     strncpy(addr.sun_path + 1, name.c_str(), 107);
 
-    // TODO: check if it succeeds
-    (void)::bind(socket_, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+    utils::error_throw_posix(::bind(socket_, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)));
 }
 
 UnixDatagramSocket UnixDatagramSocket::connect(const std::string& name) {
@@ -69,11 +72,15 @@ UnixDatagramSocket UnixDatagramSocket::connect(const std::string& name) {
 }
 
 ssize_t UnixDatagramSocket::write(const void* buf, size_t count) {
-    return sendto(socket_, buf, count, 0, reinterpret_cast<const sockaddr*>(&remote_addr_), sizeof(remote_addr_));
+    ssize_t bytes_sent = sendto(socket_, buf, count, 0, reinterpret_cast<const sockaddr*>(&remote_addr_), sizeof(remote_addr_));
+    utils::error_throw_posix(bytes_sent);
+    return bytes_sent;
 }
 
 ssize_t UnixDatagramSocket::read(void* buf, size_t count) {
-    return ::read(socket_, buf, count);
+    ssize_t bytes_read = ::read(socket_, buf, count);
+    utils::error_throw_posix(bytes_read);
+    return bytes_read;
 }
 
 }

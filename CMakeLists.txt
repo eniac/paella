@@ -10,7 +10,9 @@ find_package(CUDAToolkit)
 
 include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
-find_package(Boost REQUIRED context)
+find_package(Boost REQUIRED system context)
+
+find_package(spdlog REQUIRED)
 
 option(MEASURE_BLOCK_TIME "Enable measurement of block time" OFF)
 if(MEASURE_BLOCK_TIME)

@@ -1,6 +1,7 @@
 #include <llis/ipc/shm_channel.h>
 #include <llis/server/registered_job.h>
 #include <llis/job/context.h>
+#include <llis/utils/error.h>
 
 #ifdef PRINT_STAGE_LENGTH_STDDEV
 #include <cmath>
@@ -32,11 +33,14 @@ void RegisteredJob::init(ipc::ShmChannelCpuReader* c2s_channel,
     std::string model_path;
     c2s_channel_->read(&model_path);
     void* handle = dlopen(model_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+    utils::error_throw_posix((uintptr_t)handle, 0);
     init_job_ = (init_job_t)(dlsym(handle, "init_job"));
+    utils::error_throw_posix((uintptr_t)init_job_, 0);
     job_ = init_job_();
 
     c2s_channel_->read(&shm_name_);
     shm_fd_ = shm_open(shm_name_.c_str(), O_RDWR, 0600);
+    utils::error_throw_posix(shm_fd_);
 
     pool_size_in_bytes_ = 0;
     mapped_mem_.clear();
@@ -93,10 +97,9 @@ void RegisteredJob::grow_pool() {
     c2s_channel_->read(&num_new_bytes);
 
     void* shm_ptr = mmap(nullptr, num_new_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, pool_size_in_bytes_);
-    unsigned err = cudaHostRegister(shm_ptr, num_new_bytes, cudaHostRegisterDefault);
-    if (err != cudaSuccess) {
-        printf("Error with cudaHostRegister in RegisteredJob: id: %u num_new_bytes: %lu shm_fd_: %u shm_ptr: %p pool_size_in_bytes_: %lu err: %d\n", registered_job_id_, num_new_bytes, shm_fd_, shm_ptr, pool_size_in_bytes_, err);
-    }
+    utils::error_throw_posix((uintptr_t)shm_ptr);
+    utils::error_throw_posix(mlock(shm_ptr, num_new_bytes));
+    utils::error_throw_cuda(cudaHostRegister(shm_ptr, num_new_bytes, cudaHostRegisterDefault));
     pool_size_in_bytes_ += num_new_bytes;
     mapped_mem_.push_back(shm_ptr);
 }

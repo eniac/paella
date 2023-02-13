@@ -7,6 +7,8 @@
 
 #include <cuda_profiler_api.h>
 
+#include <spdlog/spdlog.h>
+
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -16,12 +18,12 @@ namespace llis {
 namespace server {
 
 Server::Server(std::string server_name, Scheduler* scheduler) : server_name_(server_name), scheduler_(scheduler), c2s_channel_(ipc::c2s_channel_name(server_name_), CLT2SCHED_CHAN_SIZE), profiler_(&c2s_channel_) {
-    LLIS_INFO("Setting up LLIS server...");
+    SPDLOG_INFO("Setting up LLIS server...");
     scheduler_->set_server(this);
 }
 
 void Server::serve() {
-    LLIS_INFO("Starting LLIS server...");
+    SPDLOG_INFO("Starting LLIS server...");
     while (true) {
         try_handle_c2s();
         scheduler_->try_handle_block_start_finish();
@@ -212,7 +214,7 @@ int main(int argc, char** argv) {
         sched_sleep = atoi(argv[4]);
     }
 
-    LLIS_INFO("Registering shared memory channel between server and scheduler");
+    SPDLOG_INFO("Registering shared memory channel between server and scheduler");
     llis::ipc::ShmChannelCpuWriter ser2sched_channel(SER2SCHED_CHAN_SIZE);
 
     llis::server::Scheduler scheduler(unfairness_threshold, eta, sched_sleep);

@@ -1,6 +1,7 @@
 #include <llis/ipc/shm_channel.h>
 #include <llis/utils/gpu.h>
 #include <llis/utils/align.h>
+#include <llis/utils/error.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -60,14 +61,15 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
         } else {
             fd_ = shm_open(name_with_prefix_.c_str(), O_RDWR, 0600);
         }
-        // TODO: error handling
+        utils::error_throw_posix(fd_);
 
         if (is_create_) {
             size_ = size;
         } else {
             size_t* size_shm_ = reinterpret_cast<size_t*>(mmap(nullptr, sizeof(size_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+            utils::error_throw_posix((uintptr_t)size_shm_, 0);
             size_ = *size_shm_;
-            munmap(size_shm_, sizeof(size_t));
+            utils::warn_log_posix(munmap(size_shm_, sizeof(size_t)));
         }
     } else {
         is_create_ = true;
@@ -92,15 +94,17 @@ void ShmChannelBase<for_gpu>::connect(std::string name, size_t size) {
 
     if (name_with_prefix_ != "") {
         if (is_create_) {
-            ftruncate(fd_, total_size_);
+            utils::error_throw_posix(ftruncate(fd_, total_size_));
         }
         shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
     } else {
-        shm_ = new char[total_size_];
+        shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
     }
+    utils::error_throw_posix((uintptr_t)shm_, 0);
 
     if constexpr (for_gpu) {
-        cudaHostRegister(shm_, total_size_, cudaHostRegisterDefault);
+        utils::error_throw_posix(mlock(shm_, total_size_));
+        utils::error_throw_cuda(cudaHostRegister(shm_, total_size_, cudaHostRegisterDefault));
     }
 
     ring_buf_ = shm_ + ring_buf_offset;
@@ -142,12 +146,12 @@ template <bool for_gpu>
 void ShmChannelBase<for_gpu>::disconnect() {
     if (is_connected()) {
         if (name_with_prefix_ != "") {
-            munmap(shm_, total_size_);
+            utils::warn_log_posix(munmap(shm_, total_size_));
             if (fd_ != -1) {
-                close(fd_);
+                utils::warn_log_posix(close(fd_));
             }
             if (is_create_) {
-                shm_unlink(name_with_prefix_.c_str());
+                utils::warn_log_posix(shm_unlink(name_with_prefix_.c_str()));
             }
         } else {
             if (is_create_) {

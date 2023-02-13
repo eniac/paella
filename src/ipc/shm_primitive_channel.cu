@@ -1,6 +1,7 @@
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/utils/gpu.h>
 #include <llis/utils/align.h>
+#include <llis/utils/error.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -61,14 +62,15 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
         } else {
             fd_ = shm_open(name_with_prefix_.c_str(), O_RDWR, 0600);
         }
-        // TODO: error handling
+        utils::error_throw_posix(fd_);
 
         if (is_create_) {
             count_ = count;
         } else {
             size_t* count_shm_ = reinterpret_cast<size_t*>(mmap(nullptr, sizeof(size_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+            utils::error_throw_posix((uintptr_t)count_shm_, 0);
             count_ = *count_shm_;
-            munmap(count_shm_, sizeof(size_t));
+            utils::warn_log_posix(munmap(count_shm_, sizeof(size_t)));
         }
     } else {
         is_create_ = true;
@@ -94,22 +96,24 @@ void ShmPrimitiveChannelBase<T, for_gpu>::connect(std::string name, size_t count
 
     if (name_with_prefix_ != "") {
         if (is_create_) {
-            ftruncate(fd_, total_size_);
+            utils::error_throw_posix(ftruncate(fd_, total_size_));
         }
         shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
     } else {
         shm_ = reinterpret_cast<char*>(mmap(nullptr, total_size_, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
     }
+    utils::error_throw_posix((uintptr_t)shm_, 0);
 
     if constexpr (for_gpu) {
-        cudaHostRegister(shm_, total_size_, cudaHostRegisterDefault);
+        utils::error_throw_posix(mlock(shm_, total_size_));
+        utils::error_throw_cuda(cudaHostRegister(shm_, total_size_, cudaHostRegisterDefault));
     }
 
     ring_buf_ = reinterpret_cast<T*>(shm_ + ring_buf_offset);
 
     read_pos_ = 0;
     if constexpr (for_gpu) {
-        cudaMalloc(&write_pos_, sizeof(AtomicWrapper<unsigned, for_gpu>));
+        utils::error_throw_cuda(cudaMalloc(&write_pos_, sizeof(AtomicWrapper<unsigned, for_gpu>)));
     } else {
         write_pos_ = reinterpret_cast<AtomicWrapper<unsigned, for_gpu>*>(shm_ + write_pos_pos);
     }
@@ -143,19 +147,19 @@ template <typename T, bool for_gpu>
 void ShmPrimitiveChannelBase<T, for_gpu>::disconnect() {
     if (is_connected()) {
         if (name_with_prefix_ != "") {
-            munmap(shm_, total_size_);
+            utils::warn_log_posix(munmap(shm_, total_size_));
             if (fd_ != -1) {
-                close(fd_);
+                utils::warn_log_posix(close(fd_));
             }
             if (is_create_) {
-                shm_unlink(name_with_prefix_.c_str());
+                utils::warn_log_posix(shm_unlink(name_with_prefix_.c_str()));
                 if constexpr (for_gpu) {
-                    cudaFree(write_pos_);
+                    utils::warn_log_cuda(cudaFree(write_pos_));
                 }
             }
         } else {
             if (is_create_) {
-                munmap(shm_, total_size_);
+                utils::warn_log_posix(munmap(shm_, total_size_));
             }
         }
         shm_ = nullptr;

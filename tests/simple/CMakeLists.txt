@@ -6,3 +6,12 @@ add_executable(test_tvm_direct_concurrent tvm_direct_concurrent.cpp)
 target_include_directories(test_tvm_direct_concurrent PUBLIC "${TVM_PATH}/include" "${TVM_PATH}/3rdparty/dmlc-core/include" "${TVM_PATH}/3rdparty/dlpack/include")
 target_link_directories(test_tvm_direct_concurrent PUBLIC "${TVM_PATH}/build")
 target_link_libraries(test_tvm_direct_concurrent tvm_runtime pthread)
+
+add_executable(cuda_sync_benchmark cuda_sync_benchmark.cu)
+target_link_libraries(cuda_sync_benchmark CUDA::cudart dl rt)
+
+add_executable(cuda_callback_benchmark cuda_callback_benchmark.cu)
+target_link_libraries(cuda_callback_benchmark CUDA::cudart dl rt)
+
+add_executable(test_mmap_mlock_limit mmap_mlock_limit.cpp)
+target_link_libraries(test_mmap_mlock_limit rt)

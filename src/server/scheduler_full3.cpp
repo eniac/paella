@@ -1,3 +1,5 @@
+#define PRINT_NUM_RUNNING_KERNELS
+
 #include <llis/server/scheduler_full3.h>
 
 #include <llis/ipc/shm_primitive_channel.h>
@@ -5,6 +7,8 @@
 #include <llis/job/job.h>
 #include <llis/job/context.h>
 #include <llis/job/instrument_info.h>
+
+#include <spdlog/spdlog.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -31,7 +35,7 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta, unsigned s
         eta_(eta),
         sched_sleep_(sched_sleep),
         job_queue_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
-    LLIS_INFO("Setting up LLIS scheduler...");
+    SPDLOG_INFO("Setting up LLIS scheduler (full3)...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
     job::Context::set_gpu2sched_block_time_channel(&gpu2sched_block_time_channel_);

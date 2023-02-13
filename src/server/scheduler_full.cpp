@@ -6,6 +6,8 @@
 #include <llis/job/context.h>
 #include <llis/job/instrument_info.h>
 
+#include <spdlog/spdlog.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -31,7 +33,7 @@ SchedulerFull::SchedulerFull(float unfairness_threshold, float eta) :
         unfairness_threshold_(unfairness_threshold),
         eta_(eta),
         job_less_(unfairness_threshold_) { // TODO: size of the channel must be larger than number of total blocks * 2
-    LLIS_INFO("Setting up LLIS scheduler...");
+    SPDLOG_INFO("Setting up LLIS scheduler (full)...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
     job::Context::set_gpu2sched_block_time_channel(&gpu2sched_block_time_channel_);
