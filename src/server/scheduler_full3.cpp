@@ -1,5 +1,3 @@
-#define PRINT_NUM_RUNNING_KERNELS
-
 #include <llis/server/scheduler_full3.h>
 
 #include <llis/ipc/shm_primitive_channel.h>
