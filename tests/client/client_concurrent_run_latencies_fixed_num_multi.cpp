@@ -26,6 +26,7 @@ std::atomic_int num_outstanding_jobs = 0;
 
 std::vector<std::vector<llis::client::JobInstanceRef*>> job_instance_refss;
 std::vector<std::vector<llis::client::JobInstanceRef*>> unused_job_instance_refss;
+std::atomic_uint* unused_job_instance_refs_nums;
 std::mutex mtx;
 
 int max_num_outstanding_jobs;
@@ -56,6 +57,7 @@ void monitor(llis::client::Client* client, const std::string& profile_path, unsi
         std::unique_lock<std::mutex> lk(mtx);
 
         unused_job_instance_refss[job_type].push_back(job_instance_ref);
+        unused_job_instance_refs_nums[job_type].fetch_add(1, std::memory_order_release);
 
         --num_outstanding_jobs_per_type_[job_type];
         num_outstanding_jobs_timeline_.push_back(time_elasped);
@@ -134,13 +136,17 @@ void submit(std::vector<llis::client::JobRef>* job_refs, const std::vector<float
             while (num_outstanding_jobs >= max_num_outstanding_jobs);
 
             unsigned job_type;
-            std::unique_lock<std::mutex> lk(mtx);
-
             //do {
             //    job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
             //} while (unused_job_instance_refss[job_type].empty());
             job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
-            while (unused_job_instance_refss[job_type].empty());
+
+            while (unused_job_instance_refs_nums[job_type].load(std::memory_order_acquire) == 0);
+
+            std::unique_lock<std::mutex> lk(mtx);
+
+            unused_job_instance_refs_nums[job_type].fetch_sub(1, std::memory_order_release);
+
             llis::client::JobInstanceRef* job_instance_ref = unused_job_instance_refss[job_type].back();
             unused_job_instance_refss[job_type].pop_back();
 
@@ -394,6 +400,7 @@ int main(int argc, char** argv) {
 
     job_instance_refss.resize(job_refs.size());
     unused_job_instance_refss.resize(job_refs.size());
+    unused_job_instance_refs_nums = new std::atomic_uint[job_refs.size()];
 
     auto start_init = std::chrono::steady_clock::now();
     for (unsigned job_type = 0; job_type < job_refs.size(); ++job_type) {
@@ -407,6 +414,8 @@ int main(int argc, char** argv) {
             unused_job_instance_refs.push_back(job_instance_ref);
             job_instance_ref->launch();
         }
+
+        unused_job_instance_refs_nums[job_type].store(job_max_outstanding_nums[job_type], std::memory_order_release);
     }
     printf("Finished launching initial jobs\n");
     for (unsigned job_type = 0; job_type < job_refs.size(); ++job_type) {
