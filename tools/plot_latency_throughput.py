@@ -22,11 +22,13 @@ if __name__ == "__main__":
 
     data = [np.genfromtxt(path, delimiter=',') for path in args.input_paths]
 
-    throughputs = [3000. / x[:, 1] * 1000000. for x in data]
+    throughputs = [15000. / x[:, 1] * 1000000. for x in data]
+
+    rates = [1000000. / x[:, 0] for x in data]
 
     for i in range(num_inputs):
         for line, name in zip(args.lines, args.names):
-            plt.errorbar(throughputs[i], data[i][:, line * 7 + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x', linewidth=0.1, markersize=1, elinewidth=0.1)
+            plt.errorbar(throughputs[i], data[i][:, line * 7 + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x-', linewidth=1, markersize=2, elinewidth=0)
 
     plt.legend()
     if args.xlim is not None:
