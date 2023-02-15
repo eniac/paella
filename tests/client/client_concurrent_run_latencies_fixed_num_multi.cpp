@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <random>
 #include <getopt.h>
+#include <queue>
 
 using namespace std::chrono_literals;
 
@@ -26,6 +27,7 @@ std::atomic_int num_outstanding_jobs = 0;
 
 std::vector<std::vector<llis::client::JobInstanceRef*>> job_instance_refss;
 std::vector<std::vector<llis::client::JobInstanceRef*>> unused_job_instance_refss;
+std::vector<std::queue<double>> due_jobs;
 std::atomic_uint* unused_job_instance_refs_nums;
 std::mutex mtx;
 
@@ -36,6 +38,25 @@ std::chrono::time_point<std::chrono::steady_clock> end_time;
 
 std::vector<unsigned> num_outstanding_jobs_timeline_;
 std::vector<unsigned> num_outstanding_jobs_per_type_;
+
+void record_num_oustanding_jobs_timeline(double timestamp) {
+    num_outstanding_jobs_timeline_.push_back(timestamp);
+    for (unsigned i = 0; i < num_outstanding_jobs_per_type_.size(); ++i) {
+        num_outstanding_jobs_timeline_.push_back(num_outstanding_jobs_per_type_[i]);
+    }
+}
+
+void launch_job(unsigned job_type, double expected_start_time) {
+    unused_job_instance_refs_nums[job_type].fetch_sub(1, std::memory_order_release);
+
+    llis::client::JobInstanceRef* job_instance_ref = unused_job_instance_refss[job_type].back();
+    unused_job_instance_refss[job_type].pop_back();
+
+    ++num_outstanding_jobs_per_type_[job_type];
+
+    job_instance_ref->set_start_time(expected_start_time);
+    job_instance_ref->launch();
+}
 
 void monitor(llis::client::Client* client, const std::string& profile_path, unsigned num_jobs) {
     auto very_start_time = std::chrono::steady_clock::now();
@@ -50,7 +71,7 @@ void monitor(llis::client::Client* client, const std::string& profile_path, unsi
         //client->release_job_instance_ref(job_instance_ref);
 
         double latency = std::chrono::duration<double, std::micro>(cur_time.time_since_epoch()).count() - job_instance_ref->get_start_time();
-        double time_elasped = std::chrono::duration<double, std::micro>(cur_time - very_start_time).count();
+        double time_elasped = std::chrono::duration<double, std::micro>(cur_time - very_start_time).count(); // TODO: this should sync with submit thread
 
         unsigned job_type = job_instance_ref->get_job_ref_id();
 
@@ -60,14 +81,17 @@ void monitor(llis::client::Client* client, const std::string& profile_path, unsi
         unused_job_instance_refs_nums[job_type].fetch_add(1, std::memory_order_release);
 
         --num_outstanding_jobs_per_type_[job_type];
-        num_outstanding_jobs_timeline_.push_back(time_elasped);
-        for (unsigned i = 0; i < num_outstanding_jobs_per_type_.size(); ++i) {
-            num_outstanding_jobs_timeline_.push_back(num_outstanding_jobs_per_type_[i]);
+
+        record_num_oustanding_jobs_timeline(time_elasped);
+
+        num_outstanding_jobs.fetch_sub(1, std::memory_order_release);
+
+        while (!due_jobs[job_type].empty() && !unused_job_instance_refss[job_type].empty()) {
+            launch_job(job_type, due_jobs[job_type].front());
+            due_jobs[job_type].pop();
         }
 
         lk.unlock();
-
-        --num_outstanding_jobs;
 
         if (num_waited_jobs >= start_record_num) {
             latencies.push_back(latency);
@@ -118,6 +142,7 @@ void submit(std::vector<llis::client::JobRef>* job_refs, const std::vector<float
     unsigned num_subitted_jobs = 0;
 
     unsigned num_queue_full = 0;
+    unsigned num_per_job_full = 0;
 
     while (true) {
         auto cur_time = std::chrono::steady_clock::now();
@@ -126,46 +151,39 @@ void submit(std::vector<llis::client::JobRef>* job_refs, const std::vector<float
         if (num_subitted_jobs >= num_jobs) {
             printf("Finished submitting all jobs. Time taken: %f us\n", std::chrono::duration<double, std::micro>(cur_time - start_time).count());
             printf("%f num_outstanding_jobs >= max_num_outstanding_jobs times: %u\n", mean_inter_time, num_queue_full);
+            printf("%f Per job full times: %u\n", mean_inter_time, num_per_job_full);
             return;
         }
 
         if (time_elasped >= next_submit_time) {
-            if (num_outstanding_jobs >= max_num_outstanding_jobs) {
+            if (num_outstanding_jobs.load(std::memory_order_acquire) >= max_num_outstanding_jobs) {
                 ++num_queue_full;
+                while (num_outstanding_jobs.load(std::memory_order_acquire) >= max_num_outstanding_jobs);
             }
-            while (num_outstanding_jobs >= max_num_outstanding_jobs);
 
             unsigned job_type;
             //do {
             //    job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
-            //} while (unused_job_instance_refss[job_type].empty());
+            //} while (unused_job_instance_refs_nums[job_type].load(std::memory_order_acquire) == 0);
             job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
-
-            while (unused_job_instance_refs_nums[job_type].load(std::memory_order_acquire) == 0);
 
             std::unique_lock<std::mutex> lk(mtx);
 
-            unused_job_instance_refs_nums[job_type].fetch_sub(1, std::memory_order_release);
+            if (unused_job_instance_refs_nums[job_type].load(std::memory_order_acquire) == 0) {
+                ++num_per_job_full;
+                due_jobs[job_type].push(start_time_us + next_submit_time);
+            } else {
+                launch_job(job_type, start_time_us + next_submit_time);
 
-            llis::client::JobInstanceRef* job_instance_ref = unused_job_instance_refss[job_type].back();
-            unused_job_instance_refss[job_type].pop_back();
-
-            ++num_outstanding_jobs_per_type_[job_type];
-            num_outstanding_jobs_timeline_.push_back(time_elasped);
-            for (unsigned i = 0; i < num_outstanding_jobs_per_type_.size(); ++i) {
-                num_outstanding_jobs_timeline_.push_back(num_outstanding_jobs_per_type_[i]);
+                record_num_oustanding_jobs_timeline(time_elasped);
             }
 
             lk.unlock();
 
-            job_instance_ref->set_start_time(start_time_us + next_submit_time);
-            job_instance_ref->launch();
+            num_outstanding_jobs.fetch_add(1, std::memory_order_release);
+            ++num_subitted_jobs;
 
             next_submit_time += d_inter(gen);
-
-            ++num_outstanding_jobs;
-
-            ++num_subitted_jobs;
         }
     }
 }
@@ -401,6 +419,7 @@ int main(int argc, char** argv) {
     job_instance_refss.resize(job_refs.size());
     unused_job_instance_refss.resize(job_refs.size());
     unused_job_instance_refs_nums = new std::atomic_uint[job_refs.size()];
+    due_jobs.resize(job_refs.size());
 
     auto start_init = std::chrono::steady_clock::now();
     for (unsigned job_type = 0; job_type < job_refs.size(); ++job_type) {
