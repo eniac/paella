@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llis/job/finished_block_notifier.h>
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/job.h>
 #include <llis/job/instrument_info.h>
@@ -58,12 +59,18 @@ class SchedulerFifo {
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
+
     std::vector<unsigned> remaining_num_blocks_;
+    std::vector<int> pre_notify_blocks_;
+    std::vector<bool> pre_notify_sent_;
 
     unsigned num_jobs_ = 0;
 
 #ifdef PRINT_NUM_RUNNING_JOBS
     unsigned num_running_jobs_ = 0;
+#endif
+#ifdef PRINT_NUM_RUNNING_BLOCKS
+    unsigned num_running_blocks_ = 0;
 #endif
 };
 

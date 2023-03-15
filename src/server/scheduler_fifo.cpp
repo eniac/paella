@@ -5,6 +5,7 @@
 #include <llis/job/job.h>
 #include <llis/job/context.h>
 #include <llis/job/instrument_info.h>
+#include <llis/utils/error.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -27,8 +28,7 @@ SchedulerFifo::SchedulerFifo(float unfairness_threshold, float eta, unsigned sch
         gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
         mem2sched_channel_(10240),
-        //cuda_streams_(500) { // TODO: size of the channel must be larger than number of total blocks * 2
-        cuda_streams_(15) { // TODO: size of the channel must be larger than number of total blocks * 2
+        cuda_streams_(500) { // TODO: size of the channel must be larger than number of total blocks * 2
     LLIS_INFO("Setting up LLIS FIFO scheduler...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
@@ -37,7 +37,7 @@ SchedulerFifo::SchedulerFifo(float unfairness_threshold, float eta, unsigned sch
     job::Context::set_mem2sched_channel(&mem2sched_channel_);
 
     for (auto& stream : cuda_streams_) {
-        cudaStreamCreate(&stream);
+        utils::error_throw_cuda(cudaStreamCreate(&stream));
     }
 
     finished_block_notifiers_raw_ = job::FinishedBlockNotifier::create_array(cuda_streams_.size(), &gpu2sched_channel_
@@ -89,9 +89,24 @@ void SchedulerFifo::handle_block_finish(const job::InstrumentInfo& info) {
 
 #ifdef LLIS_FINISHED_BLOCK_NOTIFICATION_AGG
     remaining_num_blocks_[info.job_id] -= info.num;
+    pre_notify_blocks_[job->get_id()] -= info.num;
+#ifdef PRINT_NUM_RUNNING_BLOCKS
+    num_running_blocks_ -= info.num;
+    printf("num_running_blocks_: %u, deducted %u\n", num_running_blocks_, info.num);
+#endif
 #else
     --remaining_num_blocks_[info.job_id];
+    --pre_notify_blocks_[job->get_id()];
+#ifdef PRINT_NUM_RUNNING_BLOCKS
+    --num_running_blocks_;
+    printf("num_running_blocks_: %u, deducted 1\n", num_running_blocks_);
 #endif
+#endif
+
+    if (pre_notify_blocks_[job->get_id()] <= 0 && !pre_notify_sent_[job->get_id()]) {
+        server_->notify_job_starts(job);
+        pre_notify_sent_[job->get_id()] = true;
+    }
     if (remaining_num_blocks_[info.job_id] == 0) {
         server_->notify_job_ends(job);
 
@@ -117,6 +132,12 @@ void SchedulerFifo::handle_mem_finish() {
     mem2sched_channel_.read(&job);
 
     --remaining_num_blocks_[job->get_id()];
+    --pre_notify_blocks_[job->get_id()];
+
+    if (pre_notify_blocks_[job->get_id()] <= 0 && !pre_notify_sent_[job->get_id()]) {
+        server_->notify_job_starts(job);
+        pre_notify_sent_[job->get_id()] = true;
+    }
     if (remaining_num_blocks_[job->get_id()] == 0) {
         server_->notify_job_ends(job);
 
@@ -159,11 +180,15 @@ void SchedulerFifo::handle_new_job(std::unique_ptr<job::Job> job_) {
         job->set_id(job_id_to_job_map_.size());
         job_id_to_job_map_.push_back(std::move(job_));
         remaining_num_blocks_.push_back(0);
+        pre_notify_blocks_.push_back(0);
+        pre_notify_sent_.push_back(false);
     } else {
         job->set_id(unused_job_id_.back());
         unused_job_id_.pop_back();
         job_id_to_job_map_[job->get_id()] = std::move(job_);
         remaining_num_blocks_[job->get_id()] = 0;
+        pre_notify_blocks_[job->get_id()] = 0;
+        pre_notify_sent_[job->get_id()] = false;
     }
 
     job_queue_.push(job);
@@ -196,20 +221,36 @@ void SchedulerFifo::schedule_job() {
 
         job::Context::set_current_job(job);
 
+        bool saw_pre_notify = false;
+
         while (job->has_next()) {
             bool is_mem = job->is_mem();
             if (is_mem) {
                 ++remaining_num_blocks_[job->get_id()];
+                if (!saw_pre_notify) {
+                    ++pre_notify_blocks_[job->get_id()];
+                    if (job->is_pre_notify()) {
+                        saw_pre_notify = true;
+                    }
+                }
             } else {
                 remaining_num_blocks_[job->get_id()] += job->get_num_blocks();
+                if (!saw_pre_notify) {
+                    pre_notify_blocks_[job->get_id()] += job->get_num_blocks();
+                    if (job->is_pre_notify()) {
+                        saw_pre_notify = true;
+                    }
+                }
+#ifdef PRINT_NUM_RUNNING_BLOCKS
+                num_running_blocks_ += job->get_num_blocks();
+                printf("num_running_blocks_: %u\n", num_running_blocks_);
+#endif
             }
             job->run_next();
             if (is_mem) {
                 cudaLaunchHostFunc(job->get_cuda_stream(), mem_notification_callback, job);
             }
         }
-
-        server_->notify_job_starts(job);
 
         if (cuda_streams_.empty()) {
             break;
