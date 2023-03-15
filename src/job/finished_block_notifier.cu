@@ -1,5 +1,6 @@
 #include <llis/ipc/shm_primitive_channel.h>
 #include <llis/job/finished_block_notifier.h>
+#include <llis/utils/error.h>
 
 #include <vector>
 
@@ -23,7 +24,7 @@ FinishedBlockNotifier* FinishedBlockNotifier::create_array(unsigned num, ipc::Gp
 #endif
 ) {
     FinishedBlockNotifier* res;
-    cudaMalloc((void**)&res, num * sizeof(FinishedBlockNotifier));
+    utils::error_throw_cuda(cudaMalloc((void**)&res, num * sizeof(FinishedBlockNotifier)));
 
     std::vector<FinishedBlockNotifier> tmp;
     tmp.reserve(num);
@@ -35,7 +36,7 @@ FinishedBlockNotifier* FinishedBlockNotifier::create_array(unsigned num, ipc::Gp
             );
     }
 
-    cudaMemcpy(res, tmp.data(), num * sizeof(FinishedBlockNotifier), cudaMemcpyHostToDevice);
+    utils::error_throw_cuda(cudaMemcpy(res, tmp.data(), num * sizeof(FinishedBlockNotifier), cudaMemcpyHostToDevice));
 
     return res;
 }
