@@ -21,7 +21,7 @@ class TVMMnistJob : public llis::job::CoroutineJob {
     }
 
     void one_time_init() override {
-        ctx_gpu_ = DLContext{kDLGPU, 0};
+        ctx_gpu_ = DLDevice{kDLCUDA, 0};
         mod_factory_ = tvm::runtime::Module::LoadFromFile("mnist-8-cuda_llis-pack.so");
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
@@ -46,7 +46,7 @@ class TVMMnistJob : public llis::job::CoroutineJob {
     }
 
   private:
-    DLContext ctx_gpu_;
+    DLDevice ctx_gpu_;
     tvm::runtime::Module mod_factory_;
     tvm::runtime::Module gmod_;
     tvm::runtime::PackedFunc run_;
