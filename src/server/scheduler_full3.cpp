@@ -29,7 +29,7 @@ SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta, unsigned s
         gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
         mem2sched_channel_(409600),
-        cuda_streams_(32),
+        cuda_streams_(500),
         eta_(eta),
         sched_sleep_(sched_sleep),
         job_queue_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
