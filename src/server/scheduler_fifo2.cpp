@@ -111,7 +111,6 @@ void SchedulerFifo2::handle_block_finish(const job::InstrumentInfo& info) {
 #endif
             server_->notify_job_ends(job);
             --num_jobs_;
-            --num_started_jobs_;
         }
 
         auto end_time = std::chrono::steady_clock::now();
@@ -150,7 +149,6 @@ void SchedulerFifo2::handle_mem_finish() {
 #endif
         server_->notify_job_ends(job);
         --num_jobs_;
-        --num_started_jobs_;
     }
 
     job->unset_running();
@@ -190,7 +188,7 @@ void SchedulerFifo2::handle_new_job(std::unique_ptr<job::Job> job_) {
     profiler_->record_job_event(job->get_id(), Profiler::JobEvent::JOB_SUBMITTED);
 #endif
 
-    job_queue_all_.push(job);
+    job_queue_.push(job);
 
     ++num_jobs_;
 
@@ -198,18 +196,12 @@ void SchedulerFifo2::handle_new_job(std::unique_ptr<job::Job> job_) {
 }
 
 void SchedulerFifo2::schedule_job() {
-    while (num_started_jobs_ < max_num_started_jobs_ && !job_queue_all_.empty()) {
-        job_queue_.push(job_queue_all_.front());
-        job_queue_all_.pop();
-        ++num_started_jobs_;
-    }
-
     if (cuda_streams_.empty() || job_queue_.empty()) {
         return;
     }
 
     while (!job_queue_.empty()) {
-        job::Job* job = job_queue_.front();
+        job::Job* job = job_queue_.top();
         job_queue_.pop();
 
 #ifdef LLIS_ENABLE_PROFILER

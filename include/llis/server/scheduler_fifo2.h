@@ -31,6 +31,13 @@ class SchedulerFifo2 {
     void try_handle_block_start_finish();
 
   private:
+    class JobCompare {
+      public:
+        bool operator() (const job::Job* left, const job::Job* right) const {
+            return left->get_unique_id() > right->get_unique_id();
+        }
+    };
+
     void handle_block_start_finish();
 #ifdef LLIS_MEASURE_BLOCK_TIME
     void handle_block_start_end_time();
@@ -55,24 +62,17 @@ class SchedulerFifo2 {
     job::FinishedBlockNotifier* finished_block_notifiers_raw_;
     std::vector<job::FinishedBlockNotifier*> finished_block_notifiers_;
 
-    std::queue<job::Job*> job_queue_all_;
-    std::queue<job::Job*> job_queue_;
+    std::priority_queue<job::Job*, std::vector<job::Job*>, JobCompare> job_queue_;
 
     std::vector<std::unique_ptr<job::Job>> job_id_to_job_map_;
     std::vector<JobId> unused_job_id_;
 
     unsigned num_jobs_ = 0;
 
-    unsigned num_started_jobs_ = 0;
-    static constexpr unsigned max_num_started_jobs_ = 34;
-
 #ifdef PRINT_NUM_RUNNING_KERNELS
     unsigned num_running_kernels_ = 0;
     unsigned num_running_mems_ = 0;
 #endif
-
-    unsigned num_outstanding_kernels_ = 0;
-    static constexpr unsigned max_num_outstanding_kernels_ = 1;
 };
 
 }
