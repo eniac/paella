@@ -34,7 +34,7 @@ class SchedulerFull;
 using Scheduler = SchedulerFull;
 #endif
 
-constexpr size_t s2c_channel_size = 1024;
+constexpr size_t s2c_channel_size = 4096;
 
 class Server {
   public:
