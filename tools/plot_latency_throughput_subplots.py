@@ -45,9 +45,9 @@ if __name__ == "__main__":
                 subplot.errorbar(x_axis[i], data[i][:, line * 7 + yaxis_name2offset[yaxis] + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + yaxis, fmt='x-', linewidth=1, markersize=2, elinewidth=0)
 
         subplot.set_title(name)
-        subplot.legend()
         subplot.label_outer()
 
+    subplot.legend()
     fig.tight_layout()
 
     if args.xlim is not None:
