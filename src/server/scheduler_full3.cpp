@@ -166,7 +166,8 @@ void SchedulerFull3::handle_block_finish(const job::InstrumentInfo& info) {
 
         if (job->has_next()) {
             if (!server_->has_job_stage_resource(job, job->get_cur_stage() + 1)) {
-                server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
+                //server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
+                server_->set_job_stage_resource(job, job->get_cur_stage() + 1, 1);
             }
             job->set_priority(calculate_priority(job));
 
@@ -234,7 +235,8 @@ void SchedulerFull3::handle_mem_finish() {
 
     if (job->has_next()) {
         if (!server_->has_job_stage_resource(job, job->get_cur_stage() + 1)) {
-            server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
+            //server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
+            server_->set_job_stage_resource(job, job->get_cur_stage() + 1, 1);
         }
         job->set_priority(calculate_priority(job));
 
@@ -289,10 +291,14 @@ void SchedulerFull3::handle_new_job(std::unique_ptr<job::Job> job_) {
 #endif
 
     if (!server_->has_job_stage_resource(job, job->get_cur_stage() + 1)) {
-        server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
+        //server_->set_job_stage_resource(job, job->get_cur_stage() + 1, job->is_mem() ? 0.1 : gpu_resources_.normalize_resources(job) * job->get_num_blocks());
+        server_->set_job_stage_resource(job, job->get_cur_stage() + 1, 1);
     }
     job->set_stage_lengths_resources(server_->get_job_remaining_rl(job, 0), server_->get_job_stage_lengths(job), server_->get_job_stage_resources(job));
     job->set_priority(calculate_priority(job));
+#ifdef PRINT_JOB_PRIORITY
+    printf("job priority %u %f\n", job->get_registered_job_id(), job->get_priority());
+#endif
 
 #ifdef LLIS_ENABLE_PROFILER
     if (!job->is_mem()) {
