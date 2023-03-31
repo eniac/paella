@@ -30,6 +30,11 @@ if __name__ == "__main__":
 
     fig, subplots = plt.subplots(args.subplotx, args.subploty, sharex=True, sharey=True)
 
+    if args.subplotx * args.subploty > 1:
+        subplots_flat = subplots.flat
+    else:
+        subplots_flat = [subplots]
+
     if args.xaxis == 'throughput':
         x_axis = [15000. / x[:, 1] * 1000000. for x in data]
         fig.supxlabel('Throughput (req/s)')
@@ -39,7 +44,7 @@ if __name__ == "__main__":
 
     fig.supylabel('Latency (us)')
 
-    for line, name, subplot in zip(args.lines, args.names, subplots.flat):
+    for line, name, subplot in zip(args.lines, args.names, subplots_flat):
         for i in range(num_inputs):
             for yaxis in args.yaxises:
                 subplot.errorbar(x_axis[i], data[i][:, line * 7 + yaxis_name2offset[yaxis] + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + yaxis, fmt='x-', linewidth=1, markersize=2, elinewidth=0)
