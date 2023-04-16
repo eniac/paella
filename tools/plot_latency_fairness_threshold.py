@@ -13,10 +13,13 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--algo_name', dest='algo_names', action='append');
     parser.add_argument('-l', '--line', dest='lines', type=int, action='append');
     parser.add_argument('-n', '--name', dest='names', action='append');
+    parser.add_argument('--yaxis', dest='yaxises', choices=['mean', 'p50', 'p90', 'p95', 'p99'], action='append', type=str);
     parser.add_argument('-x', '--xlim', dest='xlim', type=float);
     parser.add_argument('-y', '--ylim', dest='ylim', type=float);
 
     args = parser.parse_args()
+
+    yaxis_name2offset = {'mean': 0, 'p50': 1, 'p90': 2, 'p95': 3, 'p99': 4}
 
     num_inputs = len(args.input_paths)
 
@@ -24,10 +27,8 @@ if __name__ == "__main__":
 
     for i in range(num_inputs):
         for line, name in zip(args.lines, args.names):
-            #plt.errorbar(data[i][:, 0], data[i][:, line * 7 + 2], data[i][:, line * 7 + 6 + 2], label=args.algo_names[i] + ' ' + name, fmt='x-', linewidth=0.1, markersize=1, elinewidth=0.1)
-            plt.plot(data[i][:, 0], data[i][:, line * 7 + 2], 'x-', label=args.algo_names[i] + ' ' + name + ' Mean', linewidth=0.1, markersize=1)
-            plt.plot(data[i][:, 0], data[i][:, line * 7 + 1 + 2], 'x-', label=args.algo_names[i] + ' ' + name + ' Median', linewidth=0.1, markersize=1)
-            plt.plot(data[i][:, 0], data[i][:, line * 7 + 4 + 2], 'x--', label=args.algo_names[i] + ' ' + name + ' 99%', linewidth=0.1, markersize=1)
+            for yaxis in args.yaxises:
+                plt.plot(data[i][:, 0], data[i][:, line * 7 + yaxis_name2offset[yaxis] + 3], 'x-', label=args.algo_names[i] + ' ' + name + ' ' + yaxis, linewidth=0.1, markersize=1)
 
     plt.xlabel('Fairness Threshold (Smaller means more fair)')
     plt.ylabel('Latency (us)')
