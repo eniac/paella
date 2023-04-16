@@ -483,7 +483,7 @@ int main(int argc, char** argv) {
     } else { // if (mean_inter_time_g) or default
         fprintf(fp, "%d", (int)mean_inter_time);
     }
-    fprintf(fp, ",%f", time_elasped);
+    fprintf(fp, ",%u,%f", num_jobs, time_elasped);
     print_latency_stats(fp, &latencies);
     for (auto& latencies : latencies_per_type) {
         print_latency_stats(fp, &latencies);
