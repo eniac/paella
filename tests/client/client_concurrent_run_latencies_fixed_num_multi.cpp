@@ -463,10 +463,10 @@ int main(int argc, char** argv) {
 
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    CPU_SET(1, &cpuset);
+    CPU_SET(0, &cpuset);
     pthread_setaffinity_np(monitor_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
 
-    CPU_SET(3, &cpuset);
+    CPU_SET(2, &cpuset);
     pthread_setaffinity_np(submit_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
 
     monitor_thr.join();
