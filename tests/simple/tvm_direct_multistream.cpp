@@ -1,5 +1,6 @@
 #define DIS_LN
-#define SUBMIT_PREGEN
+//#define SUBMIT_PREGEN
+#define SUBMIT_DIS
 
 #include <dlpack/dlpack.h>
 #include <tvm/runtime/module.h>
@@ -167,20 +168,24 @@ std::pair<unsigned, double> next_submission() { // returns (job_type, interval)
     static std::lognormal_distribution<> d_inter(log_normal_mu, log_normal_sigma);
 #endif
 
+    static double next_submit_time = 0;
+
     unsigned job_type;
     //do {
     //    job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
     //} while (unused_modules_nums[job_type].load(std::memory_order_acquire) == 0);
     job_type = std::lower_bound(job_props_cum.begin(), job_props_cum.end(), d_type(gen)) - job_props_cum.begin();
 
-    double next_inter = d_inter(gen);
+    auto ret = std::make_pair(job_type, next_submit_time);
 
-    return std::make_pair(job_type, next_inter);
+    next_submit_time += d_inter(gen);
+
+    return ret;
 }
 #endif
 
 #ifdef SUBMIT_PREGEN
-std::pair<unsigned, double> next_submission() { // returns (job_type, interval)
+std::pair<unsigned, double> next_submission() { // returns (job_type, submit_time)
     std::pair<unsigned, double> ret = pregen_submissions.front();
     pregen_submissions.pop();
     return ret;
@@ -244,8 +249,6 @@ void monitor() {
 }
 
 void submit() {
-    double next_submit_time = 0;
-
     if (preset_start_time != 0) {
         while (std::chrono::system_clock::now().time_since_epoch().count() < preset_start_time);
     }
@@ -258,6 +261,8 @@ void submit() {
 
     unsigned num_queue_full = 0;
     unsigned num_per_job_full = 0;
+
+    auto [job_type, next_submit_time] = next_submission();
 
     while (true) {
         auto cur_time = std::chrono::steady_clock::now();
@@ -276,8 +281,6 @@ void submit() {
                 while (num_outstanding_jobs.load(std::memory_order_acquire) >= max_num_outstanding_jobs);
             }
 
-            auto [job_type, next_inter] = next_submission();
-
             std::unique_lock<std::mutex> lk(mtx);
 
             if (unused_modules_nums[job_type].load(std::memory_order_acquire) == 0) {
@@ -294,7 +297,7 @@ void submit() {
             num_outstanding_jobs.fetch_add(1, std::memory_order_release);
             ++num_subitted_jobs;
 
-            next_submit_time += next_inter;
+            std::tie(job_type, next_submit_time) = next_submission();
         }
     }
 }
@@ -328,6 +331,9 @@ int main(int argc, char** argv) {
     mean_inter_time = -1;
 #ifdef DIS_LN
     log_normal_sigma = -1;
+#endif
+#ifdef SUBMIT_PREGEN
+    unsigned pregen_num_jobs;
 #endif
     num_jobs = -1;
     seed = -1;
@@ -432,7 +438,12 @@ int main(int argc, char** argv) {
                 max_num_outstanding_jobs = atoi(optarg);
                 break;
             case 'n':
+#ifdef SUBMIT_DIS
                 num_jobs = atoi(optarg);
+#endif
+#ifdef SUBMIT_PREGEN
+                pregen_num_jobs = atoi(optarg);
+#endif
                 break;
             case 'r':
                 start_record_num = atoi(optarg);
@@ -468,7 +479,7 @@ int main(int argc, char** argv) {
     pregen_input_path << pregen_input_prefix;
     pregen_input_path << "_iat" << mean_inter_time;
     pregen_input_path << "_lns" << log_normal_sigma;
-    pregen_input_path << "_n" << num_jobs;
+    pregen_input_path << "_n" << pregen_num_jobs;
     pregen_input_path << "_seed" << seed;
     if (pregen_job_id != nullptr) {
         pregen_input_path << "_job" << pregen_job_id;
@@ -480,10 +491,11 @@ int main(int argc, char** argv) {
     while (!feof(pregen_fp)) {
         unsigned job_type;
         fscanf(pregen_fp, "%u", &job_type);
-        double inter;
-        fscanf(pregen_fp, "%f", &inter);
-        pregen_submissions.emplace(job_type, inter);
+        double submit_time;
+        fscanf(pregen_fp, "%lf", &submit_time);
+        pregen_submissions.emplace(job_type, submit_time);
     }
+    fclose(pregen_fp);
     
     num_jobs = pregen_submissions.size();
 #endif
@@ -502,7 +514,12 @@ int main(int argc, char** argv) {
         output_path_stats_prefix << "_con" << max_num_outstanding_jobs;
     }
     if (num_jobs_n && !num_jobs_g) {
+#ifdef SUBMIT_DIS
         output_path_stats_prefix << "_n" << num_jobs;
+#endif
+#ifdef SUBMIT_PREGEN
+        output_path_stats_prefix << "_n" << pregen_num_jobs;
+#endif
     }
     if (start_record_num_n && !start_record_num_g) {
         output_path_stats_prefix << "_srn" << start_record_num;
@@ -536,7 +553,12 @@ int main(int argc, char** argv) {
         output_path_long_prefix << "_con" << max_num_outstanding_jobs;
     }
     if (num_jobs_n && num_jobs_g) {
+#ifdef SUBMIT_DIS
         output_path_long_prefix << "_n" << num_jobs;
+#endif
+#ifdef SUBMIT_PREGEN
+        output_path_long_prefix << "_n" << pregen_num_jobs;
+#endif
     }
     if (start_record_num_n && start_record_num_g) {
         output_path_long_prefix << "_srn" << start_record_num;
@@ -647,13 +669,13 @@ int main(int argc, char** argv) {
     std::thread monitor_thr(monitor);
     std::thread submit_thr(submit);
 
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(0, &cpuset);
-    pthread_setaffinity_np(monitor_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
+    //cpu_set_t cpuset;
+    //CPU_ZERO(&cpuset);
+    //CPU_SET(0, &cpuset);
+    //pthread_setaffinity_np(monitor_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
 
-    CPU_SET(2, &cpuset);
-    pthread_setaffinity_np(submit_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
+    //CPU_SET(2, &cpuset);
+    //pthread_setaffinity_np(submit_thr.native_handle(), sizeof(cpu_set_t), &cpuset);
 
     monitor_thr.join();
 
@@ -669,6 +691,12 @@ int main(int argc, char** argv) {
     } else { // if (mean_inter_time_g) or default
         fprintf(fp, "%d", (int)mean_inter_time);
     }
+#ifdef SUBMIT_DIS
+    fprintf(fp, ",%u", num_jobs);
+#endif
+#ifdef SUBMIT_PREGEN
+    fprintf(fp, ",%u", pregen_num_jobs);
+#endif
     fprintf(fp, ",%f", time_elasped);
     print_latency_stats(fp, &latencies);
     for (auto& latencies : latencies_per_type) {

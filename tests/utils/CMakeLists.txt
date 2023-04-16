@@ -1,0 +1,1 @@
+add_executable(workload_pregen workload_pregen.cpp)
