@@ -31,7 +31,7 @@ python3 $script_path/plot_latency_throughput_subplots.py \
     --yaxis p99 \
     --subplotx 3 \
     --subploty 3 \
-    --ylim 2000
+    --ylim 1000
 
 python3 $script_path/plot_latency_throughput_subplots.py \
     -o all_prop_newmix3_no_mnist_lns1.5.pdf \
@@ -62,5 +62,5 @@ python3 $script_path/plot_latency_throughput_subplots.py \
     --yaxis p99 \
     --subplotx 3 \
     --subploty 3 \
-    --ylim 2000
+    --ylim 1000
 
