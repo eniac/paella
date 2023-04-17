@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from parse_input_kelvin import *
+from parse_triton import *
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +10,7 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument('-o', '--output_path', dest='output_path');
     parser.add_argument('-i', '--input_path', dest='input_paths', action='append');
     parser.add_argument('-a', '--algo_name', dest='algo_names', action='append');
@@ -26,8 +27,9 @@ if __name__ == "__main__":
 
     data = []
     for path, algo_name in zip(args.input_paths, args.algo_names):
-        if algo_name == 'triton':
-            pass
+        print(algo_name)
+        if algo_name == 'Triton-jbj':
+            data.append(parse_triton(path, args.xaxis, args.yaxis_names))
         elif algo_name == 'clockwork':
             pass
         else:
