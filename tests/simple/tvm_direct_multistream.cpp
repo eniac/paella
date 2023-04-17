@@ -327,17 +327,15 @@ void print_latency_stats(FILE* fp, std::vector<double>* latencies) {
 int main(int argc, char** argv) {
     cudaSetDevice(0);
 
-#ifdef SUBMIT_DIS
     mean_inter_time = -1;
 #ifdef DIS_LN
     log_normal_sigma = -1;
 #endif
 #ifdef SUBMIT_PREGEN
-    unsigned pregen_num_jobs;
+    unsigned pregen_num_jobs = -1;
 #endif
     num_jobs = -1;
     seed = -1;
-#endif
     max_num_outstanding_jobs = -1;
     start_record_num = 0;
     const char* output_path_prefix;
