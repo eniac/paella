@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys
 import argparse
+import itertools
+
+fmts = ['X-', 'o-', '^-', 's-', 'D-', 'v-', 'p-', '*-', 'H-']
 
 yaxis_name2offset = {'Mean': 0, 'p50': 1, 'p90': 2, 'p95': 3, 'p99': 4}
 
@@ -40,7 +43,7 @@ if __name__ == "__main__":
 
     plt.rcParams.update({'font.size': 6})
 
-    fig, subplots = plt.subplots(args.subplotx, args.subploty, sharex=True, sharey=True)
+    fig, subplots = plt.subplots(args.subplotx, args.subploty, sharex=True, sharey=True, layout='constrained')
 
     if args.subplotx * args.subploty > 1:
         subplots_flat = subplots.flat
@@ -58,7 +61,7 @@ if __name__ == "__main__":
         fig.supylabel('Latency (ms)')
 
     for model_id, (model_name, subplot) in enumerate(zip(args.model_names, subplots_flat)):
-        for data_per_algo, algo_name in zip(data, args.algo_names):
+        for data_per_algo, algo_name, fmt in zip(data, args.algo_names, itertools.cycle(fmts)):
             x_data_per_algo, y_data_per_algo = data_per_algo
             y_data_per_model = y_data_per_algo[model_id]
 
@@ -68,7 +71,7 @@ if __name__ == "__main__":
                 else:
                     label = algo_name + ' ' + yaxis_name
 
-                subplot.plot(x_data_per_algo, y_data_series, 'x-', label=label, linewidth=1, markersize=2)
+                subplot.plot(x_data_per_algo, y_data_series, fmt, label=label, linewidth=1, markersize=2)
 
         subplot.set_title(model_name)
         subplot.label_outer()
@@ -84,7 +87,7 @@ if __name__ == "__main__":
         subplot.set_xticks(x_axis)
 
     subplots_flat[0].legend()
-    fig.tight_layout()
+    #fig.tight_layout()
 
     if args.xlim is not None:
         plt.xlim(0, args.xlim)
@@ -92,5 +95,5 @@ if __name__ == "__main__":
         plt.ylim(0, args.ylim)
 
     print(f'Saving figure at {args.output_path}')
-    plt.savefig(args.output_path)
+    plt.savefig(args.output_path, bbox_inches='tight')
 
