@@ -22,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument('--yaxis', dest='yaxis_names', choices=['Mean', 'p50', 'p90', 'p95', 'p99'], action='append', type=str);
     parser.add_argument('--subplotx', dest='subplotx', type=int);
     parser.add_argument('--subploty', dest='subploty', type=int);
+    parser.add_argument('--aspect', dest='aspect', type=float, default=0);
 
     args = parser.parse_args()
 
@@ -69,6 +70,8 @@ if __name__ == "__main__":
 
         subplot.set_title(model_name)
         subplot.label_outer()
+        if args.aspect != 0:
+            subplot.set_box_aspect(args.aspect)
 
     subplots_flat[0].legend()
     fig.tight_layout()
