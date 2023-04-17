@@ -28,7 +28,7 @@ def get_models_percentile(df, percentile):
 
 # input_path is a directory containing 1 .csv file per load point
 def parse_triton(input_path, x_feature, percentiles):
-    pctl_offset = {'Mean': 0, 'p50': 1, 'p90': 2, 'p95': 3, 'p99': 4}
+    pctl_offset = {pctl:i for i, pctl in enumerate(percentiles)}
     model_indexes = {
         'mobilenetv2-7': 1,
         'densenet-9': 2,
@@ -53,7 +53,7 @@ def parse_triton(input_path, x_feature, percentiles):
 
     x = [] # A vector of load points
     y = [ # first level: array of per-model matrices
-            [ # columns: percentiles
+            [ # columns: percentiles as requested by the caller
                 np.zeros(len(sorted_results)) # rows: load datapoints vector
                 for j in range(len(pctl_offset))
             ]
