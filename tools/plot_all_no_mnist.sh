@@ -47,6 +47,8 @@ python3 $script_path/plot_latency_throughput_subplots.py \
     -a 'Paella-CS-kbk' \
     -i all_prop_newmix3_no_mnist_full3_2_lns1.5.txt \
     -a 'Paella-SRPT' \
+    -i /home/maxdml/triton-client/sosp32_results/1.5 \
+    -a 'Triton-jbj' \
     -m 0 -n All \
     -m 1 -n Mobilenet \
     -m 2 -n Densenet \
