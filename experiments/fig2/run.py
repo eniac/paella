@@ -12,7 +12,7 @@ parser.add_argument('--iterate-hwq', action='store_true', default=False)
 args = parser.parse_args()
 
 def run_over_load(n_hwq: int):
-    for i in range(1000, 10001, 1000):
+    for i in range(100, 2000, 200):
         label = f'{args.exp_label}-{n_hwq}hwq'
         cmd_args = ['./fig2', args.mode, label, str(1e9/i)] # interval in ns
         p = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=dict(os.environ, CUDA_DEVICE_MAX_CONNECTIONS=str(n_hwq)))

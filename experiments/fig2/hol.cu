@@ -75,16 +75,16 @@ inline int time_calibrate_tsc(void) {
 
 #define NSMS 40
 #define N_HW_QUEUES 32
-#define NJOBS 4000
+#define NJOBS 10000
 #define NSTREAMS NJOBS
 #define KERNEL_PER_JOB 8
-#define THREADS_PER_KERNEL 128
+#define THREADS_PER_KERNEL 1024
 
 void jct_gatherer(int *kernels_completed, uint64_t *jct, uint64_t *starts) {
     std::unordered_map<int, int> done;
     done.reserve(NJOBS);
     for (int i = 0; i < NJOBS; ++i) {
-        done[i] = false;
+        done[i] = 0;
     }
     uint64_t completed = 0;
     while (completed < NJOBS) {
@@ -103,7 +103,7 @@ void jct_gatherer(int *kernels_completed, uint64_t *jct, uint64_t *starts) {
 /*
    On dedos09/ T4
    ---
-   with -Xptxas -O0, saxpy:
+   with -Xptxas -O0, saxpy, 128 threads/kernel:
     - 5500: median 315us
     - 11000: median 627us
     - 15000: median 853us
@@ -113,12 +113,19 @@ void jct_gatherer(int *kernels_completed, uint64_t *jct, uint64_t *starts) {
    with -03, factorial:
    - 120000: 1ms
 
-   with -03 -arch=sm_75, factorial:
+   with -03 -arch=sm_75, factorial, 128 threads/kernel:
    - 120000: 995us
    - 157080: 1307us
    - 1200000: 9989us
+
+   with -03 -arch=sm_75, factorial, 1024 threads/kernel:
+   - 25000 1015us
+   - 125000 5061us
+   - 250000 10015us
+   - 600000: 24ms
+   - 1200000: 48.5ms
 */
-#define NLOOPS 1200000
+#define NLOOPS 125000
 /*
 __global__ void saxpy(volatile int job_id, volatile int kernel_id, volatile int *kernels_completed) {
     volatile int i = 0;
@@ -145,7 +152,7 @@ __global__ void factorial(int job_id, int kernel_id,
     }
 }
 
-#define NSAMPLES 10000
+#define NSAMPLES 1000
 void measure_kernel_runtime(int *kernels_completed, uint32_t *kernels_scratchpad) {
     std::cout << "Measuring kernel runtime & dispatch time" << std::endl;
     std::cout << "number of loops in kernel: " << NLOOPS << std::endl;
@@ -270,20 +277,27 @@ int main(int argc, char** argv) {
         struct timespec sleeptime;
         sleeptime.tv_sec = 0;
         sleeptime.tv_nsec = interval_ns;
-
-        for (int i = 0; i < NJOBS; ++i) {
-            // XXX Assumes the time to execute the next 4 lines < sleeptime
-            // It takes about 22us to do this dispatch
-            starts[i] = rdtscp(NULL);
-            for (int j = 0; j < KERNEL_PER_JOB; ++j) {
-                 factorial<<<1, THREADS_PER_KERNEL, 0, streams[i % NSTREAMS]>>>(i, j, NLOOPS, kernels_scratchpad, kernels_completed);
-                 cudaError_t err = cudaGetLastError();
-                 if (err != 0) {
-                     std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
-                 }
+        uint64_t interval_in_cycles = interval_ns * cycles_per_ns;
+        uint64_t last_send_cycle = 0;
+        int i = 0;
+        while (i < NJOBS) {
+            // Check if we are due to send a new job
+            uint64_t now = rdtscp(NULL);
+            if ((now - last_send_cycle) > interval_in_cycles) {
+                // It takes about 22us to do this dispatch
+                starts[i] = now;
+                for (int j = 0; j < KERNEL_PER_JOB; ++j) {
+                     factorial<<<1, THREADS_PER_KERNEL, 0, streams[i % NSTREAMS]>>>(i, j, NLOOPS, kernels_scratchpad, kernels_completed);
+                     cudaError_t err = cudaGetLastError();
+                     if (err != 0) {
+                         std::cerr << "Error launching kernel: " << cudaGetErrorString(err) << std::endl;
+                     }
+                }
+                last_send_cycle = now;
+                i++;
             }
-            nanosleep(&sleeptime, NULL);
         }
+
     } else if (mode == 2) {
         // Better mode (one kernel at a time, across max theoretical concurrency)
         std::cout << "Sending kernels in better mode" << std::endl;
@@ -316,7 +330,7 @@ int main(int argc, char** argv) {
                 int kernel_sent = job.second;
                 inflight_jobs.pop();
 
-                // If the job has completed the last kernel it launched, launch the next one
+                // If the job hasn't started or has completed the last kernel it launched, launch the next one
                 if ((kernel_sent == 0) || (kernels_completed[job_id] == kernel_sent)) {
                     // Launch a kernel
                     // std::cout << "dispatching kernel " << kernel_sent << " for job :" << job_id << std::endl;
@@ -365,7 +379,7 @@ int main(int argc, char** argv) {
     // Qlen results
     std::string qlen_fname = experiment_label + "-" + std::to_string(int(sending_rate)) + "-qlen-results.csv";
     std::ofstream qlen_results(qlen_fname);
-    std::cout << "Formatting qlen results in " << fname << std::endl;
+    std::cout << "Formatting qlen results in " << qlen_fname << std::endl;
     qlen_results << "TIME\tQLEN\tRATE" << std::endl;
 
     for (int i = 0; i < NJOBS; ++i) {

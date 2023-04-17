@@ -7,7 +7,7 @@ import sys
 import os
 
 '''
-Triton result files are in the format xx.yaml_[sending rate]_[sigma].csv, e.g., newmix3_sops23.yaml_100_1.5.csv
+Triton result files are in the format results_[sending rate]_[sigma].csv, e.g., newmix3_sops23.yaml_100_1.5.csv
 Columns are [ ID      MODEL   SEND    RECEIVE LATENCY ]
 All time values are in nanoseconds
 '''
@@ -40,7 +40,7 @@ def parse_triton(input_path, x_feature, percentiles):
         'squeezenet1.1-7': 8,
     }
 
-    print('Loading result files from {}'.format(input_path))
+##    print('Loading result files from {}'.format(input_path))
 
     if not os.path.isdir(input_path):
         print('{} is not a valid directory'.format(input_path))
@@ -48,8 +48,8 @@ def parse_triton(input_path, x_feature, percentiles):
 
     result_files = [os.path.join(input_path, f) for f in os.listdir(input_path) if f.endswith('.csv')]
     # Sort by sending_rate
-    sorted_results = sorted(result_files, key=lambda f: int(f.split('.yaml')[1].split('_')[1]))
-    print('Found {}'.format(sorted_results))
+    sorted_results = sorted(result_files, key=lambda f: int(f.split('/')[-1].split('_')[1]))
+##    print('Found {}'.format(sorted_results))
 
     x = [] # A vector of load points
     y = [ # first level: array of per-model matrices
@@ -64,8 +64,8 @@ def parse_triton(input_path, x_feature, percentiles):
 
         df = pd.read_csv(f, delimiter='\t')
 
-        sending_rate = f.split('.yaml')[1].split('_')[1]
-        sigma = f.split('.yaml')[1].split('_')[2].rsplit('.csv')[0]
+        sending_rate = f.split('/')[-1].split('_')[1]
+        sigma = f.split('/')[-1].split('_')[2].split('.csv')[0]
 
         df = df.sort_values('SEND').reset_index(drop=True)
         duration = (df.SEND.iloc[-1] - df.SEND.iloc[0]) / 1e9

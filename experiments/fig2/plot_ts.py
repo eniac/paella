@@ -25,6 +25,7 @@ if args.ideal_jct > 0:
     plt.plot(df.index, [args.ideal_jct for i in range(df.shape[0])], label='ideal job latency')
 
 plt.legend()
+plt.ylim(0)
 plt.xlabel('Job index')
 plt.ylabel('Latency (us)')
 fname = f'{args.csvfile}.pdf'

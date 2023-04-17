@@ -17,9 +17,10 @@ for exp_label in args.exp_labels:
     re_string = f"^{exp_label}-\d+-qlen-results.csv$"
     valid = re.compile(re_string)
     result_files = [f for f in os.listdir(os.curdir) if os.path.isfile(f) and re.match(valid, f)]
+    print(result_files)
     for f in result_files:
         df = pd.read_csv(f, delimiter='\t')
-        plt.plot(df.TIME, df.QLEN, label=f.split('-')[2])
+        plt.plot(df.TIME, df.QLEN, label=f.split('qlen')[0].split('-')[-2])
 
 
 plt.legend()

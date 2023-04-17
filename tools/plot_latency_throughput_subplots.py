@@ -8,6 +8,8 @@ import numpy as np
 import sys
 import argparse
 
+yaxis_name2offset = {'Mean': 0, 'p50': 1, 'p90': 2, 'p95': 3, 'p99': 4}
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -73,6 +75,14 @@ if __name__ == "__main__":
         if args.aspect != 0:
             subplot.set_box_aspect(args.aspect)
 
+    # re-draw x ticks to be idempotent to experiment results
+    x_axis = []
+    for (x_axis_ticks, _) in data:
+        if len(x_axis_ticks) > len(x_axis): #and max(x_axis_ticks) > max(x_axis):
+            x_axis = x_axis_ticks
+    for subplot in subplots_flat:
+        subplot.set_xticks(x_axis)
+
     subplots_flat[0].legend()
     fig.tight_layout()
 
@@ -81,5 +91,6 @@ if __name__ == "__main__":
     if args.ylim is not None:
         plt.ylim(0, args.ylim)
 
+    print(f'Saving figure at {args.output_path}')
     plt.savefig(args.output_path)
 

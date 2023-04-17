@@ -33,8 +33,12 @@ def plot(args):
             dfs.append(ndf)
 
         df = pd.concat(dfs).sort_values('rate').reset_index(drop=True)
+        if args.max_plot_rate > 0:
+            df = df[df.rate <= args.max_plot_rate]
+
         if args.verbose:
             print(df)
+
         plt.plot(df.rate, df.p99, marker='x', label=exp_label)
         '''
         for index in range(df.shape[0]):
@@ -62,6 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('exp_labels', nargs='+', type=str)
     parser.add_argument('-i', '--ideal-jct', type=int, help='Ideal JCT in us', default=0)
     parser.add_argument('-v', '--verbose', action='store_true', default=False)
+    parser.add_argument('-m', '--max-plot-rate', type=int, default=0)
     args = parser.parse_args()
 
     plot(args)
