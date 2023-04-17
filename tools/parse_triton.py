@@ -9,7 +9,10 @@ import os
 '''
 Triton result files are in the format results_[sending rate]_[sigma].csv, e.g., newmix3_sops23.yaml_100_1.5.csv
 Columns are [ ID      MODEL   SEND    RECEIVE LATENCY ]
-All time values are in nanoseconds
+SEND/RECEIVE are in cycles (needs to be divided by 2195 (cycles/us) to get useconds)
+LATENCY is in useconds
+
+We return all times in milliseconds
 '''
 
 def get_all_mean(df):
@@ -67,8 +70,7 @@ def parse_triton(input_path, x_feature, percentiles):
         sending_rate = f.split('/')[-1].split('_')[1]
         sigma = f.split('/')[-1].split('_')[2].split('.csv')[0]
 
-        df = df.sort_values('SEND').reset_index(drop=True)
-        duration = (df.SEND.iloc[-1] - df.SEND.iloc[0]) / 1e9
+        duration = ((max(df.SEND) - min(df.SEND)) / 2195) / 1e6
         if x_feature == 'throughput':
             x.append(df.shape[0] / duration)
         elif x_feature == 'rate':
