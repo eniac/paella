@@ -2,6 +2,7 @@
 
 from parse_input_kelvin import *
 from parse_triton import *
+from parse_clockwork import *
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -36,8 +37,8 @@ if __name__ == "__main__":
         print(algo_name)
         if algo_name == 'Triton-jbj':
             data.append(parse_triton(path, args.xaxis, args.yaxis_names))
-        elif algo_name == 'clockwork':
-            pass
+        elif algo_name == 'Clockwork-jbj':
+            data.append(parse_clockwork(path, args.xaxis, args.yaxis_names))
         else:
             data.append(parse_input_kelvin(path, args.xaxis, args.yaxis_names, args.model_ids))
 
