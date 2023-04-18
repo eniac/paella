@@ -28,33 +28,46 @@ if __name__ == "__main__":
     parser.add_argument('--yaxis', dest='yaxis_names', choices=['Mean', 'p50', 'p90', 'p95', 'p99'], action='append', type=str);
     parser.add_argument('--subplotx', dest='subplotx', type=int);
     parser.add_argument('--subploty', dest='subploty', type=int);
-    parser.add_argument('--aspect', dest='aspect', type=float, default=0);
+    parser.add_argument('--skip_subplot', dest='skip_subplots', type=int, action='append', default=[]);
+    parser.add_argument('--title', dest='title', action=argparse.BooleanOptionalAction, default=True);
+    parser.add_argument('--xlabel', dest='xlabel', action=argparse.BooleanOptionalAction, default=True);
+    parser.add_argument('--legend', dest='legend', action=argparse.BooleanOptionalAction, default=True);
+    parser.add_argument('--legend_subplot', dest='legend_subplot', type=int, default=0);
+    parser.add_argument('--width', dest='width', type=float, default=6.4);
+    parser.add_argument('--height', dest='height', type=float, default=4.8);
 
     args = parser.parse_args()
 
     data = []
     for path, algo_name in zip(args.input_paths, args.algo_names):
         print(algo_name)
-        if algo_name == 'triton':
+        if algo_name == 'Triton':
             data.append(parse_triton(path, args.xaxis, args.yaxis_names))
-        elif algo_name == 'clockwork':
+        elif algo_name == 'Clockwork':
             data.append(parse_clockwork(path, args.xaxis, args.yaxis_names))
         else:
             data.append(parse_input_kelvin(path, args.xaxis, args.yaxis_names, args.model_ids))
 
     plt.rcParams.update({'font.size': 6})
 
-    fig, subplots = plt.subplots(args.subplotx, args.subploty, sharex=True, sharey=True, layout='constrained')
+    fig, subplots = plt.subplots(args.subplotx, args.subploty, sharex=True, sharey=True, layout='constrained', figsize=(args.width, args.height))
 
     if args.subplotx * args.subploty > 1:
-        subplots_flat = subplots.flat
+        subplots_flat = list(subplots.flat)
     else:
         subplots_flat = [subplots]
 
-    if args.xaxis == 'throughput':
-        fig.supxlabel('Average Throughput (req/s)')
-    else:
-        fig.supxlabel('Sending rate (req/s)')
+    for i, skip_subplot in enumerate(args.skip_subplots):
+        subplots_flat[skip_subplot - i].axis('off')
+        subplots_flat.pop(skip_subplot - i)
+
+    if args.xlabel:
+        if args.xaxis == 'throughput':
+            fig.supxlabel('Average Throughput (req/s)')
+        #elif args.xaxis == 'fairness':
+        #    fig.supxlabel('Less Fair  <-     Fairness Threshold     ->  More Fair')
+        else:
+            fig.supxlabel('Sending rate (req/s)')
 
     if len(args.yaxis_names) == 1:
         fig.supylabel(args.yaxis_names[0] + ' Latency (ms)')
@@ -74,20 +87,35 @@ if __name__ == "__main__":
 
                 subplot.plot(x_data_per_algo, y_data_series, fmt, label=label, linewidth=1, markersize=2)
 
-        subplot.set_title(model_name)
+        if args.title:
+            subplot.set_title(model_name)
         subplot.label_outer()
-        if args.aspect != 0:
-            subplot.set_box_aspect(args.aspect)
+
+    if args.subplotx * args.subploty > 1:
+        subplots_flat = list(subplots.flat)
+    else:
+        subplots_flat = [subplots]
+
+    if args.legend:
+        if args.legend_subplot in args.skip_subplots:
+            for algo_name, fmt in zip(args.algo_names, itertools.cycle(fmts)):
+                for yaxis_name in args.yaxis_names:
+                    if len(args.yaxis_names) == 1:
+                        label = algo_name
+                    else:
+                        label = algo_name + ' ' + yaxis_name
+
+                    subplots_flat[args.legend_subplot].plot([], [], fmt, label=label, linewidth=1, markersize=2)
+        subplots_flat[args.legend_subplot].legend()
 
     # re-draw x ticks to be idempotent to experiment results
-    x_axis = []
-    for (x_axis_ticks, _) in data:
-        if len(x_axis_ticks) > len(x_axis): #and max(x_axis_ticks) > max(x_axis):
-            x_axis = x_axis_ticks
-    for subplot in subplots_flat:
-        subplot.set_xticks(x_axis)
+    #x_axis = []
+    #for (x_axis_ticks, _) in data:
+    #    if len(x_axis_ticks) > len(x_axis): #and max(x_axis_ticks) > max(x_axis):
+    #        x_axis = x_axis_ticks
+    #for subplot in subplots_flat:
+    #    subplot.set_xticks(x_axis)
 
-    subplots_flat[0].legend()
     #fig.tight_layout()
 
     if args.xlim is not None:
