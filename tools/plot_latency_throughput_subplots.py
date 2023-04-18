@@ -35,9 +35,9 @@ if __name__ == "__main__":
     data = []
     for path, algo_name in zip(args.input_paths, args.algo_names):
         print(algo_name)
-        if algo_name == 'Triton-jbj':
+        if algo_name == 'triton':
             data.append(parse_triton(path, args.xaxis, args.yaxis_names))
-        elif algo_name == 'Clockwork-jbj':
+        elif algo_name == 'clockwork':
             data.append(parse_clockwork(path, args.xaxis, args.yaxis_names))
         else:
             data.append(parse_input_kelvin(path, args.xaxis, args.yaxis_names, args.model_ids))
