@@ -23,8 +23,8 @@ std::vector<std::vector<double>> latencies_per_thr;
 class MyModule {
   public:
     MyModule(tvm::runtime::Module* mod_factory, const std::vector<int64_t>& input_dim, const std::vector<int64_t>& output_dim) {
-        DLContext ctx_gpu{kDLGPU, 0};
-        DLContext ctx_cpu{kDLCPU, 0};
+        DLDevice ctx_gpu{kDLCUDA, 0};
+        DLDevice ctx_cpu{kDLCPU, 0};
 
         gmod_ = mod_factory->GetFunction("default")(ctx_gpu);
         set_input_ = gmod_.GetFunction("set_input");
@@ -63,8 +63,8 @@ class MyModule {
 
 void worker(std::vector<MyModule>* models, unsigned thr_id) {
     TVMStreamHandle stream;
-    TVMStreamCreate(kDLGPU, 0, &stream);
-    TVMSetStream(kDLGPU, 0, stream);
+    TVMStreamCreate(kDLCUDA, 0, &stream);
+    TVMSetStream(kDLCUDA, 0, stream);
 
     while (1) {
         std::unique_lock<std::mutex> lk(sched_mtx);
@@ -82,7 +82,7 @@ void worker(std::vector<MyModule>* models, unsigned thr_id) {
 
             if (time_elasped >= next_run.second) {
                 (*models)[next_run.first].run();
-                //TVMSynchronize(kDLGPU, 0, stream);
+                //TVMSynchronize(kDLCUDA, 0, stream);
                 auto after_time = std::chrono::steady_clock::now();
 
                 auto latency = std::chrono::duration<double, std::micro>(after_time - start_time).count() - next_run.second;
