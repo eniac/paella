@@ -42,7 +42,7 @@ python3 $script_path/plot_latency_throughput_subplots.py \
     --height 3 \
     --ylim 1000
 
-python3 $1 $script_path/plot_latency_throughput_subplots.py \
+python3 $script_path/plot_latency_throughput_subplots.py \
     -o all_prop_newmix3_no_mnist_lns1.5.pdf \
     -i all_prop_direct_singlestream_newmix3_no_mnist_2_lns1.5.txt \
     -a 'CUDA-SS' \

@@ -105,4 +105,4 @@ def parse_clockwork(input_path, x_feature, percentiles):
 
     return x, y
 
-parse_clockwork('/home/maxdml/allis/experiments/clockwork/fig10/1.5', 'throughput', ['p99'])
+#parse_clockwork('/home/maxdml/allis/experiments/clockwork/fig10/1.5', 'throughput', ['p99'])
