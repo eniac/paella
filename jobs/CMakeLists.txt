@@ -4,6 +4,10 @@ add_subdirectory(vec_add_coroutine)
 add_subdirectory(run_forever)
 add_subdirectory(dummy_long)
 add_subdirectory(dummy_short)
+add_subdirectory(dummy_10)
+add_subdirectory(dummy_11)
+add_subdirectory(dummy_20)
+add_subdirectory(dummy_21)
 # Have to fix it before running it
 #add_subdirectory(cnn)
 
