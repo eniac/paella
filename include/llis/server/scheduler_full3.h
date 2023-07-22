@@ -7,6 +7,7 @@
 #include <llis/server/gpu_resources.h>
 #include <llis/utils/logging.hh>
 #include <llis/job/finished_block_notifier.h>
+#include <llis/server/scheduler.h>
 
 #include <cuda_runtime.h>
 
@@ -206,11 +207,11 @@ class JobQueue {
     TypeMap type_map_;
 };
 
-class SchedulerFull3 {
+class SchedulerFull3 : public Scheduler {
   public:
-    SchedulerFull3(float unfairness_threshold, float eta, unsigned sched_sleep);
+    SchedulerFull3(unsigned num_streams, float unfairness_threshold, unsigned max_num_outstanding_kernels, unsigned sched_sleep);
 
-    void set_server(Server* server);
+    void set_server(Server* server) override;
 
     void handle_new_job(std::unique_ptr<job::Job> job);
     void try_handle_block_start_finish();
@@ -231,8 +232,6 @@ class SchedulerFull3 {
 
     static void mem_notification_callback(void* job);
 
-    Server* server_;
-    Profiler* profiler_;
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
 #ifdef LLIS_MEASURE_BLOCK_TIME
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_block_time_channel_;
@@ -243,7 +242,6 @@ class SchedulerFull3 {
     job::FinishedBlockNotifier* finished_block_notifiers_raw_;
     std::vector<job::FinishedBlockNotifier*> finished_block_notifiers_;
 
-    float eta_;
     unsigned sched_sleep_;
 
     JobQueue job_queue_;
@@ -267,7 +265,7 @@ class SchedulerFull3 {
 #endif
 
     int num_outstanding_kernels_ = 0;
-    static constexpr unsigned max_num_outstanding_kernels_ = 2;
+    unsigned max_num_outstanding_kernels_ = 2;
 };
 
 }

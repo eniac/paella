@@ -22,17 +22,16 @@ namespace server {
 
 void mem_notification_callback(void* job);
 
-SchedulerFull3::SchedulerFull3(float unfairness_threshold, float eta, unsigned sched_sleep) :
-        server_(nullptr),
-        gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
+SchedulerFull3::SchedulerFull3(unsigned num_streams, float unfairness_threshold, unsigned max_num_outstanding_kernels, unsigned sched_sleep) :
+        gpu2sched_channel_(GPU2SCHED_CHAN_SIZE), // TODO: size of the channel must be larger than number of total blocks * 2
 #ifdef LLIS_MEASURE_BLOCK_TIME
         gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
         mem2sched_channel_(409600),
-        cuda_streams_(500),
-        eta_(eta),
+        cuda_streams_(num_streams),
         sched_sleep_(sched_sleep),
-        job_queue_(unfairness_threshold) { // TODO: size of the channel must be larger than number of total blocks * 2
+        job_queue_(unfairness_threshold),
+        max_num_outstanding_kernels_(max_num_outstanding_kernels) {
     SPDLOG_INFO("Setting up LLIS scheduler (full3)...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
@@ -467,6 +466,14 @@ void SchedulerFull3::mem_notification_callback(void* job) {
     ipc::ShmChannelCpuWriter* channel = job::Context::get_mem2sched_channel();
     channel->write(job);
 }
+
+LLIS_SCHEDULER_REGISTER("full3", [](const po::variables_map& args) -> std::unique_ptr<Scheduler> {
+        unsigned num_streams = args["num_streams"].as<unsigned>();
+        float unfairness_threshold = args["unfair"].as<float>();
+        unsigned max_num_outstanding_kernels = args["extra_kernels"].as<unsigned>();
+        unsigned sched_sleep = args["sched_sleep"].as<unsigned>();
+        return std::make_unique<SchedulerFull3>(num_streams, unfairness_threshold, max_num_outstanding_kernels, sched_sleep);
+    });
 
 }
 }

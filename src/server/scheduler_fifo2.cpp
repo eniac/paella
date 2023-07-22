@@ -6,6 +6,8 @@
 #include <llis/job/context.h>
 #include <llis/job/instrument_info.h>
 
+#include <spdlog/spdlog.h>
+
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -18,15 +20,14 @@
 namespace llis {
 namespace server {
 
-SchedulerFifo2::SchedulerFifo2(float unfairness_threshold, float eta, unsigned sched_sleep) :
-        server_(nullptr),
+SchedulerFifo2::SchedulerFifo2(unsigned num_streams, unsigned sched_sleep) :
         gpu2sched_channel_(GPU2SCHED_CHAN_SIZE),
 #ifdef LLIS_MEASURE_BLOCK_TIME
         gpu2sched_block_time_channel_(GPU2SCHED_CHAN_SIZE_TIME),
 #endif
         mem2sched_channel_(10240),
-        cuda_streams_(500) { // TODO: size of the channel must be larger than number of total blocks * 2
-    LLIS_INFO("Setting up LLIS FIFO2 scheduler...");
+        cuda_streams_(num_streams) {
+    SPDLOG_INFO("Setting up LLIS FIFO2 scheduler...");
     job::Context::set_gpu2sched_channel(&gpu2sched_channel_);
 #ifdef LLIS_MEASURE_BLOCK_TIME
     job::Context::set_gpu2sched_block_time_channel(&gpu2sched_block_time_channel_);
@@ -45,11 +46,6 @@ SchedulerFifo2::SchedulerFifo2(float unfairness_threshold, float eta, unsigned s
     for (unsigned i = 0; i < cuda_streams_.size(); ++i) {
         finished_block_notifiers_.push_back(finished_block_notifiers_raw_ + i);
     }
-}
-
-void SchedulerFifo2::set_server(Server* server) {
-    server_ = server;
-    profiler_ = server_->get_profiler();
 }
 
 void SchedulerFifo2::try_handle_block_start_finish() {
@@ -264,6 +260,12 @@ void SchedulerFifo2::mem_notification_callback(void* job) {
     ipc::ShmChannelCpuWriter* channel = job::Context::get_mem2sched_channel();
     channel->write(job);
 }
+
+LLIS_SCHEDULER_REGISTER("fifo2", [](const po::variables_map& args) -> std::unique_ptr<Scheduler> {
+        unsigned num_streams = args["num_streams"].as<unsigned>();
+        unsigned sched_sleep = args["sched_sleep"].as<unsigned>();
+        return std::make_unique<SchedulerFifo2>(num_streams, sched_sleep);
+    });
 
 }
 }

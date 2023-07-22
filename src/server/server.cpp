@@ -9,10 +9,14 @@
 
 #include <spdlog/spdlog.h>
 
+#include <boost/program_options.hpp>
+
 #include <chrono>
 #include <memory>
 #include <thread>
 #include <iostream>
+
+namespace po = boost::program_options;
 
 namespace llis {
 namespace server {
@@ -198,27 +202,34 @@ const std::vector<float>& Server::get_job_stage_resources(job::Job* job) const {
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
-        LLIS_ERROR("usage: ./server [server name] [unfairness threshold] [ETA] [sched_sleep]");
+    po::options_description desc("Allowed options");
+    desc.add_options()
+        ("help", "Show help message")
+        ("name", po::value<std::string>(), "Set server name")
+        ("sched", po::value<std::string>(), "Scheduler (fifo, fifo2, full3)")
+        ("num_streams", po::value<unsigned>()->default_value(500), "Number of streams")
+        ("extra_kernels", po::value<unsigned>()->default_value(2), "Number of extra kernels beyond full utilzation (full3)")
+        ("unfair", po::value<float>()->default_value(1000000), "Set unfairness threshold (full3)")
+        ("sched_sleep", po::value<unsigned>()->default_value(0), "Set artificial sleep time in scheduler")
+    ;
+
+    po::variables_map args;
+    po::store(po::parse_command_line(argc, argv, desc), args);
+    po::notify(args);
+
+    if (args.count("help")) {
+        std::cout << desc << std::endl;
         exit(1);
     }
 
-    std::string server_name = argv[1];
-    float unfairness_threshold = atof(argv[2]);
-    float eta = 1;
-    if (argc >= 4) {
-        eta = atof(argv[3]);
-    }
-    unsigned sched_sleep = 0;
-    if (argc >= 5) {
-        sched_sleep = atoi(argv[4]);
-    }
+    std::string server_name = args["name"].as<std::string>();
+    std::string sched_name = args["sched"].as<std::string>();
 
     SPDLOG_INFO("Registering shared memory channel between server and scheduler");
     llis::ipc::ShmChannelCpuWriter ser2sched_channel(SER2SCHED_CHAN_SIZE);
 
-    llis::server::Scheduler scheduler(unfairness_threshold, eta, sched_sleep);
-    llis::server::Server server(server_name, &scheduler);
+    std::unique_ptr<llis::server::Scheduler> scheduler = llis::server::SchedulerFactory::create(sched_name, args);
+    llis::server::Server server(server_name, scheduler.get());
 
     server.serve();
 }

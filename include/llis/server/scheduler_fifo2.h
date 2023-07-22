@@ -7,6 +7,7 @@
 #include <llis/server/gpu_resources.h>
 #include <llis/utils/logging.hh>
 #include <llis/job/finished_block_notifier.h>
+#include <llis/server/scheduler.h>
 
 #include <cuda_runtime.h>
 
@@ -21,14 +22,12 @@
 namespace llis {
 namespace server {
 
-class SchedulerFifo2 {
+class SchedulerFifo2 : public Scheduler {
   public:
-    SchedulerFifo2(float unfairness_threshold, float eta, unsigned sched_sleep);
+    SchedulerFifo2(unsigned num_streams, unsigned sched_sleep);
 
-    void set_server(Server* server);
-
-    void handle_new_job(std::unique_ptr<job::Job> job);
-    void try_handle_block_start_finish();
+    void handle_new_job(std::unique_ptr<job::Job> job) override;
+    void try_handle_block_start_finish() override;
 
   private:
     class JobCompare {
@@ -50,8 +49,6 @@ class SchedulerFifo2 {
 
     static void mem_notification_callback(void* job);
 
-    Server* server_;
-    Profiler* profiler_;
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_channel_;
 #ifdef LLIS_MEASURE_BLOCK_TIME
     ipc::ShmPrimitiveChannelGpu<uint64_t> gpu2sched_block_time_channel_;
