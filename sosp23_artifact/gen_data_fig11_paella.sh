@@ -3,6 +3,8 @@
 install_path=$1
 res_dir=$2
 
+mkdir -p "${res_dir}"
+
 SERVER_PID=0
 
 trap "kill $SERVER_PID; exit" INT
@@ -13,34 +15,34 @@ for ln_sigma in {1.5,2}; do
             SS)
                 sched=fifo
                 num_streams=1
-                suffix=ss
+                suffix=_ss
                 ;;
             MS-jbj)
                 sched=fifo
                 num_streams=500
-                suffix=msjbj
+                suffix=_msjbj
                 ;;
             MS-kbk)
                 sched=fifo2
                 num_streams=500
-                suffix=mskbk
+                suffix=_mskbk
                 ;;
             Full)
                 sched=full3
                 num_streams=500
-                suffix=full
+                suffix=_full
                 ;;
         esac
 
         for i in {1000,1053,1111,1176,1250,1333,1429,1538,1667,1818,2000,2222,2500,2857,3333,4000,5000,6667,10000,20000,40000,80000,160000}; do
-            taskset -c 4 $install_path/bin/llis_server \
+            taskset -c 4 "${install_path}"/bin/llis_server \
                 --name server \
                 --sched $sched \
                 --num_streams $num_streams &
             SERVER_PID=$!
             sleep 5
 
-            $install_path/bin/llis_client \
+            "${install_path}"/bin/llis_app_client \
                 --server_name server \
                 --iat $i \
                 --ln_sigma $ln_sigma \

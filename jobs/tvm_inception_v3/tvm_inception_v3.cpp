@@ -1,4 +1,5 @@
 #include <llis/job/coroutine_job.h>
+#include <llis/utils/path.h>
 
 #include <tvm/runtime/ndarray.h>
 #include <tvm/runtime/module.h>
@@ -21,7 +22,7 @@ class TVMInceptionV3Job : public llis::job::CoroutineJob {
 
     void one_time_init() override {
         ctx_gpu_ = DLDevice{kDLCUDA, 0};
-        mod_factory_ = tvm::runtime::Module::LoadFromFile("inception_v3-cuda_llis-pack.so");
+        mod_factory_ = tvm::runtime::Module::LoadFromFile(llis::utils::path_concat(std::getenv("LLIS_MODELS_DIR"), "inception_v3-cuda_llis-pack.so"));
         gmod_ = mod_factory_.GetFunction("default")(ctx_gpu_);
         run_ = gmod_.GetFunction("run");
         tvm::runtime::PackedFunc get_input = gmod_.GetFunction("get_input");
