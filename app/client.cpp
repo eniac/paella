@@ -1,11 +1,11 @@
-#include <sstream>
 #define DIS_LN
 
-#include "llis/client/job_ref.h"
-#include <atomic>
+#include <llis/client/job_ref.h>
 #include <llis/client/job_instance_ref.h>
 #include <llis/client/client.h>
 
+#include <atomic>
+#include <sstream>
 #include <iostream>
 #include <chrono>
 #include <cmath>
@@ -15,8 +15,9 @@
 #include <thread>
 #include <algorithm>
 #include <random>
-#include <getopt.h>
 #include <queue>
+
+#include <getopt.h>
 
 using namespace std::chrono_literals;
 
@@ -472,6 +473,8 @@ int main(int argc, char** argv) {
     monitor_thr.join();
 
     double time_elasped = std::chrono::duration<double, std::micro>(end_time - start_time).count();
+    
+    submit_thr.join();
 
     std::stringstream stats_output_path;
     stats_output_path << output_path_stats_prefix.str() << ".txt";

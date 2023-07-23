@@ -1,3 +1,5 @@
+set(CMAKE_INSTALL_RPATH $ORIGIN $ORIGIN/..)
+
 add_subdirectory(helloworld)
 add_subdirectory(helloworld_coroutine)
 add_subdirectory(vec_add_coroutine)
