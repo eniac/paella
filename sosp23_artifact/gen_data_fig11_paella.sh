@@ -1,7 +1,8 @@
 #!/bin/bash
 
 install_path=$1
-res_dir=$2
+LLIS_MODELS_DIR=$2
+res_dir=$3
 
 mkdir -p "${res_dir}"
 
