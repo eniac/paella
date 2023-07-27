@@ -35,12 +35,13 @@ if(PRINT_LAUNCH_JOB_IPC_LATENCY)
 endif(PRINT_LAUNCH_JOB_IPC_LATENCY)
 
 set(CMAKE_INSTALL_RPATH $ORIGIN $ORIGIN/../lib)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 include_directories(include)
 
 add_subdirectory(src)
 add_subdirectory(app)
-add_subdirectory(tests)
-add_subdirectory(jobs)
+add_subdirectory(tests EXCLUDE_FROM_ALL)
+add_subdirectory(jobs EXCLUDE_FROM_ALL)
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION include)
 
