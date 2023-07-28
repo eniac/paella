@@ -13,7 +13,9 @@ mkdir -p "${PREFIX}/opt"
 cd "${PREFIX}/src"
 
 #git clone https://github.com/eniac/llis.git # TODO: should use this
-git clone git@github.com:eniac/llis.git
+git clone https://github.com/eniac/paella.git llis
+cd llis
+git checkout sosp23_artifact
 
 # Get custom TVM source
 
