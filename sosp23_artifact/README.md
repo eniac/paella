@@ -72,7 +72,7 @@ Generate data for direct CUDA (CUDA-SS, CUDA-MS) (25 mins). Results are stored a
 
 ### MPS
 
-We are unable to run MPS on the Cloudlab machine, although it run on the machine we used to prepare for the manuscript. Unfortunately, that machine is down and so we are unable to let you reproduce the MPS results on that machine.
+We are unable to run MPS on the CloudLab machine, although it run on the machine we used to prepare for the manuscript. Unfortunately, that machine is down and so we are unable to let you reproduce the MPS results on that machine.
 
 Supposedly, one can generate data for MPS with the following command. Results are stored at `/bigdisk/results-mps`.
 
@@ -90,5 +90,9 @@ To plot the graphs, run the following:
 
 It generates two graphs at `/bigdisk/graphs`. `fig12_lns1.5.pdf` is for $\sigma=1.5$ and `fig12_lns2.pdf` is for $\sigma=2$.
 
-Note that this script has MPS commented out because we cannot make it run on the Cloudlab machine. If MPS somehow runs, you can uncomment the MPS stuff in the plot script.
+Note that this script has MPS commented out because we cannot make it run on the CloudLab machine. If MPS somehow runs, you can uncomment the MPS stuff in the plot script.
+
+## Comparing results with the graphs on the manuscript
+
+We used NVIDIA Tesla T4 for the manuscript. However, the CloudLab machine we use for artifact evaluation uses NVIDIA Tesla P100 instead. So, the results are not directly comparable, but we expect that they show a similar trend.
 
