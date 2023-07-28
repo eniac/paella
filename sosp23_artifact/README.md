@@ -15,9 +15,7 @@ Please refer to the [instructions](setup/README.md) in the `setup/` directory to
 Generate data for Paella and its ablations (3 hours 15 mins). Results are stored at `/bigdisk/results`.
 
 ```
-
 ./gen_data_fig11_paella.sh
-
 ```
 
 ### Direct CUDA
@@ -25,9 +23,7 @@ Generate data for Paella and its ablations (3 hours 15 mins). Results are stored
 Generate data for direct CUDA (CUDA-SS, CUDA-MS) (1 hour 20 mins). Results are stored at `/bigdisk/results-cuda`.
 
 ```
-
 ./gen_data_fig11_cuda.sh
-
 ```
 
 ### Triton
@@ -35,17 +31,13 @@ Generate data for direct CUDA (CUDA-SS, CUDA-MS) (1 hour 20 mins). Results are s
 Open two terminals. First, on one terminal, run the following to start the triton server:
 
 ```
-
 ./triton_server_launch.sh
-
 ```
 
 Then, on another terminal, run the following to generate data for Triton (10 mins). Results are stored at `/bigdisk/results-triton`.
 
 ```
-
 ./gen_data_fig11_triton.sh
-
 ```
 
 ### Plots
@@ -53,9 +45,7 @@ Then, on another terminal, run the following to generate data for Triton (10 min
 To plot the graphs, run the following:
 
 ```
-
 ./plot_fig11.sh
-
 ```
 
 It generates two graphs at `/bigdisk/graphs`. `fig11_lns1.5.pdf` is for $\sigma=1.5$ and `fig11_lns2.pdf` is for $\sigma=2$.
@@ -67,9 +57,7 @@ It generates two graphs at `/bigdisk/graphs`. `fig11_lns1.5.pdf` is for $\sigma=
 Generate data for Paella and its ablations (1 hour 5 mins). Results are stored at `/bigdisk/results`.
 
 ```
-
 ./gen_data_fig12_paella.sh
-
 ```
 
 ### Direct CUDA
@@ -77,9 +65,7 @@ Generate data for Paella and its ablations (1 hour 5 mins). Results are stored a
 Generate data for direct CUDA (CUDA-SS, CUDA-MS) (25 mins). Results are stored at `/bigdisk/results-cuda`.
 
 ```
-
 ./gen_data_fig12_cuda.sh
-
 ```
 
 ### Plots
