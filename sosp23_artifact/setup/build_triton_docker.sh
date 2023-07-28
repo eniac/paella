@@ -5,10 +5,6 @@ PREFIX=/bigdisk
 cd "$(dirname "$0")"
 abs_path="`pwd`"
 
-# Build models
-
-./onnx2tvm_all.sh /bigdisk/models/onnx /bigdisk/models/cuda cuda
-
 # Get TVM source
 
 cd "${PREFIX}/src"

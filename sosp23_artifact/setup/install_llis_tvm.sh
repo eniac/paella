@@ -69,13 +69,12 @@ echo "export CPATH=${PREFIX}/opt/tvm-llis/include:\$CPATH" | tee -a ~/.bash_prof
 source /etc/profile
 source ~/.bash_profile
 
-# Install LLIS jobs
+# Install LLIS jobs and tests
 
 cd "${PREFIX}/src"
 
 cd llis/release
 cmake .. -Utvm_FOUND # Find TVM again after we have installed it
-cd jobs
 make -j40 install
 
 # Build models
@@ -83,4 +82,6 @@ make -j40 install
 cd "$(dirname "$0")"
 
 ./onnx2tvm_all.sh ${PREFIX}/models/onnx ${PREFIX}/models/cuda_llis cuda_llis
+./onnx2tvm_all.sh ${PREFIX}/models/onnx ${PREFIX}/models/cuda cuda
+rsync -a ../tvm_models_dim/ ${PREFIX}/models/cuda/
 

@@ -55,7 +55,7 @@ sudo systemctl restart docker
 
 cd "${PREFIX}/src"
 
-pip3 install numpy decorator attrs typing-extensions psutil scipy tornado onnx
+pip3 install numpy decorator attrs typing-extensions psutil scipy tornado onnx pandas matplotlib
 mv ${PREFIX}/opt/miniconda3/lib/libstdc++.so.6{,.bak} # The libstdc++ provided by conda is too old. Force using the system one
 
 # Install Boost

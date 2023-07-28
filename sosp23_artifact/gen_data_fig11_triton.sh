@@ -24,5 +24,5 @@ shift "$(($OPTIND -1))"
 mkdir -p $res_dir/1.5
 mkdir -p $res_dir/2
 
-./run.py -b $client_path/build/cc-clients/examples/grpc_async_infer_client_mixed -o $res_dir/ 10 50 10 $client_path/schedules/newmix3_sops23.yaml
+$client_path/run.py -b $client_path/build/cc-clients/examples/grpc_async_infer_client_mixed -o $res_dir/ 10 50 10 $client_path/schedules/newmix3_sops23.yaml
 
