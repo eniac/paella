@@ -15,7 +15,7 @@ cd "${PREFIX}/src"
 #git clone https://github.com/eniac/llis.git # TODO: should use this
 git clone https://github.com/eniac/paella.git llis
 cd llis
-git checkout sosp23_artifact
+git switch sosp23_artifact
 
 # Get custom TVM source
 
