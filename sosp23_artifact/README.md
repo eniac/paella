@@ -40,6 +40,8 @@ Then, on another terminal, run the following to generate data for Triton (10 min
 ./gen_data_fig11_triton.sh
 ```
 
+*Stop the Triton server after it finishes* by Ctrl-C on the terminal running it. Otherwise it will affect the results for other experiments.
+
 ### Plots
 
 To plot the graphs, run the following:
