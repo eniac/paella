@@ -94,7 +94,26 @@ It generates two graphs at `/bigdisk/graphs`. `fig12_lns1.5.pdf` is for $\sigma=
 
 Note that this script has MPS commented out because we cannot make it run on the CloudLab machine. If MPS somehow runs, you can uncomment the MPS stuff in the plot script.
 
+## Fairness between 2 extreme models (fig. 13)
+
+### Run
+
+Generate data for Paella when fairness threshold is adjusted. Results are stored at `/bigdisk/results`.
+
+```
+./gen_data_fig13.sh
+```
+
+### Plot
+
+To plot the graph, run the following:
+
+```
+./plot_fig13.sh
+```
+
+It generates `/bigdisk/graphs/fig13.pdf`.
+
 ## Comparing results with the graphs on the manuscript
 
 We used NVIDIA Tesla T4 for the manuscript. However, the CloudLab machine we use for artifact evaluation uses NVIDIA Tesla P100 instead. So, the results are not directly comparable, but we expect that they show a similar trend.
-
