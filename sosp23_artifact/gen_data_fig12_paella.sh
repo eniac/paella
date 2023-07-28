@@ -79,7 +79,7 @@ for ln_sigma in {1.5,2}; do
                 --iat_g \
                 --ln_sigma_n \
                 --num_jobs 3000 \
-                --concurrency 166 \
+                --concurrency 125 \
                 "${install_path}/lib/llis_jobs/libjob_tvm_resnet18.so" 0.952 119 \
                 "${install_path}/lib/llis_jobs/libjob_tvm_inception_v3.so" 0.048 6
             wait

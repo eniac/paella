@@ -38,7 +38,7 @@ for ln_sigma in {1.5,2}; do
                 suffix=_cudass
                 ;;
             CUDA-MS)
-                num_streams=141
+                num_streams=125
                 suffix=_cudams
                 ;;
         esac
