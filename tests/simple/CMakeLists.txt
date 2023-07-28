@@ -13,6 +13,7 @@ if(tvm_FOUND)
     add_executable(tvm_direct_multistream_pregen tvm_direct_multistream.cpp)
     target_link_libraries(tvm_direct_multistream_pregen tvm::tvm_runtime llis_context CUDA::cudart pthread)
     target_compile_definitions(tvm_direct_multistream_pregen PRIVATE SUBMIT_PREGEN)
+    target_compile_options(tvm_direct_multistream_pregen PUBLIC "-fPIC" PUBLIC "-fPIE")
     install(TARGETS tvm_direct_multistream_pregen DESTINATION bin)
 endif(tvm_FOUND)
 
