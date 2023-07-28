@@ -25,7 +25,7 @@ while getopts 'p:c:t:o:' opt; do
 done
 shift "$(($OPTIND -1))"
 
-mkdir -p /bigdisk/graphs
+mkdir -p ${output_dir}
 
 python3 $script_path/tools/plot_latency_fairness_threshold.py \
     -o $output_dir/fig13.pdf \

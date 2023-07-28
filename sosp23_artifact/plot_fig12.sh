@@ -40,7 +40,7 @@ while getopts 'p:c:t:o:' opt; do
 done
 shift "$(($OPTIND -1))"
 
-mkdir -p /bigdisk/graphs
+mkdir -p ${output_dir}
 
 python3 $script_path/tools/plot_latency_throughput_subplots.py \
     -o $output_dir/fig12_lns2.pdf \
