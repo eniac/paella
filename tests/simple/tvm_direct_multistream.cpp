@@ -1,6 +1,4 @@
 #define DIS_LN
-//#define SUBMIT_PREGEN
-#define SUBMIT_DIS
 
 #include <dlpack/dlpack.h>
 #include <tvm/runtime/module.h>

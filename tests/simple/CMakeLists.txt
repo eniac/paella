@@ -6,9 +6,14 @@ if(tvm_FOUND)
     target_link_libraries(tvm_direct_concurrent tvm::tvm_runtime llis_context CUDA::cudart pthread)
 
     add_executable(tvm_direct_multistream tvm_direct_multistream.cpp)
-    #target_compile_options(tvm_direct_multistream PUBLIC "-fPIC" PUBLIC "-fPIE")
     target_link_libraries(tvm_direct_multistream tvm::tvm_runtime llis_context CUDA::cudart pthread)
+    target_compile_definitions(tvm_direct_multistream PRIVATE SUBMIT_DIS)
     install(TARGETS tvm_direct_multistream DESTINATION bin)
+
+    add_executable(tvm_direct_multistream_pregen tvm_direct_multistream.cpp)
+    target_link_libraries(tvm_direct_multistream_pregen tvm::tvm_runtime llis_context CUDA::cudart pthread)
+    target_compile_definitions(tvm_direct_multistream_pregen PRIVATE SUBMIT_PREGEN)
+    install(TARGETS tvm_direct_multistream_pregen DESTINATION bin)
 endif(tvm_FOUND)
 
 add_executable(cuda_sync_benchmark cuda_sync_benchmark.cu)
