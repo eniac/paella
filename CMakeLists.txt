@@ -14,6 +14,15 @@ find_package(Boost REQUIRED system context program_options)
 
 find_package(spdlog REQUIRED)
 
+option(TVM_INCLUDE_DIR "Headers directory of TVM")
+
+find_package(tvm)
+if(tvm_FOUND)
+    if(TVM_INCLUDE_DIR)
+        include_directories(PUBLIC ${TVM_INCLUDE_DIR})
+    endif(TVM_INCLUDE_DIR)
+endif(tvm_FOUND)
+
 option(MEASURE_BLOCK_TIME "Enable measurement of block time" OFF)
 if(MEASURE_BLOCK_TIME)
     add_definitions(-DLLIS_MEASURE_BLOCK_TIME)
@@ -40,8 +49,8 @@ include_directories(include)
 
 add_subdirectory(src)
 add_subdirectory(app)
-add_subdirectory(tests EXCLUDE_FROM_ALL)
-add_subdirectory(jobs EXCLUDE_FROM_ALL)
+add_subdirectory(tests)
+add_subdirectory(jobs)
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION include)
 

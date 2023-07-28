@@ -13,13 +13,7 @@ add_subdirectory(dummy_21)
 # Have to fix it before running it
 #add_subdirectory(cnn)
 
-find_package(tvm)
-
 if(tvm_FOUND)
-    if(TVM_INCLUDE_DIR)
-        include_directories(PUBLIC ${TVM_INCLUDE_DIR})
-    endif(TVM_INCLUDE_DIR)
-
     add_subdirectory(tvm_mnist)
     add_subdirectory(tvm_mobilenet)
     add_subdirectory(tvm_resnet18)
