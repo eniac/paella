@@ -1,8 +1,32 @@
 #!/bin/bash
 
-install_path=$1
-LLIS_MODELS_DIR=$2
-res_dir=$3
+install_path=/bigdisk/opt/llis
+export LLIS_MODELS_DIR=/bigdisk/models/cuda_llis
+res_dir=/bigdisk/results
+
+while getopts 'p:m:o:' opt; do
+  case "$opt" in
+    p)
+      install_path="$OPTARG"
+      ;;
+
+    m)
+      export LLIS_MODELS_DIR="$OPTARG"
+      ;;
+
+    o)
+      res_dir="$OPTARG"
+      ;;
+   
+    ?|h)
+      echo "Usage: $(basename $0) [-p install_path] [-m model_dir] [-o output_dir]"
+      exit 1
+      ;;
+  esac
+done
+shift "$(($OPTIND -1))"
+
+export CUDA_DEVICE_MAX_CONNECTIONS=32
 
 mkdir -p "${res_dir}"
 
@@ -55,15 +79,15 @@ for ln_sigma in {1.5,2}; do
                 --iat_g \
                 --ln_sigma_n \
                 --num_jobs 3000 \
-                --concurrency 187 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_mobilenet.so" 0.257 48 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_densenet121.so" 0.0706 13 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_googlenet.so" 0.0546 10 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_inception_v3.so" 0.0138 3 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_resnet18.so" 0.272 51 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_resnet34.so" 0.168 31 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_resnet50.so" 0.0745 14 \
-                "${install_path}/lib/llis_jobs/libjob_tvm_squeezenet1_1.so" 0.0894999999999999 17
+                --concurrency 141 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_mobilenet.so 0.257 36 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_densenet121.so 0.0706 10 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_googlenet.so 0.0546 8 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_inception_v3.so 0.0138 2 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_resnet18.so 0.272 38 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_resnet34.so 0.168 24 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_resnet50.so 0.0745 10 \
+                ${install_path}/lib/llis_jobs/libjob_tvm_squeezenet1_1.so 0.0894999999999999 13
             wait
         done
     done
