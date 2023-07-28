@@ -2,6 +2,8 @@
 
 This is the artifact for the SOSP 2023 Paper #224 Paella: Low-latency Model Serving with Virtualized GPU Scheduling.
 
+If you are using the machine we provided, there is a copy of this directory in the home directory.
+
 ## Setup
 
 Please refer to the [instructions](setup/README.md) in the `setup/` directory to setup the environment.
