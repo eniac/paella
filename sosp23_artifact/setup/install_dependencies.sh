@@ -7,6 +7,7 @@ NVIDIA_VERSION=535.54.03
 BOOST_VERSION=1.82.0
 SPDLOG_VERSION=1.11.0 # 1.12.0 does not work
 
+sudo mkdir -p "${PREFIX}"
 sudo chown $USER "${PREFIX}"
 
 mkdir -p "${PREFIX}/src"
