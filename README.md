@@ -1,4 +1,10 @@
-# LLIS
+# Paella / LLIS
+
+This project was called LLIS at the very beginning, and so this name is used in the codebase.
+
+## SOSP 2023 Artifact Evaluation
+
+Please refer to the [instructions](sosp23_artifact/README.md) in the `sosp23_artifact/` directory.
 
 ## Build
 
