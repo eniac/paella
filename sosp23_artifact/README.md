@@ -4,11 +4,15 @@ This is the artifact for the SOSP 2023 Paper #224 Paella: Low-latency Model Serv
 
 If you are using the machine we provided, there is a copy of this directory in the home directory.
 
+Note that you should verify, e.g., using the `who` or `ps -ef` commands, that other evaluators are not using the machine at the same time or the performance results will include outside contention.
+
+Also note that the machine we provide---while free and publically accessible thanks to the NSF---uses an older GPU model than the one used in our evaluation, which limits features and affects the absolute values of the evaluation but not the trends.
+
 ## Setup
 
 Please refer to the [instructions](setup/README.md) in the `setup/` directory to setup the environment.
 
-*Note that you should skip this part if you are using the machine we provided, as it already has the environment set up.*
+*Skip this part if you are using the machine we provided, as it already has the environment set up.*
 
 ## Serving a mix of 8 models (fig. 11)
 
@@ -42,7 +46,7 @@ Then, on another terminal, run the following to generate data for Triton (10 min
 ./gen_data_fig11_triton.sh
 ```
 
-*Stop the Triton server after it finishes* by Ctrl-C on the terminal running it. Otherwise it will affect the results for other experiments.
+*Stop the Triton server after it finishes* by Ctrl-C on the terminal running it. Otherwise, it will affect the results of other experiments.
 
 ### Plots
 
@@ -74,9 +78,7 @@ Generate data for direct CUDA (CUDA-SS, CUDA-MS) (25 mins). Results are stored a
 
 ### MPS
 
-We are unable to run MPS on the CloudLab machine, although it run on the machine we used to prepare for the manuscript. Unfortunately, that machine is down and so we are unable to let you reproduce the MPS results on that machine.
-
-Supposedly, one can generate data for MPS with the following command. Results are stored at `/bigdisk/results-mps`.
+NOTE(MPS): The CloudLab machine's Tesla P100 GPU is pre-Volta and, therefore, does not support full MPS functionality.  We are not including support for this baseline in the artifact evaluation, but theoretically, on a newer GPU, one can generate data for MPS with the following command. Results are stored at `/bigdisk/results-mps`.
 
 ```
 ./gen_data_fig12_mps.sh
@@ -92,7 +94,7 @@ To plot the graphs, run the following:
 
 It generates two graphs at `/bigdisk/graphs`. `fig12_lns1.5.pdf` is for $\sigma=1.5$ and `fig12_lns2.pdf` is for $\sigma=2$.
 
-Note that this script has MPS commented out because we cannot make it run on the CloudLab machine. If MPS somehow runs, you can uncomment the MPS stuff in the plot script.
+NOTE(MPS): this script has MPS commented out because of the above issue.  On a GPU with MPS support, you can uncomment the MPS code in the plot script.
 
 ## Fairness between 2 extreme models (fig. 13)
 
@@ -116,4 +118,4 @@ It generates `/bigdisk/graphs/fig13.pdf`.
 
 ## Comparing results with the graphs on the manuscript
 
-We used NVIDIA Tesla T4 for the manuscript. However, the CloudLab machine we use for artifact evaluation uses NVIDIA Tesla P100 instead. So, the results are not directly comparable, but we expect that they show a similar trend.
+We used NVIDIA Tesla T4 for the manuscript. However, the CloudLab machine we use for artifact evaluation uses NVIDIA Tesla P100 instead. So, the values are not directly comparable, but the trends hold.
