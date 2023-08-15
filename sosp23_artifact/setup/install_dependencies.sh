@@ -2,10 +2,26 @@
 
 PREFIX=/bigdisk
 
+while getopts 'p:' opt; do
+  case "$opt" in
+    p)
+      PREFIX="$OPTARG"
+      ;;
+
+    ?|h)
+      echo "Usage: $(basename $0) [-p PREFIX]"
+      exit 1
+      ;;
+  esac
+done
+
 CUDA_VERSION=12.2.0
 NVIDIA_VERSION=535.54.03
 BOOST_VERSION=1.82.0
 SPDLOG_VERSION=1.11.0 # 1.12.0 does not work
+
+source /etc/profile
+source ~/.bash_profile
 
 sudo mkdir -p "${PREFIX}"
 sudo chown $USER "${PREFIX}"

@@ -2,6 +2,22 @@
 
 PREFIX=/bigdisk
 
+while getopts 'p:' opt; do
+  case "$opt" in
+    p)
+      PREFIX="$OPTARG"
+      ;;
+
+    ?|h)
+      echo "Usage: $(basename $0) [-p PREFIX]"
+      exit 1
+      ;;
+  esac
+done
+
+source /etc/profile
+source ~/.bash_profile
+
 sudo chown $USER "${PREFIX}"
 
 mkdir -p "${PREFIX}/src"

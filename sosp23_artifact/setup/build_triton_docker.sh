@@ -2,6 +2,22 @@
 
 PREFIX=/bigdisk
 
+while getopts 'p:' opt; do
+  case "$opt" in
+    p)
+      PREFIX="$OPTARG"
+      ;;
+
+    ?|h)
+      echo "Usage: $(basename $0) [-p PREFIX]"
+      exit 1
+      ;;
+  esac
+done
+
+source /etc/profile
+source ~/.bash_profile
+
 cd "$(dirname "$0")"
 abs_path="`pwd`"
 

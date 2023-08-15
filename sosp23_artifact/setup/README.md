@@ -2,7 +2,7 @@
 
 *Note that you should skip this part if you are using the machine we provided, as it already has the environment set up.*
 
-The following scripts install stuff in the `/bigdisk` directory. If you want to change the installation location, modify the `PREFIX` variable at the top of each script.
+The following scripts install stuff in the `/bigdisk` directory by default. If you want to change the installation location, you can use the `-p` argument (e.g., `./install_dependencies.sh -p /my_dir`).
 
 First, `cd` into the `setup/` directory if you have not done so yet.
 
@@ -14,7 +14,7 @@ First, `cd` into the `setup/` directory if you have not done so yet.
 
 4. Run `./install_triton_client.sh` to install the Triton client.
 
-*Either `source ~/.bash_profile` or logout and then log back in to ensure that the environment variables are set.*
+*After running all scripts, either `source ~/.bash_profile` or logout and then log back in to ensure that the environment variables are set.*
 
 ## Reset
 

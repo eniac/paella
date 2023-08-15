@@ -1,14 +1,29 @@
 #!/bin/bash
 
-rm -rf /bigdisk/src
-rm -rf /bigdisk/opt
-rm -rf /bigdisk/results
-rm -rf /bigdisk/results-triton
-rm -rf /bigdisk/results-cuda
-rm -rf /bigdisk/results-mps
-rm -rf /bigdisk/graphs
-rm -rf /bigdisk/models/cuda
-rm -rf /bigdisk/models/cuda_llis
-rm -rf /bigdisk/models/tensorflow
+PREFIX=/bigdisk
+
+while getopts 'p:' opt; do
+  case "$opt" in
+    p)
+      PREFIX="$OPTARG"
+      ;;
+
+    ?|h)
+      echo "Usage: $(basename $0) [-p PREFIX]"
+      exit 1
+      ;;
+  esac
+done
+
+rm -rf ${PREFIX}/src
+rm -rf ${PREFIX}/opt
+rm -rf ${PREFIX}/results
+rm -rf ${PREFIX}/results-triton
+rm -rf ${PREFIX}/results-cuda
+rm -rf ${PREFIX}/results-mps
+rm -rf ${PREFIX}/graphs
+rm -rf ${PREFIX}/models/cuda
+rm -rf ${PREFIX}/models/cuda_llis
+rm -rf ${PREFIX}/models/tensorflow
 rm ~/.bash_profile
 

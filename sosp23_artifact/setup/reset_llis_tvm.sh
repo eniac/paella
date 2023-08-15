@@ -1,8 +1,23 @@
 #!/bin/bash
 
-rm -rf /bigdisk/src/llis
-rm -rf /bigdisk/src/tvm-llis
+PREFIX=/bigdisk
 
-rm -rf /bigdisk/opt/llis
-rm -rf /bigdisk/opt/tvm-llis
+while getopts 'p:' opt; do
+  case "$opt" in
+    p)
+      PREFIX="$OPTARG"
+      ;;
+
+    ?|h)
+      echo "Usage: $(basename $0) [-p PREFIX]"
+      exit 1
+      ;;
+  esac
+done
+
+rm -rf ${PREFIX}/src/llis
+rm -rf ${PREFIX}/src/tvm-llis
+
+rm -rf ${PREFIX}/opt/llis
+rm -rf ${PREFIX}/opt/tvm-llis
 
