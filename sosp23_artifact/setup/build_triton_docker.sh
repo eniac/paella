@@ -39,11 +39,11 @@ sudo docker run --gpus=1 --shm-size=1g --ulimit memlock=-1 --ulimit stack=671088
                 nvcr.io/nvidia/tensorflow:23.03-tf2-py3 \
                 /workspace/sosp23_artifact/setup/triton_docker/run_on_tf_docker.sh # Use convert_tvm_to_tf.sh instead if building TVM is not necessary
 
-sudo rsync -a ../tf_models_config/ ${PREFIX}/models/tensorflow/
+sudo rsync -a ${abs_path}/../tf_models_config/ ${PREFIX}/models/tensorflow/
 
 # Build docker image
 
-cd triton_docker
+cd ${abs_path}/triton_docker
 
 mkdir -p models
 sudo mount --bind ${PREFIX}/models models
