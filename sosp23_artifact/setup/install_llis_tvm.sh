@@ -20,6 +20,10 @@ CUDA_ARCHITECTURES=60
 source /etc/profile
 source ~/.bash_profile
 
+cd "$(direname "$0")"
+abs_path="`pwd`"
+cd -
+
 sudo chown $USER "${PREFIX}"
 
 mkdir -p "${PREFIX}/src"
@@ -98,7 +102,7 @@ make -j40 install
 
 # Build models
 
-cd "$(dirname "$0")"
+cd "$abs_path"
 
 ./onnx2tvm_all.sh ${PREFIX}/models/onnx ${PREFIX}/models/cuda_llis cuda_llis
 ./onnx2tvm_all.sh ${PREFIX}/models/onnx ${PREFIX}/models/cuda cuda
